@@ -28,8 +28,11 @@ async function main() {
   const dataDirectory = path.join(__dirname, "seedData");
 
   // Create order: parents before children
+  // By default, DO NOT reseed Products to avoid overwriting imported or live data.
+  // To force seeding products, set SEED_PRODUCTS=true in environment.
+  const seedProducts = (process.env.SEED_PRODUCTS || "").toLowerCase() === "true";
   const createOrder = [
-    "products.json",
+    // seedProducts ? "products.json" : undefined,
     "sales.json",
     "purchases.json",
     "salesSummary.json",
@@ -37,7 +40,7 @@ async function main() {
     "expenseSummary.json",
     "expenseByCategory.json",
     "expenses.json",
-  ];
+  ].filter(Boolean) as string[];
 
   // Delete order: children before parents (reverse of create)
   const deleteOrder = [...createOrder].reverse();
@@ -66,11 +69,50 @@ async function main() {
         if (!data.role) data.role = "user";
       }
 
-      await model.create({
-        data,
-      });
+      await model.create({ data });
     }
     console.log(`Seeded ${clientModelName} with data from ${fileName}`);
+  }
+
+  // Optionally seed products if SEED_PRODUCTS=true
+  if (seedProducts) {
+    const productsFilePath = path.join(dataDirectory, "products.json");
+    if (fs.existsSync(productsFilePath)) {
+      const jsonData = JSON.parse(fs.readFileSync(productsFilePath, "utf-8"));
+      // Clear existing products ONLY when explicitly seeding products
+      await prisma.products.deleteMany({});
+      for (const raw of jsonData) {
+        const data: any = { ...raw };
+        await prisma.products.create({ data });
+      }
+      console.log("Seeded products from products.json (SEED_PRODUCTS=true)");
+    }
+    // Also merge any importedProducts.json into DB if present
+    const importedPath = path.join(dataDirectory, "importedProducts.json");
+    if (fs.existsSync(importedPath)) {
+      const imported = JSON.parse(fs.readFileSync(importedPath, "utf-8"));
+      for (const item of imported) {
+        try {
+          await prisma.products.upsert({
+            where: { productId: String(item.productId) },
+            update: {
+              name: String(item.name),
+              price: Number(item.price),
+              stockQuantity: Number(item.stockQuantity),
+            },
+            create: {
+              productId: String(item.productId),
+              name: String(item.name),
+              price: Number(item.price),
+              stockQuantity: Number(item.stockQuantity),
+            },
+          });
+        } catch (e) {
+          console.warn("Seed upsert imported product failed:", e);
+        }
+      }
+      console.log("Merged importedProducts.json into Products table");
+    }
   }
 
   // Ensure an admin user exists AFTER seeding base data

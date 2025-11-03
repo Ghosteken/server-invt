@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { appendNotification } from "../services/notificationService";
 import XLSX from "xlsx";
+import fs from "node:fs";
+import path from "node:path";
 import { randomUUID } from "crypto";
 
 const prisma = new PrismaClient();
@@ -122,6 +124,22 @@ export const updateProduct = async (
   }
 };
 
+export const exportProducts = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const products = await prisma.products.findMany({ orderBy: { name: "asc" } });
+    const json = JSON.stringify(products, null, 2);
+    res.setHeader("Content-Type", "application/json");
+    res.setHeader("Content-Disposition", "attachment; filename=products.json");
+    res.status(200).send(json);
+  } catch (error) {
+    console.error("exportProducts error:", error);
+    res.status(500).json({ message: "Failed to export products" });
+  }
+};
+
 /**
  * Bulk import products from an uploaded Excel file.
  * Accepts a single file under field name "file". The Excel sheet should contain
@@ -209,6 +227,39 @@ export const importProducts = async (
       data: productsToInsert,
       skipDuplicates: true,
     });
+
+    // Persist imported products to JSON file for audit and optional future seeding
+    try {
+      const seedDir = path.join(__dirname, "../../prisma/seedData");
+      const outPath = path.join(seedDir, "importedProducts.json");
+      if (!fs.existsSync(seedDir)) {
+        fs.mkdirSync(seedDir, { recursive: true });
+      }
+      let existing: any[] = [];
+      if (fs.existsSync(outPath)) {
+        try {
+          existing = JSON.parse(fs.readFileSync(outPath, "utf-8"));
+        } catch {
+          existing = [];
+        }
+      }
+      const map = new Map<string, any>();
+      for (const item of existing) {
+        if (item && item.productId) map.set(String(item.productId), item);
+      }
+      for (const item of productsToInsert) {
+        map.set(item.productId, {
+          productId: item.productId,
+          name: item.name,
+          price: item.price,
+          stockQuantity: item.stockQuantity,
+        });
+      }
+      const merged = Array.from(map.values());
+      fs.writeFileSync(outPath, JSON.stringify(merged, null, 2), "utf-8");
+    } catch (persistErr) {
+      console.warn("Failed to persist imported products to JSON:", persistErr);
+    }
 
     appendNotification({
       type: "product",
