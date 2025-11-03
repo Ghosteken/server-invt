@@ -11,5 +11,23 @@
     "type": "product",
     "message": "Imported 4 products from Excel",
     "timestamp": "2025-11-03T13:05:28.187Z"
+  },
+  {
+    "id": "1762177249022-swlrlh",
+    "type": "product",
+    "message": "Product updated: American Century Plant",
+    "timestamp": "2025-11-03T13:40:49.022Z"
+  },
+  {
+    "id": "1762177264187-87gznq",
+    "type": "product",
+    "message": "Product updated: American Century Plant",
+    "timestamp": "2025-11-03T13:41:04.187Z"
+  },
+  {
+    "id": "1762177365819-0e3c6v",
+    "type": "product",
+    "message": "Product updated: American Century Plant",
+    "timestamp": "2025-11-03T13:42:45.819Z"
   }
 ]

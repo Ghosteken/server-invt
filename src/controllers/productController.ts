@@ -61,6 +61,67 @@ export const createProduct = async (
   }
 };
 
+export const getProductById = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { productId } = req.params;
+    const product = await prisma.products.findUnique({ where: { productId } });
+    if (!product) {
+      res.status(404).json({ message: "Product not found" });
+      return;
+    }
+    res.json(product);
+  } catch (error) {
+    res.status(500).json({ message: "Error retrieving product" });
+  }
+};
+
+export const updateProduct = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { productId } = req.params;
+    const { name, price, stockQuantity, expiryDate } = req.body;
+
+    const existing = await prisma.products.findUnique({ where: { productId } });
+    if (!existing) {
+      res.status(404).json({ message: "Product not found" });
+      return;
+    }
+
+    const data: any = {};
+    if (typeof name === "string") data.name = name;
+    if (price !== undefined && price !== null && !isNaN(Number(price))) data.price = Number(price);
+    if (stockQuantity !== undefined && stockQuantity !== null && !isNaN(Number(stockQuantity))) data.stockQuantity = Number(stockQuantity);
+    if (expiryDate !== undefined) {
+      if (expiryDate === null || expiryDate === "") {
+        data.expiryDate = null;
+      } else {
+        const d = new Date(expiryDate);
+        if (isNaN(d.getTime())) {
+          res.status(400).json({ message: "Invalid expiryDate" });
+          return;
+        }
+        data.expiryDate = d;
+      }
+    }
+
+    const updated = await prisma.products.update({ where: { productId }, data });
+    appendNotification({
+      type: "product",
+      message: `Product updated: ${updated.name}`,
+      actorUserId: req.user?.userId,
+    });
+    res.json(updated);
+  } catch (error) {
+    console.error("updateProduct error:", error);
+    res.status(500).json({ message: "Error updating product" });
+  }
+};
+
 /**
  * Bulk import products from an uploaded Excel file.
  * Accepts a single file under field name "file". The Excel sheet should contain

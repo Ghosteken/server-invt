@@ -30,6 +30,7 @@ model Products {
   price         Float
   rating        Float?
   stockQuantity Int
+  expiryDate    DateTime?
   Sales         Sales[]
   Purchases     Purchases[]
 }
