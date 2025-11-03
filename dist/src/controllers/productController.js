@@ -3,13 +3,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getImportSample = exports.importProducts = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
+exports.getImportSample = exports.processInvoice = exports.importProducts = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
 const client_1 = require("@prisma/client");
 const notificationService_1 = require("../services/notificationService");
 const xlsx_1 = __importDefault(require("xlsx"));
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const crypto_1 = require("crypto");
+const pdf_parse_1 = __importDefault(require("pdf-parse"));
 const prisma = new client_1.PrismaClient();
 const getProducts = async (req, res) => {
     try {
@@ -245,6 +246,133 @@ const importProducts = async (req, res) => {
     }
 };
 exports.importProducts = importProducts;
+// Process an invoice: parse text or PDF and deduct stock; persist customer and purchases
+const processInvoice = async (req, res) => {
+    try {
+        const file = req.file;
+        const { invoiceText, invoiceUrl } = req.body;
+        let text = undefined;
+        if (invoiceText && typeof invoiceText === "string" && invoiceText.trim().length > 0) {
+            text = invoiceText;
+        }
+        else if (invoiceUrl && typeof invoiceUrl === "string" && invoiceUrl.trim().length > 0) {
+            try {
+                const resp = await fetch(invoiceUrl);
+                text = await resp.text();
+            }
+            catch {
+                // ignore
+            }
+        }
+        else if (file && file.mimetype === "application/pdf") {
+            const data = await (0, pdf_parse_1.default)(file.buffer);
+            text = data.text;
+        }
+        if (!text) {
+            res.status(400).json({ message: "No invoice content provided (text, url, or pdf)." });
+            return;
+        }
+        // Basic parsing tailored to provided sample format
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        // Extract customer block heuristically
+        const customer = {};
+        const customerIdx = lines.findIndex(l => /Customer/i.test(l));
+        if (customerIdx >= 0) {
+            // try to read next few lines for name/mobile and address
+            for (let i = customerIdx + 1; i < Math.min(lines.length, customerIdx + 6); i++) {
+                const l = lines[i];
+                const m = l.match(/Mobile:\s*(.*)/i);
+                if (m) {
+                    customer.mobile = m[1].trim();
+                    continue;
+                }
+                if (!customer.name) {
+                    customer.name = l.replace(/[,;]+/g, ", ").trim();
+                    continue;
+                }
+                if (!customer.address && /Lagos|NIGERIA|STATE/i.test(l)) {
+                    customer.address = l;
+                }
+            }
+        }
+        const items = [];
+        let pendingName = null;
+        for (let i = 0; i < lines.length; i++) {
+            const l = lines[i];
+            // Detect a product name line possibly followed by code on next line
+            if (/[,]/.test(l) && /\d{4,}/.test(l)) {
+                // Name and code on same line before the comma
+                const parts = l.split(",");
+                const namePart = parts[0].trim();
+                const codePart = parts[1] ? parts[1].trim() : undefined;
+                pendingName = namePart;
+                // Try to consume next line with quantity/price
+                continue;
+            }
+            // Quantity line e.g. "50  Ctn" and prices on the same or next line
+            if (pendingName) {
+                const qtyMatch = l.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units)?/i);
+                const priceMatch = l.match(/(\d[\d,]*\.?\d*)/g);
+                if (qtyMatch) {
+                    const quantity = Math.floor(Number(qtyMatch[1].replace(/,/g, "")) || 0);
+                    let unitPrice;
+                    let subtotal;
+                    if (priceMatch && priceMatch.length >= 2) {
+                        unitPrice = Number(priceMatch[priceMatch.length - 2].replace(/,/g, ""));
+                        subtotal = Number(priceMatch[priceMatch.length - 1].replace(/,/g, ""));
+                    }
+                    items.push({ name: pendingName, quantity, unitPrice, subtotal });
+                    pendingName = null;
+                    continue;
+                }
+            }
+        }
+        if (!items.length) {
+            res.status(400).json({ message: "No line items parsed from invoice." });
+            return;
+        }
+        // Create or find customer
+        const custName = customer.name || "Unknown Customer";
+        let cust = await prisma.customers.findFirst({ where: { name: custName } });
+        if (!cust) {
+            cust = await prisma.customers.create({ data: {
+                    customerId: (0, crypto_1.randomUUID)(),
+                    name: custName,
+                    mobile: customer.mobile,
+                    address: customer.address,
+                    city: customer.city,
+                    state: customer.state,
+                    country: customer.country,
+                } });
+        }
+        // For each item, find product by name (case-insensitive contains), deduct stock, and record purchase
+        const updates = [];
+        for (const item of items) {
+            const prod = await prisma.products.findFirst({ where: { name: { contains: item.name, mode: "insensitive" } } });
+            if (!prod) {
+                continue; // skip unmatched
+            }
+            const newQty = Math.max(0, (prod.stockQuantity || 0) - (item.quantity || 0));
+            await prisma.products.update({ where: { productId: prod.productId }, data: { stockQuantity: newQty } });
+            await prisma.customerPurchases.create({ data: {
+                    id: (0, crypto_1.randomUUID)(),
+                    customerId: cust.customerId,
+                    productId: prod.productId,
+                    quantity: item.quantity,
+                    unitPrice: item.unitPrice ?? prod.price,
+                    totalCost: (item.subtotal ?? (item.unitPrice ?? prod.price) * item.quantity),
+                } });
+            updates.push({ productId: prod.productId, name: prod.name, deducted: item.quantity });
+        }
+        (0, notificationService_1.appendNotification)({ type: "inventory", message: `Processed invoice for ${cust.name}; updated ${updates.length} product(s).`, actorUserId: req.user?.userId });
+        res.json({ customer: cust, items, updates });
+    }
+    catch (error) {
+        console.error("processInvoice error:", error);
+        res.status(500).json({ message: "Error processing invoice" });
+    }
+};
+exports.processInvoice = processInvoice;
 /**
  * Generate and send a sample Excel file for inventory import testing.
  */

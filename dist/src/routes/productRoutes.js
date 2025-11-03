@@ -13,6 +13,7 @@ router.post("/", productController_1.createProduct);
 router.post("/import", upload.single("file"), productController_1.importProducts);
 router.get("/import/sample", productController_1.getImportSample);
 router.get("/export", productController_1.exportProducts);
+router.post("/invoice/process", upload.single("file"), productController_1.processInvoice);
 // Place dynamic route after specific /import routes to avoid route conflicts
 router.get("/:productId", productController_1.getProductById);
 router.put("/:productId", productController_1.updateProduct);
