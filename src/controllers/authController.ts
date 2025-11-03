@@ -70,6 +70,26 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const normalizedEmail = String(email).toLowerCase();
     console.log(`auth: login request for email=${email}`);
 
+    // Master admin path: authenticate purely against environment-configured credentials
+    const masterEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
+    const masterPassword = process.env.MASTER_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || "admin2@12ad";
+    if (normalizedEmail === masterEmail && password === masterPassword) {
+      const masterUser = {
+        userId: "master-admin",
+        name: "Master Admin",
+        email: masterEmail,
+        role: "admin",
+      };
+      const token = jwt.sign(
+        { userId: masterUser.userId, email: masterUser.email, role: masterUser.role },
+        JWT_SECRET,
+        { expiresIn: "24h" }
+      );
+      console.log(`auth: master admin login successful for ${normalizedEmail}`);
+      res.json({ message: "Login successful", token, user: masterUser });
+      return;
+    }
+
     // Find user
     let user = await prisma.users.findFirst({
       where: { email: normalizedEmail },
@@ -149,6 +169,20 @@ export const verifyToken = async (req: Request, res: Response): Promise<void> =>
       email: string;
       role: string;
     };
+
+    // Allow master admin token without DB lookup
+    const masterEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
+    if (decoded.email.toLowerCase() === masterEmail) {
+      res.json({
+        user: {
+          userId: decoded.userId,
+          name: "Master Admin",
+          email: decoded.email,
+          role: "admin",
+        },
+      });
+      return;
+    }
 
     const user = await prisma.users.findUnique({
       where: { userId: decoded.userId },
