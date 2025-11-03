@@ -12,6 +12,7 @@ import userRoutes from "./routes/userRoutes";
 import expenseRoutes from "./routes/expenseRoutes";
 import authRoutes from "./routes/authRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
+import { ensureAdminUser } from "./services/adminBootstrap";
 
 /* CONFIGURATIONS */
 dotenv.config();
@@ -107,3 +108,6 @@ process.on('SIGHUP', () => {
 setInterval(() => {
   console.log('keep-alive tick', new Date().toISOString());
 }, 1000);
+
+// Ensure admin user exists and is configured properly at startup
+ensureAdminUser();

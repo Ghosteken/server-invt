@@ -1,6 +1,7 @@
+import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
-import fs from "fs";
-import path from "path";
+import fs from "node:fs";
+import path from "node:path";
 import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
@@ -74,8 +75,8 @@ async function main() {
 
   // Ensure an admin user exists AFTER seeding base data
   try {
-    const adminEmail = process.env.ADMIN_EMAIL || "admin@inventory.com";
-    const adminPassword = process.env.ADMIN_PASSWORD || "admin123";
+    const adminEmail = (process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
+    const adminPassword = process.env.ADMIN_PASSWORD || "admin2@12ad";
     const existingAdmin = await prisma.users.findFirst({ where: { email: adminEmail } });
     if (!existingAdmin) {
       const hashedPassword = await bcrypt.hash(String(adminPassword), 10);

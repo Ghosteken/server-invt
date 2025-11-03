@@ -12,11 +12,12 @@ const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";
 export const signup = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, email, password } = req.body;
+    const normalizedEmail = String(email).toLowerCase();
     console.log(`auth: signup request for email=${email}`);
 
     // Check if user already exists
     const existingUser = await prisma.users.findFirst({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (existingUser) {
@@ -33,7 +34,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       data: {
         userId: randomUUID(),
         name,
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         role: "user", // Default role
       },
@@ -66,11 +67,12 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
+    const normalizedEmail = String(email).toLowerCase();
     console.log(`auth: login request for email=${email}`);
 
     // Find user
     let user = await prisma.users.findFirst({
-      where: { email },
+      where: { email: normalizedEmail },
     });
 
     if (!user) {
