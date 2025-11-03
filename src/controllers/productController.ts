@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { appendNotification } from "../services/notificationService";
+import { appendCustomerSales } from "../services/customerSalesService";
 import XLSX from "xlsx";
 import fs from "node:fs";
 import path from "node:path";
@@ -460,6 +461,25 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
         totalCost: (item.subtotal ?? (item.unitPrice ?? prod.price) * item.quantity),
       } });
       updates.push({ productId: prod.productId, name: prod.name, deducted: item.quantity });
+    }
+
+    // Persist customer sales snapshot to JSON for audit/seed purposes
+    try {
+      appendCustomerSales({
+        customer: {
+          id: undefined,
+          name: cust.name,
+          mobile: cust.mobile,
+          address: cust.address,
+          city: (cust as any).city,
+          state: (cust as any).state,
+          country: (cust as any).country,
+        },
+        itemsParsed: items.map(i => ({ raw: i.name, productName: i.name, quantity: i.quantity })),
+        matchedUpdates: updates.map(u => ({ productId: Number.NaN as any, name: u.name, deducted: u.deducted })),
+      });
+    } catch (persistErr) {
+      console.warn("Failed to persist customerSales JSON:", persistErr);
     }
 
     appendNotification({ type: "inventory", message: `Processed invoice for ${cust.name}; updated ${updates.length} product(s).`, actorUserId: req.user?.userId });
