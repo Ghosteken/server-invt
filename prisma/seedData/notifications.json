@@ -5,5 +5,11 @@
     "message": "User created: sam (sam@inventory) as user",
     "timestamp": "2025-11-03T11:50:43.046Z",
     "actorUserId": "5ec4198f-9a9b-47f9-9f82-09a39519c375"
+  },
+  {
+    "id": "1762175128187-nk8a5r",
+    "type": "product",
+    "message": "Imported 4 products from Excel",
+    "timestamp": "2025-11-03T13:05:28.187Z"
   }
 ]
