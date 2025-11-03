@@ -6,11 +6,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getImportSample = exports.processInvoice = exports.importProducts = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
 const client_1 = require("@prisma/client");
 const notificationService_1 = require("../services/notificationService");
+const customerSalesService_1 = require("../services/customerSalesService");
 const xlsx_1 = __importDefault(require("xlsx"));
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const crypto_1 = require("crypto");
-const pdf_parse_1 = __importDefault(require("pdf-parse"));
+// pdf-parse lacks TypeScript types; use require to avoid compile errors in ts-node
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const pdfParse = require("pdf-parse");
 const prisma = new client_1.PrismaClient();
 const getProducts = async (req, res) => {
     try {
@@ -250,30 +253,21 @@ exports.importProducts = importProducts;
 const processInvoice = async (req, res) => {
     try {
         const file = req.file;
-        const { invoiceText, invoiceUrl } = req.body;
+        const { invoiceText } = req.body;
         let text = undefined;
         if (invoiceText && typeof invoiceText === "string" && invoiceText.trim().length > 0) {
             text = invoiceText;
         }
-        else if (invoiceUrl && typeof invoiceUrl === "string" && invoiceUrl.trim().length > 0) {
-            try {
-                const resp = await fetch(invoiceUrl);
-                text = await resp.text();
-            }
-            catch {
-                // ignore
-            }
-        }
         else if (file && file.mimetype === "application/pdf") {
-            const data = await (0, pdf_parse_1.default)(file.buffer);
+            const data = await pdfParse(file.buffer);
             text = data.text;
         }
         if (!text) {
-            res.status(400).json({ message: "No invoice content provided (text, url, or pdf)." });
+            res.status(400).json({ message: "No invoice content provided (text or pdf)." });
             return;
         }
-        // Basic parsing tailored to provided sample format
-        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        // Basic parsing tailored to provided format: support name-left/quantity-right (single line) and two-line items
+        const lines = text.split(/\r?\n/).map(l => l.replace(/[\t]/g, "    ").trim()).filter(l => l.length > 0);
         // Extract customer block heuristically
         const customer = {};
         const customerIdx = lines.findIndex(l => /Customer/i.test(l));
@@ -288,6 +282,10 @@ const processInvoice = async (req, res) => {
                 }
                 if (!customer.name) {
                     customer.name = l.replace(/[,;]+/g, ", ").trim();
+                    // strip trailing address tokens if present
+                    if (customer.name.includes(","))
+                        customer.name = customer.name.split(",")[0].trim();
+                    customer.name = customer.name.replace(/\s+(AJAH|LAGOS|STATE|NIGERIA).*$/i, "").trim();
                     continue;
                 }
                 if (!customer.address && /Lagos|NIGERIA|STATE/i.test(l)) {
@@ -295,32 +293,73 @@ const processInvoice = async (req, res) => {
                 }
             }
         }
+        // Helpers
+        const normalize = (s) => s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+        const parseNumbers = (s) => {
+            const nums = s.match(/\d[\d,]*\.?\d*/g) || [];
+            return nums.map(n => Number(n.replace(/,/g, ""))).filter(n => !Number.isNaN(n));
+        };
         const items = [];
         let pendingName = null;
         for (let i = 0; i < lines.length; i++) {
             const l = lines[i];
-            // Detect a product name line possibly followed by code on next line
-            if (/[,]/.test(l) && /\d{4,}/.test(l)) {
-                // Name and code on same line before the comma
+            // Single-line format with columns separated by 2+ spaces
+            const cols = l.split(/\s{2,}/).map(c => c.trim()).filter(c => c.length > 0);
+            if (cols.length >= 2) {
+                const nameCol = cols[0];
+                const numberCols = cols.slice(1).join(" ");
+                const nums = parseNumbers(numberCols);
+                if (nums.length >= 1) {
+                    const quantity = Math.floor(nums[0]);
+                    const unitPrice = nums.length >= 2 ? nums[1] : undefined;
+                    const subtotal = nums.length >= 3 ? nums[2] : undefined;
+                    if (quantity > 0) {
+                        items.push({ name: nameCol, quantity, unitPrice, subtotal });
+                        continue;
+                    }
+                }
+            }
+            // Comma+digits: either one-line or two-line format
+            if (/,/.test(l) && /\d{4,}/.test(l)) {
                 const parts = l.split(",");
                 const namePart = parts[0].trim();
-                const codePart = parts[1] ? parts[1].trim() : undefined;
+                const rest = parts.slice(1).join(",");
+                // Prefer explicit quantity pattern like "50.00 Ctn" when present
+                const qtyExplicit = rest.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units)\b/i);
+                if (qtyExplicit) {
+                    const quantity = Math.floor(Number(qtyExplicit[1].replace(/,/g, "")) || 0);
+                    const numsInline = parseNumbers(rest);
+                    const unitPrice = numsInline.find(n => n >= 1 && n < 100000 && n !== quantity);
+                    const subtotal = numsInline.length ? numsInline[numsInline.length - 1] : undefined;
+                    if (quantity > 0) {
+                        items.push({ name: namePart, quantity, unitPrice, subtotal });
+                        continue;
+                    }
+                }
+                // Otherwise, assume first large integer is a code; use next number as quantity
+                const numsInline = parseNumbers(rest);
+                if (numsInline.length >= 2) {
+                    const codeCandidate = numsInline[0];
+                    const quantityCandidate = numsInline[1];
+                    const quantity = Math.floor(quantityCandidate);
+                    const unitPrice = numsInline.length >= 3 ? numsInline[2] : undefined;
+                    const subtotal = numsInline.length >= 4 ? numsInline[3] : undefined;
+                    if (codeCandidate > 10000 && quantity > 0) {
+                        items.push({ name: namePart, quantity, unitPrice, subtotal });
+                        continue;
+                    }
+                }
+                // Fallback to two-line behaviour
                 pendingName = namePart;
-                // Try to consume next line with quantity/price
                 continue;
             }
-            // Quantity line e.g. "50  Ctn" and prices on the same or next line
             if (pendingName) {
                 const qtyMatch = l.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units)?/i);
-                const priceMatch = l.match(/(\d[\d,]*\.?\d*)/g);
+                const priceNums = parseNumbers(l);
                 if (qtyMatch) {
                     const quantity = Math.floor(Number(qtyMatch[1].replace(/,/g, "")) || 0);
-                    let unitPrice;
-                    let subtotal;
-                    if (priceMatch && priceMatch.length >= 2) {
-                        unitPrice = Number(priceMatch[priceMatch.length - 2].replace(/,/g, ""));
-                        subtotal = Number(priceMatch[priceMatch.length - 1].replace(/,/g, ""));
-                    }
+                    const unitPrice = priceNums.length >= 2 ? priceNums[priceNums.length - 2] : undefined;
+                    const subtotal = priceNums.length >= 1 ? priceNums[priceNums.length - 1] : undefined;
                     items.push({ name: pendingName, quantity, unitPrice, subtotal });
                     pendingName = null;
                     continue;
@@ -345,10 +384,31 @@ const processInvoice = async (req, res) => {
                     country: customer.country,
                 } });
         }
-        // For each item, find product by name (case-insensitive contains), deduct stock, and record purchase
+        // For each item, find product by name using robust matching, deduct stock, and record purchase
         const updates = [];
         for (const item of items) {
-            const prod = await prisma.products.findFirst({ where: { name: { contains: item.name, mode: "insensitive" } } });
+            const normName = normalize(item.name);
+            // Fetch small candidate set by contains; then refine in app logic
+            const candidates = await prisma.products.findMany({ where: { name: { contains: item.name, mode: "insensitive" } }, take: 10 });
+            let prod = candidates.find(p => normalize(p.name) === normName);
+            if (!prod) {
+                prod = candidates.find(p => normalize(p.name).includes(normName) || normName.includes(normalize(p.name)));
+            }
+            if (!prod && candidates.length) {
+                // Token overlap (simple Jaccard) as a safe fuzzy fallback
+                const tokens = new Set(normName.split(" ").filter(Boolean));
+                let best = null;
+                for (const c of candidates) {
+                    const ctoks = new Set(normalize(c.name).split(" ").filter(Boolean));
+                    const inter = new Set([...tokens].filter(t => ctoks.has(t)));
+                    const union = new Set([...tokens, ...ctoks]);
+                    const score = inter.size / Math.max(1, union.size);
+                    if (!best || score > best.score)
+                        best = { p: c, score };
+                }
+                if (best && best.score >= 0.5)
+                    prod = best.p;
+            }
             if (!prod) {
                 continue; // skip unmatched
             }
@@ -363,6 +423,25 @@ const processInvoice = async (req, res) => {
                     totalCost: (item.subtotal ?? (item.unitPrice ?? prod.price) * item.quantity),
                 } });
             updates.push({ productId: prod.productId, name: prod.name, deducted: item.quantity });
+        }
+        // Persist customer sales snapshot to JSON for audit/seed purposes
+        try {
+            (0, customerSalesService_1.appendCustomerSales)({
+                customer: {
+                    id: undefined,
+                    name: cust.name,
+                    mobile: cust.mobile,
+                    address: cust.address,
+                    city: cust.city,
+                    state: cust.state,
+                    country: cust.country,
+                },
+                itemsParsed: items.map(i => ({ raw: i.name, productName: i.name, quantity: i.quantity })),
+                matchedUpdates: updates.map(u => ({ productId: Number.NaN, name: u.name, deducted: u.deducted })),
+            });
+        }
+        catch (persistErr) {
+            console.warn("Failed to persist customerSales JSON:", persistErr);
         }
         (0, notificationService_1.appendNotification)({ type: "inventory", message: `Processed invoice for ${cust.name}; updated ${updates.length} product(s).`, actorUserId: req.user?.userId });
         res.json({ customer: cust, items, updates });
