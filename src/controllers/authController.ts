@@ -70,23 +70,10 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const normalizedEmail = String(email).toLowerCase();
     console.log(`auth: login request for email=${email}`);
 
-    // Master admin path: authenticate purely against environment-configured credentials
-    const masterEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
-    const masterPassword = process.env.MASTER_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || "admin2@12ad";
-    if (normalizedEmail === masterEmail && password === masterPassword) {
-      const masterUser = {
-        userId: "master-admin",
-        name: "Master Admin",
-        email: masterEmail,
-        role: "admin",
-      };
-      const token = jwt.sign(
-        { userId: masterUser.userId, email: masterUser.email, role: masterUser.role },
-        JWT_SECRET,
-        { expiresIn: "24h" }
-      );
-      console.log(`auth: master admin login successful for ${normalizedEmail}`);
-      res.json({ message: "Login successful", token, user: masterUser });
+    // Disallow admin credential use on the regular login endpoint. Use /auth/admin/login instead.
+    const configuredAdminEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
+    if (normalizedEmail === configuredAdminEmail) {
+      res.status(403).json({ message: "Admin credentials are not allowed on this route. Use /auth/admin/login." });
       return;
     }
 
@@ -115,21 +102,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Ensure configured admin email logs in with admin role
-    try {
-      const adminEmail = (process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
-      if (user.email.toLowerCase() === adminEmail && user.role !== "admin") {
-        await prisma.users.update({
-          where: { userId: user.userId },
-          data: { role: "admin" },
-        });
-        // Reflect updated role locally
-        user = { ...user, role: "admin" } as typeof user;
-        console.log(`auth: elevated user to admin based on configured admin email: ${user.email}`);
-      }
-    } catch (e) {
-      console.warn("auth: failed to enforce admin role on login", e);
-    }
+    // No role elevation on the regular login route
 
     // Generate JWT token
     const token = jwt.sign(
@@ -152,6 +125,79 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   } catch (error) {
     console.error("Login error:", error);
     res.status(500).json({ message: "Error during login" });
+  }
+};
+
+export const adminLogin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body;
+    const normalizedEmail = String(email).toLowerCase();
+    console.log(`auth: admin login request for email=${email}`);
+
+    // Master admin path: authenticate purely against environment-configured credentials
+    const masterEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
+    const masterPassword = process.env.MASTER_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || "admin2@12ad";
+    if (normalizedEmail === masterEmail && password === masterPassword) {
+      const masterUser = {
+        userId: "master-admin",
+        name: "Master Admin",
+        email: masterEmail,
+        role: "admin",
+      };
+      const token = jwt.sign(
+        { userId: masterUser.userId, email: masterUser.email, role: masterUser.role },
+        JWT_SECRET,
+        { expiresIn: "24h" }
+      );
+      console.log(`auth: master admin login successful for ${normalizedEmail}`);
+      res.json({ message: "Login successful", token, user: masterUser });
+      return;
+    }
+
+    // DB user path: require admin role
+    const user = await prisma.users.findFirst({ where: { email: normalizedEmail } });
+    if (!user) {
+      res.status(401).json({ message: "Invalid credentials" });
+      return;
+    }
+    if (user.isBlocked) {
+      res.status(403).json({ message: "Account is blocked" });
+      return;
+    }
+    const isPasswordValid = bcrypt.compareSync(password, user.password);
+    if (!isPasswordValid) {
+      res.status(401).json({ message: "Invalid credentials" });
+      return;
+    }
+
+    // If this email is the configured admin email, enforce admin role
+    try {
+      const adminEmail = (process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
+      if (user.email.toLowerCase() === adminEmail && user.role !== "admin") {
+        await prisma.users.update({ where: { userId: user.userId }, data: { role: "admin" } });
+      }
+    } catch {}
+
+    if ((user.role || "").toLowerCase() !== "admin") {
+      res.status(403).json({ message: "Not an admin account" });
+      return;
+    }
+
+    const token = jwt.sign(
+      { userId: user.userId, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+
+    console.log(`auth: admin login successful for ${email}`);
+    res.json({
+      message: "Login successful",
+      token,
+      user: { userId: user.userId, name: user.name, email: user.email, role: user.role },
+    });
+  } catch (error) {
+    console.error("Admin login error:", error);
+    res.status(500).json({ message: "Error during admin login" });
   }
 };
 

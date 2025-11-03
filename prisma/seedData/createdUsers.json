@@ -5,5 +5,12 @@
     "email": "david@inventory.com",
     "role": "user",
     "createdAt": "2025-11-03T00:21:02.723Z"
+  },
+  {
+    "userId": "e16f2680-472e-40aa-977a-bd61a4087ed8",
+    "name": "sam",
+    "email": "sam@inventory",
+    "role": "user",
+    "createdAt": "2025-11-03T11:50:43.042Z"
   }
 ]

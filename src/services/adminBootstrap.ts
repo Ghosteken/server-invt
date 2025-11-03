@@ -25,7 +25,8 @@ export async function ensureAdminUser() {
       });
       console.log(`adminBootstrap: created admin ${adminEmail}`);
     } else {
-      if (existing.role !== "admin" || existing.password !== hashedPassword) {
+      const passwordMatches = bcrypt.compareSync(String(adminPassword), existing.password);
+      if (existing.role !== "admin" || !passwordMatches) {
         await prisma.users.update({
           where: { userId: existing.userId },
           data: { role: "admin", password: hashedPassword },
