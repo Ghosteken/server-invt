@@ -140,7 +140,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
     if (normalizedEmail === masterEmail && password === masterPassword) {
       const masterUser = {
         userId: "master-admin",
-        name: "Master Admin",
+        name: "Admin",
         email: masterEmail,
         role: "admin",
       };
@@ -222,7 +222,7 @@ export const verifyToken = async (req: Request, res: Response): Promise<void> =>
       res.json({
         user: {
           userId: decoded.userId,
-          name: "Master Admin",
+          name: "Admin",
           email: decoded.email,
           role: "admin",
         },
