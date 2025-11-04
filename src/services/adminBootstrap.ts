@@ -7,8 +7,14 @@ import { randomUUID } from "node:crypto";
 export async function ensureAdminUser() {
   const prisma = new PrismaClient();
   try {
-    const adminEmail = (process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
-    const adminPassword = process.env.ADMIN_PASSWORD || "admin2@12ad";
+    const configuredEmail = process.env.ADMIN_EMAIL;
+    const configuredPassword = process.env.ADMIN_PASSWORD;
+    if (!configuredEmail || !configuredPassword) {
+      console.log("adminBootstrap: ADMIN_EMAIL/ADMIN_PASSWORD not set; skipping admin ensure.");
+      return;
+    }
+    const adminEmail = configuredEmail.toLowerCase().trim();
+    const adminPassword = configuredPassword;
 
     const existing = await prisma.users.findFirst({ where: { email: adminEmail } });
     const hashedPassword = bcrypt.hashSync(String(adminPassword), 10);

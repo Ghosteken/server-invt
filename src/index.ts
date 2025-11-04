@@ -111,5 +111,9 @@ setInterval(() => {
   console.log('keep-alive tick', new Date().toISOString());
 }, 1000);
 
-// Ensure admin user exists and is configured properly at startup
-ensureAdminUser();
+// Ensure admin user exists and is configured properly at startup (only if env is set)
+if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+  ensureAdminUser();
+} else {
+  console.log("Server: ADMIN_EMAIL/ADMIN_PASSWORD not set; skipping admin bootstrap.");
+}
