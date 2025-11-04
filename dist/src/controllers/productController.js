@@ -3,9 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getImportSample = exports.processInvoice = exports.importProducts = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
+exports.getImportSample = exports.purgeProducts = exports.deleteProduct = exports.processInvoice = exports.importProducts = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
 const client_1 = require("@prisma/client");
 const notificationService_1 = require("../services/notificationService");
+const productSyncService_1 = require("../services/productSyncService");
 const customerSalesService_1 = require("../services/customerSalesService");
 const xlsx_1 = __importDefault(require("xlsx"));
 const node_fs_1 = __importDefault(require("node:fs"));
@@ -58,6 +59,8 @@ const createProduct = async (req, res) => {
             message: `Product created: ${name} (qty: ${stockQuantity})`,
             actorUserId: req.user?.userId,
         });
+        // Sync JSON snapshot after write
+        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma);
         res.status(201).json(product);
     }
     catch (error) {
@@ -115,6 +118,8 @@ const updateProduct = async (req, res) => {
             message: `Product updated: ${updated.name}`,
             actorUserId: req.user?.userId,
         });
+        // Sync JSON snapshot after update
+        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma);
         res.json(updated);
     }
     catch (error) {
@@ -241,6 +246,8 @@ const importProducts = async (req, res) => {
             message: `Imported ${result.count} products from Excel`,
             actorUserId: req.user?.userId,
         });
+        // Sync JSON snapshot with DB after import
+        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma);
         res.status(201).json({ insertedCount: result.count, attempted: productsToInsert.length });
     }
     catch (error) {
@@ -452,6 +459,48 @@ const processInvoice = async (req, res) => {
     }
 };
 exports.processInvoice = processInvoice;
+// Delete a single product and dependent rows, then sync JSON
+const deleteProduct = async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const existing = await prisma.products.findUnique({ where: { productId } });
+        if (!existing) {
+            res.status(404).json({ message: "Product not found" });
+            return;
+        }
+        await prisma.customerPurchases.deleteMany({ where: { productId } });
+        await prisma.sales.deleteMany({ where: { productId } });
+        await prisma.purchases.deleteMany({ where: { productId } });
+        await prisma.products.delete({ where: { productId } });
+        (0, notificationService_1.appendNotification)({ type: "product", message: `Product deleted: ${existing.name}`, actorUserId: req.user?.userId });
+        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma);
+        res.status(200).json({ success: true });
+    }
+    catch (error) {
+        console.error("deleteProduct error:", error);
+        res.status(500).json({ message: "Error deleting product" });
+    }
+};
+exports.deleteProduct = deleteProduct;
+// Purge all products and dependent rows, clear JSON files, and sync
+const purgeProducts = async (req, res) => {
+    try {
+        await prisma.customerPurchases.deleteMany({});
+        await prisma.sales.deleteMany({});
+        await prisma.purchases.deleteMany({});
+        await prisma.products.deleteMany({});
+        (0, productSyncService_1.writeEmptyProductsJson)();
+        (0, productSyncService_1.writeEmptyImportedProductsJson)();
+        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma);
+        (0, notificationService_1.appendNotification)({ type: "product", message: "Purged all products and related records", actorUserId: req.user?.userId });
+        res.status(200).json({ success: true });
+    }
+    catch (error) {
+        console.error("purgeProducts error:", error);
+        res.status(500).json({ message: "Error purging products" });
+    }
+};
+exports.purgeProducts = purgeProducts;
 /**
  * Generate and send a sample Excel file for inventory import testing.
  */

@@ -15,6 +15,9 @@ router.get("/import/sample", productController_1.getImportSample);
 router.get("/export", productController_1.exportProducts);
 router.post("/invoice/process", upload.single("file"), productController_1.processInvoice);
 // Place dynamic route after specific /import routes to avoid route conflicts
+// Static routes must come before dynamic ":productId" to avoid conflicts
+router.delete("/purge", productController_1.purgeProducts);
 router.get("/:productId", productController_1.getProductById);
 router.put("/:productId", productController_1.updateProduct);
+router.delete("/:productId", productController_1.deleteProduct);
 exports.default = router;

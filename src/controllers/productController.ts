@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { appendNotification } from "../services/notificationService";
+import { syncProductsJsonFromDb, writeEmptyProductsJson, writeEmptyImportedProductsJson } from "../services/productSyncService";
 import { appendCustomerSales } from "../services/customerSalesService";
 import XLSX from "xlsx";
 import fs from "node:fs";
@@ -61,6 +62,8 @@ export const createProduct = async (
       message: `Product created: ${name} (qty: ${stockQuantity})`,
       actorUserId: req.user?.userId,
     });
+    // Sync JSON snapshot after write
+    await syncProductsJsonFromDb(prisma);
     res.status(201).json(product);
   } catch (error) {
     res.status(500).json({ message: "Error creating product" });
@@ -121,6 +124,8 @@ export const updateProduct = async (
       message: `Product updated: ${updated.name}`,
       actorUserId: req.user?.userId,
     });
+    // Sync JSON snapshot after update
+    await syncProductsJsonFromDb(prisma);
     res.json(updated);
   } catch (error) {
     console.error("updateProduct error:", error);
@@ -270,7 +275,8 @@ export const importProducts = async (
       message: `Imported ${result.count} products from Excel`,
       actorUserId: req.user?.userId,
     });
-
+    // Sync JSON snapshot with DB after import
+    await syncProductsJsonFromDb(prisma);
     res.status(201).json({ insertedCount: result.count, attempted: productsToInsert.length });
   } catch (error) {
     console.error("importProducts error:", error);
@@ -487,6 +493,46 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
   } catch (error) {
     console.error("processInvoice error:", error);
     res.status(500).json({ message: "Error processing invoice" });
+  }
+};
+
+// Delete a single product and dependent rows, then sync JSON
+export const deleteProduct = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { productId } = req.params;
+    const existing = await prisma.products.findUnique({ where: { productId } });
+    if (!existing) {
+      res.status(404).json({ message: "Product not found" });
+      return;
+    }
+    await prisma.customerPurchases.deleteMany({ where: { productId } });
+    await prisma.sales.deleteMany({ where: { productId } });
+    await prisma.purchases.deleteMany({ where: { productId } });
+    await prisma.products.delete({ where: { productId } });
+    appendNotification({ type: "product", message: `Product deleted: ${existing.name}`, actorUserId: req.user?.userId });
+    await syncProductsJsonFromDb(prisma);
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("deleteProduct error:", error);
+    res.status(500).json({ message: "Error deleting product" });
+  }
+};
+
+// Purge all products and dependent rows, clear JSON files, and sync
+export const purgeProducts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    await prisma.customerPurchases.deleteMany({});
+    await prisma.sales.deleteMany({});
+    await prisma.purchases.deleteMany({});
+    await prisma.products.deleteMany({});
+    writeEmptyProductsJson();
+    writeEmptyImportedProductsJson();
+    await syncProductsJsonFromDb(prisma);
+    appendNotification({ type: "product", message: "Purged all products and related records", actorUserId: req.user?.userId });
+    res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("purgeProducts error:", error);
+    res.status(500).json({ message: "Error purging products" });
   }
 };
 
