@@ -18,6 +18,7 @@ const expenseRoutes_1 = __importDefault(require("./routes/expenseRoutes"));
 const authRoutes_1 = __importDefault(require("./routes/authRoutes"));
 const notificationRoutes_1 = __importDefault(require("./routes/notificationRoutes"));
 const customerRoutes_1 = __importDefault(require("./routes/customerRoutes"));
+const reportRoutes_1 = __importDefault(require("./routes/reportRoutes"));
 const adminBootstrap_1 = require("./services/adminBootstrap");
 /* CONFIGURATIONS */
 dotenv_1.default.config();
@@ -50,6 +51,7 @@ app.use("/users", userRoutes_1.default); // http://localhost:8000/users
 app.use("/expenses", expenseRoutes_1.default); // http://localhost:8000/expenses
 app.use("/notifications", notificationRoutes_1.default); // http://localhost:8000/notifications
 app.use("/customers", customerRoutes_1.default); // http://localhost:8000/customers
+app.use("/reports", reportRoutes_1.default); // http://localhost:8000/reports
 /* SERVER */
 const port = Number(process.env.PORT) || 3001;
 const host = process.env.HOST || "127.0.0.1";

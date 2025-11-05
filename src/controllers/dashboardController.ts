@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
+import { readPcsInventory } from "../services/pcsInventoryService";
 
 const prisma = new PrismaClient();
 
@@ -163,5 +164,32 @@ export const getTopCustomers = async (req: Request, res: Response): Promise<void
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: "Error retrieving top customers" });
+  }
+};
+
+// Low-stock for PCS inventory (pieces), sourced from pcsInventory.json
+export const getLowStockPcs = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const q = req.query?.threshold;
+    const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
+    const envNum = Number(process.env.LOW_STOCK_THRESHOLD);
+    const threshold = Number.isFinite(qNum) && qNum >= 0
+      ? qNum
+      : Number.isFinite(envNum) && envNum >= 0
+        ? envNum
+        : 5;
+
+    const pcs = readPcsInventory();
+    const low = pcs
+      .filter((e) => (e.quantity || 0) < threshold)
+      .map((e) => ({
+        name: e.name,
+        pcsQuantity: e.quantity,
+        packSize: e.packSize ?? null,
+        productId: e.productId ?? null,
+      }));
+    res.json(low);
+  } catch (error) {
+    res.status(500).json({ message: "Error retrieving low-stock PCS items" });
   }
 };

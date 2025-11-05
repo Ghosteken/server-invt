@@ -174,6 +174,8 @@ export const exportProducts = async (
 
 export const getPcsProducts = async (req: Request, res: Response): Promise<void> => {
   try {
+    const rawSearch = req.query.search?.toString() ?? "";
+    const search = rawSearch.trim().toLowerCase();
     const pcs = readPcsInventory();
     // Load all products to allow robust matching and enrichment
     const products = await prisma.products.findMany({});
@@ -254,7 +256,10 @@ export const getPcsProducts = async (req: Request, res: Response): Promise<void>
       agg.set(key, payload as any);
     }
 
-    const enriched = Array.from(agg.values());
+    let enriched = Array.from(agg.values());
+    if (search) {
+      enriched = enriched.filter((e) => String(e.name || "").toLowerCase().includes(search));
+    }
     res.json(enriched);
   } catch (err) {
     console.error("getPcsProducts error:", err);
@@ -323,6 +328,36 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
   } catch (err) {
     console.error("importPcsProducts error:", err);
     res.status(500).json({ message: "Failed to import PCS products" });
+  }
+};
+
+// Upsert a PCS entry (or multiple) directly via JSON body
+export const upsertPcsItems = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const body = req.body as any;
+    let items: Array<{ name: string; quantity: number; packSize?: string | null }> = [];
+    if (Array.isArray(body)) {
+      items = body.map((e) => ({ name: String(e?.name || "").trim(), quantity: Math.max(0, Number(e?.quantity) || 0), packSize: e?.packSize ? String(e.packSize).trim() : null }));
+    } else if (body && typeof body === "object") {
+      const name = String(body?.name || "").trim();
+      const qty = Math.max(0, Number(body?.quantity) || 0);
+      const packSize = body?.packSize ? String(body.packSize).trim() : null;
+      if (!name) {
+        res.status(400).json({ message: "Missing 'name' for PCS item" });
+        return;
+      }
+      items = [{ name, quantity: qty, packSize }];
+    } else {
+      res.status(400).json({ message: "Invalid request body" });
+      return;
+    }
+
+    const merged = upsertPcsEntries(items);
+    appendNotification({ type: "product", message: `Upserted ${items.length} PCS item(s)`, actorUserId: req.user?.userId });
+    res.json({ upserted: items.length, total: merged.length });
+  } catch (err) {
+    console.error("upsertPcsItems error:", err);
+    res.status(500).json({ message: "Failed to upsert PCS items" });
   }
 };
 /**
@@ -1169,6 +1204,23 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
     const existing = await prisma.products.findUnique({ where: { productId } });
     if (!existing) {
       res.status(404).json({ message: "Product not found" });
+      return;
+    }
+    // Guard: prevent deletion when related entries exist
+    const [purchaseCount, salesCount, purchasesCount] = await Promise.all([
+      prisma.customerPurchases.count({ where: { productId } }),
+      prisma.sales.count({ where: { productId } }),
+      prisma.purchases.count({ where: { productId } }),
+    ]);
+    if (purchaseCount > 0 || salesCount > 0 || purchasesCount > 0) {
+      res.status(409).json({ message: "Cannot delete product with related purchase/sales records. Clear related records first." });
+      return;
+    }
+    // Optional guard: prevent deletion if PCS inventory still references this product by name
+    const pcs = readPcsInventory();
+    const hasPcsRef = pcs.some((e) => String(e.name || "").trim().toLowerCase() === String(existing.name || "").trim().toLowerCase());
+    if (hasPcsRef) {
+      res.status(409).json({ message: "Cannot delete product while PCS inventory contains entries referencing it." });
       return;
     }
     await prisma.customerPurchases.deleteMany({ where: { productId } });

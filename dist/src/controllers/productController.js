@@ -3,11 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getImportSample = exports.purgeProducts = exports.deleteProduct = exports.processInvoiceManual = exports.processInvoice = exports.importProducts = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
+exports.getProductUpdatesLast = exports.getImportSample = exports.purgeProducts = exports.deleteProduct = exports.processInvoiceManual = exports.processInvoice = exports.importProducts = exports.upsertPcsItems = exports.importPcsProducts = exports.getPcsProducts = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
 const client_1 = require("@prisma/client");
 const notificationService_1 = require("../services/notificationService");
 const productSyncService_1 = require("../services/productSyncService");
 const customerSalesService_1 = require("../services/customerSalesService");
+const pcsInventoryService_1 = require("../services/pcsInventoryService");
+const productUpdateAuditService_1 = require("../services/productUpdateAuditService");
 const xlsx_1 = __importDefault(require("xlsx"));
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
@@ -124,6 +126,23 @@ const updateProduct = async (req, res) => {
         if (packSize !== undefined)
             data.packSize = packSize ?? null;
         const updated = await prisma.products.update({ where: { productId }, data });
+        try {
+            const changed = [];
+            const keys = Object.keys(data);
+            for (const k of keys) {
+                const oldVal = existing[k];
+                const newVal = data[k];
+                const oldNorm = oldVal instanceof Date ? oldVal.getTime() : oldVal;
+                const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
+                if (oldNorm !== newNorm)
+                    changed.push(k);
+            }
+            if (changed.length)
+                (0, productUpdateAuditService_1.recordFieldUpdates)(productId, changed, "api");
+        }
+        catch (logErr) {
+            console.warn("Failed to log field updates on updateProduct:", logErr);
+        }
         (0, notificationService_1.appendNotification)({
             type: "product",
             message: `Product updated: ${updated.name}`,
@@ -153,6 +172,190 @@ const exportProducts = async (req, res) => {
     }
 };
 exports.exportProducts = exportProducts;
+const getPcsProducts = async (req, res) => {
+    try {
+        const rawSearch = req.query.search?.toString() ?? "";
+        const search = rawSearch.trim().toLowerCase();
+        const pcs = (0, pcsInventoryService_1.readPcsInventory)();
+        // Load all products to allow robust matching and enrichment
+        const products = await prisma.products.findMany({});
+        // Helper normalization (aligned with invoice parsing heuristics)
+        const normalize = (s) => s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+        const normalizeWithSynonyms = (s) => normalize(s
+            .replace(/\byoghurt\b/gi, "yogurt")
+            .replace(/\bflavour\b/gi, "flavor")
+            .replace(/(\d+)([a-z]+)/gi, "$1 $2"));
+        const tokensOf = (s) => normalizeWithSynonyms(s).split(" ").filter(Boolean);
+        const FILLER_TOKENS = new Set(["drink", "flavor", "flavour", "ctn", "carton", "pack", "copy", "x"]);
+        const normSimple = (s) => String(s ?? "").replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+        const extractNum = (s) => {
+            const m = String(s ?? "").match(/\d+/);
+            return m ? Number(m[0]) : null;
+        };
+        const packEq = (a, b) => {
+            const na = extractNum(a);
+            const nb = extractNum(b);
+            if (na != null && nb != null)
+                return na === nb;
+            return normSimple(a) === normSimple(b);
+        };
+        // Build indices for quick matching
+        const byExact = new Map(products.map(p => [p.name.toLowerCase(), p]));
+        const byNorm = new Map();
+        for (const p of products) {
+            const toks = new Set(tokensOf(p.name).filter(t => !FILLER_TOKENS.has(t)));
+            byNorm.set(normalizeWithSynonyms(p.name), { product: p, toks });
+        }
+        // Accumulate results with deduplication by matched product or normalized name
+        const agg = new Map();
+        for (const e of pcs) {
+            const exact = byExact.get(e.name.toLowerCase());
+            let matched = exact ?? null;
+            if (!matched) {
+                const etoks = new Set(tokensOf(e.name).filter(t => !FILLER_TOKENS.has(t)));
+                // Score candidates by token overlap; prefer pack match when available
+                let best = null;
+                for (const { product, toks } of byNorm.values()) {
+                    // quick skip when overlap is tiny
+                    const overlap = Array.from(etoks).filter(t => toks.has(t)).length;
+                    if (overlap === 0)
+                        continue;
+                    let score = overlap;
+                    if (e.packSize && packEq(e.packSize, product.packSize))
+                        score += 2;
+                    if (!best || score > best.score)
+                        best = { product, score };
+                }
+                matched = best?.product ?? null;
+            }
+            const key = matched?.productId ? String(matched.productId) : normalizeWithSynonyms(e.name);
+            const prev = agg.get(key);
+            const pcsQuantity = (prev?.pcsQuantity ?? 0) + (e.quantity || 0);
+            const payload = {
+                productId: matched?.productId || e.productId || e.name,
+                name: matched?.name || e.name,
+                pcsQuantity,
+                packSize: (matched?.packSize ?? e.packSize ?? null),
+                category: matched?.category ?? null,
+                expiryDate: matched?.expiryDate ?? null,
+                price: matched?.price ?? 0,
+                purchasePrice: matched?.purchasePrice ?? null,
+            };
+            agg.set(key, payload);
+        }
+        let enriched = Array.from(agg.values());
+        if (search) {
+            enriched = enriched.filter((e) => String(e.name || "").toLowerCase().includes(search));
+        }
+        res.json(enriched);
+    }
+    catch (err) {
+        console.error("getPcsProducts error:", err);
+        res.status(500).json({ message: "Failed to load PCS products" });
+    }
+};
+exports.getPcsProducts = getPcsProducts;
+const importPcsProducts = async (req, res) => {
+    try {
+        const file = req.file;
+        if (!file) {
+            res.status(400).json({ message: "No file uploaded. Use field name 'file'." });
+            return;
+        }
+        const workbook = xlsx_1.default.read(file.buffer, { type: "buffer" });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rows = xlsx_1.default.utils.sheet_to_json(worksheet, { defval: null });
+        if (!rows.length) {
+            res.status(400).json({ message: "Uploaded sheet is empty." });
+            return;
+        }
+        const norm = (k) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+        const coerceNumber = (val) => {
+            if (val === null || val === undefined)
+                return null;
+            if (typeof val === "number" && Number.isFinite(val))
+                return val;
+            const s = String(val);
+            const m = s.replace(/[,]/g, "").match(/-?\d+(?:\.\d+)?/);
+            if (!m)
+                return null;
+            const n = Number(m[0]);
+            return Number.isFinite(n) ? n : null;
+        };
+        const incoming = [];
+        for (const row of rows) {
+            const kv = {};
+            for (const k of Object.keys(row))
+                kv[norm(k)] = row[k];
+            let name = kv["name"] ?? kv["product"] ?? kv["item"] ?? kv["product description"] ?? kv["description"];
+            // Fallback: first non-empty string cell as name
+            if (!name) {
+                const firstStrKey = Object.keys(kv).find((k) => typeof kv[k] === "string" && String(kv[k]).trim().length > 0);
+                if (firstStrKey)
+                    name = kv[firstStrKey];
+            }
+            if (!name)
+                continue;
+            let qty = coerceNumber(kv["pcs"] ?? kv["quantity"] ?? kv["qty"] ?? kv["pcs qty"] ?? kv["qty pcs"] ?? kv["pcs quantity"] ?? kv["quantity pcs"] ?? kv["pieces"] ?? kv["pcs count"] ?? kv["count pcs"]);
+            // Fallback: first numeric-like cell in the row
+            if (qty == null) {
+                for (const key of Object.keys(kv)) {
+                    const n = coerceNumber(kv[key]);
+                    if (n != null) {
+                        qty = n;
+                        break;
+                    }
+                }
+            }
+            // If quantity is still missing, import the item with quantity 0
+            if (qty == null)
+                qty = 0;
+            const packSize = kv["pack size"] ?? kv["pack"] ?? null;
+            incoming.push({ name: String(name).trim(), quantity: Math.max(0, Number(qty)), packSize: packSize ? String(packSize).trim() : null });
+        }
+        const merged = (0, pcsInventoryService_1.upsertPcsEntries)(incoming);
+        (0, notificationService_1.appendNotification)({ type: "product", message: `Imported ${incoming.length} PCS products`, actorUserId: req.user?.userId });
+        res.json({ imported: incoming.length, total: merged.length });
+    }
+    catch (err) {
+        console.error("importPcsProducts error:", err);
+        res.status(500).json({ message: "Failed to import PCS products" });
+    }
+};
+exports.importPcsProducts = importPcsProducts;
+// Upsert a PCS entry (or multiple) directly via JSON body
+const upsertPcsItems = async (req, res) => {
+    try {
+        const body = req.body;
+        let items = [];
+        if (Array.isArray(body)) {
+            items = body.map((e) => ({ name: String(e?.name || "").trim(), quantity: Math.max(0, Number(e?.quantity) || 0), packSize: e?.packSize ? String(e.packSize).trim() : null }));
+        }
+        else if (body && typeof body === "object") {
+            const name = String(body?.name || "").trim();
+            const qty = Math.max(0, Number(body?.quantity) || 0);
+            const packSize = body?.packSize ? String(body.packSize).trim() : null;
+            if (!name) {
+                res.status(400).json({ message: "Missing 'name' for PCS item" });
+                return;
+            }
+            items = [{ name, quantity: qty, packSize }];
+        }
+        else {
+            res.status(400).json({ message: "Invalid request body" });
+            return;
+        }
+        const merged = (0, pcsInventoryService_1.upsertPcsEntries)(items);
+        (0, notificationService_1.appendNotification)({ type: "product", message: `Upserted ${items.length} PCS item(s)`, actorUserId: req.user?.userId });
+        res.json({ upserted: items.length, total: merged.length });
+    }
+    catch (err) {
+        console.error("upsertPcsItems error:", err);
+        res.status(500).json({ message: "Failed to upsert PCS items" });
+    }
+};
+exports.upsertPcsItems = upsertPcsItems;
 /**
  * Bulk import products from an uploaded Excel file.
  * Accepts a single file under field name "file". The Excel sheet should contain
@@ -230,9 +433,9 @@ const importProducts = async (req, res) => {
                 currentCategory = String(description).trim();
                 return null; // category header row; skip insert
             }
-            // Basic validation
-            if (!name || priceRaw === null || priceRaw === undefined || stockRaw === null || stockRaw === undefined) {
-                return null; // skip invalid rows
+            // Basic validation: require only name; allow missing price/quantity and default them later
+            if (!name) {
+                return null; // skip rows without a name/description
             }
             const price = coerceNumber(priceRaw);
             const purchasePrice = purchasePriceRaw === null || purchasePriceRaw === undefined ? null : coerceNumber(purchasePriceRaw);
@@ -254,15 +457,15 @@ const importProducts = async (req, res) => {
                 return Number.isNaN(d.getTime()) ? null : d;
             };
             const expiryDate = coerceDate(expiryRaw);
-            if (price === null || stockQuantity === null) {
-                return null;
-            }
+            // Default missing numeric fields to 0 to ensure products are created even with incomplete info
+            const finalPrice = price === null ? 0 : price;
+            const finalStock = stockQuantity === null ? 0 : Math.floor(stockQuantity);
             return {
                 productId: String(productId),
                 name: String(name),
-                price: price,
+                price: finalPrice,
                 purchasePrice: (purchasePrice !== null && Number.isFinite(purchasePrice)) ? purchasePrice : null,
-                stockQuantity: Math.floor(stockQuantity),
+                stockQuantity: finalStock,
                 expiryDate: expiryDate ?? null,
                 category: (category ? String(category) : (currentCategory ? String(currentCategory) : null)),
                 description: description ? String(description) : null,
@@ -287,26 +490,90 @@ const importProducts = async (req, res) => {
         }
         let insertedCount = 0;
         const mergedItemsForJson = [];
+        // Parse optional selective update fields from multipart form (CSV or JSON array)
+        const rawUpdateFields = req.body?.updateFields ?? undefined;
+        let updateFieldsSet = null;
+        if (rawUpdateFields && typeof rawUpdateFields === "string") {
+            try {
+                const trimmed = rawUpdateFields.trim();
+                let arr = [];
+                if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                    arr = JSON.parse(trimmed);
+                }
+                else {
+                    arr = trimmed.split(/[,;\s]+/).filter(Boolean);
+                }
+                const normalizeField = (s) => s.toLowerCase().replace(/[^a-z]/g, "");
+                const allowed = new Set([
+                    "name",
+                    "price",
+                    "purchaseprice",
+                    "stockquantity",
+                    "expirydate",
+                    "category",
+                    "description",
+                    "packsize",
+                ]);
+                const selected = arr
+                    .map(normalizeField)
+                    .filter(f => allowed.has(f));
+                if (selected.length > 0)
+                    updateFieldsSet = new Set(selected);
+            }
+            catch {
+                // ignore parse errors; fall back to updating all fields
+                updateFieldsSet = null;
+            }
+        }
         for (const item of productsToInsert) {
             const key = keyOf({ name: item.name, packSize: item.packSize });
             const existing = existingMap.get(key);
             if (existing) {
-                const dataUpdate = {
-                    name: item.name,
-                    price: item.price,
-                    purchasePrice: item.purchasePrice,
-                    stockQuantity: item.stockQuantity,
-                    expiryDate: item.expiryDate ?? null,
-                    // Prefer existing category unless missing; then use imported category/header-derived
-                    category: existing.category ?? item.category ?? null,
-                    description: item.description ?? existing.description ?? null,
-                    packSize: item.packSize ?? existing.packSize ?? null,
-                };
+                const dataUpdate = {};
+                const should = (field) => !updateFieldsSet || updateFieldsSet.has(field);
+                if (should("name"))
+                    dataUpdate.name = item.name;
+                if (should("price"))
+                    dataUpdate.price = item.price;
+                if (should("purchaseprice"))
+                    dataUpdate.purchasePrice = item.purchasePrice;
+                if (should("stockquantity"))
+                    dataUpdate.stockQuantity = item.stockQuantity;
+                if (should("expirydate"))
+                    dataUpdate.expiryDate = item.expiryDate ?? null;
+                if (should("category"))
+                    dataUpdate.category = (existing.category ?? item.category ?? null);
+                if (should("description"))
+                    dataUpdate.description = item.description ?? existing.description ?? null;
+                if (should("packsize"))
+                    dataUpdate.packSize = item.packSize ?? existing.packSize ?? null;
                 await prisma.products.update({ where: { productId: existing.productId }, data: dataUpdate });
+                try {
+                    const changed = [];
+                    for (const k of Object.keys(dataUpdate)) {
+                        const oldVal = existing[k];
+                        const newVal = dataUpdate[k];
+                        const oldNorm = oldVal instanceof Date ? oldVal.getTime() : oldVal;
+                        const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
+                        if (oldNorm !== newNorm)
+                            changed.push(k);
+                    }
+                    if (changed.length)
+                        (0, productUpdateAuditService_1.recordFieldUpdates)(existing.productId, changed, "import");
+                }
+                catch (logErr) {
+                    console.warn("Failed to log field updates on import update:", logErr);
+                }
                 mergedItemsForJson.push({ ...item, productId: existing.productId });
             }
             else {
                 await prisma.products.create({ data: item });
+                try {
+                    (0, productUpdateAuditService_1.recordFieldUpdates)(item.productId, ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize"].filter((f) => item[f] !== undefined), "import");
+                }
+                catch (logErr) {
+                    console.warn("Failed to log field updates on import create:", logErr);
+                }
                 insertedCount += 1;
                 mergedItemsForJson.push(item);
             }
@@ -534,20 +801,21 @@ const processInvoice = async (req, res) => {
                     const unitPrice = nums.length >= 2 ? nums[1] : undefined;
                     const subtotal = nums.length >= 3 ? nums[2] : undefined;
                     if (quantity > 0) {
-                        items.push({ name: nameCol, quantity, unitPrice, subtotal });
+                        items.push({ name: nameCol, quantity, unitPrice, subtotal, unit: /\bpcs\b/i.test(numberCols) ? "pcs" : "ctn" });
                         continue;
                     }
                 }
             }
             // If we already captured a product name, check for a quantity line with unit label before handling comma+digits lines.
             if (pendingName) {
-                const qtyMatch = l.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units)\b/i);
+                const qtyMatch = l.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units|PCS)\b/i);
                 const priceNums = parseNumbers(l);
                 if (qtyMatch) {
                     const quantity = Math.floor(Number(qtyMatch[1].replace(/,/g, "")) || 0);
                     const unitPrice = priceNums.length >= 2 ? priceNums[priceNums.length - 2] : undefined;
                     const subtotal = priceNums.length >= 1 ? priceNums[priceNums.length - 1] : undefined;
-                    items.push({ name: pendingName, quantity, unitPrice, subtotal, packSize: pendingPackSize });
+                    const unitLabel = String(qtyMatch[2] || '').toLowerCase();
+                    items.push({ name: pendingName, quantity, unitPrice, subtotal, packSize: pendingPackSize, unit: unitLabel === 'pcs' ? 'pcs' : 'ctn' });
                     pendingName = null;
                     pendingPackSize = null;
                     continue;
@@ -576,7 +844,7 @@ const processInvoice = async (req, res) => {
                         pendingPackSize = extracted.pack;
                 }
                 // Prefer explicit quantity pattern like "50.00 Ctn" when present
-                const qtyExplicit = rest.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units)\b/i);
+                const qtyExplicit = rest.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units|PCS)\b/i);
                 if (qtyExplicit) {
                     const quantity = Math.floor(Number(qtyExplicit[1].replace(/,/g, "")) || 0);
                     const numsInline = parseNumbers(rest);
@@ -587,7 +855,8 @@ const processInvoice = async (req, res) => {
                         const finalName = extracted.name;
                         if (extracted.pack && !pendingPackSize)
                             pendingPackSize = extracted.pack;
-                        items.push({ name: finalName, quantity, unitPrice, subtotal, packSize: pendingPackSize });
+                        const unitLabel = String(qtyExplicit[2] || '').toLowerCase();
+                        items.push({ name: finalName, quantity, unitPrice, subtotal, packSize: pendingPackSize, unit: unitLabel === 'pcs' ? 'pcs' : 'ctn' });
                         pendingName = null;
                         pendingPackSize = null;
                         continue;
@@ -606,7 +875,7 @@ const processInvoice = async (req, res) => {
                         const finalName = extracted.name;
                         if (extracted.pack && !pendingPackSize)
                             pendingPackSize = extracted.pack;
-                        items.push({ name: finalName, quantity, unitPrice, subtotal, packSize: pendingPackSize });
+                        items.push({ name: finalName, quantity, unitPrice, subtotal, packSize: pendingPackSize, unit: /\bpcs\b/i.test(rest) ? 'pcs' : 'ctn' });
                         pendingName = null;
                         pendingPackSize = null;
                         continue;
@@ -623,13 +892,14 @@ const processInvoice = async (req, res) => {
             }
             // Late fallback for quantity lines (requires unit label to avoid pack-size lines)
             if (pendingName) {
-                const qtyMatch = l.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units)\b/i);
+                const qtyMatch = l.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units|PCS)\b/i);
                 const priceNums = parseNumbers(l);
                 if (qtyMatch) {
                     const quantity = Math.floor(Number(qtyMatch[1].replace(/,/g, "")) || 0);
                     const unitPrice = priceNums.length >= 2 ? priceNums[priceNums.length - 2] : undefined;
                     const subtotal = priceNums.length >= 1 ? priceNums[priceNums.length - 1] : undefined;
-                    items.push({ name: pendingName, quantity, unitPrice, subtotal, packSize: pendingPackSize });
+                    const unitLabel = String(qtyMatch[2] || '').toLowerCase();
+                    items.push({ name: pendingName, quantity, unitPrice, subtotal, packSize: pendingPackSize, unit: unitLabel === 'pcs' ? 'pcs' : 'ctn' });
                     pendingName = null;
                     pendingPackSize = null;
                     continue;
@@ -738,11 +1008,33 @@ const processInvoice = async (req, res) => {
                     }
                 }
             }
+            // When unit is PCS, adjust PCS inventory file and do not change carton stockQuantity
+            if (item.unit === 'pcs') {
+                (0, pcsInventoryService_1.adjustPcsQuantity)({ name: item.name, delta: -item.quantity });
+                if (prod) {
+                    const unitPrice = Number(item.unitPrice ?? prod.price ?? 0);
+                    const totalCost = Number(item.subtotal ?? unitPrice * item.quantity);
+                    await prisma.customerPurchases.create({ data: {
+                            id: (0, crypto_1.randomUUID)(),
+                            customerId: cust.customerId,
+                            productId: prod.productId,
+                            quantity: item.quantity,
+                            unitPrice,
+                            totalCost,
+                        } });
+                    updates.push({ productId: prod.productId, name: prod.name, deducted: item.quantity });
+                }
+                continue;
+            }
             if (!prod) {
                 continue; // skip unmatched
             }
             const newQty = Math.max(0, (prod.stockQuantity || 0) - (item.quantity || 0));
             await prisma.products.update({ where: { productId: prod.productId }, data: { stockQuantity: newQty } });
+            try {
+                (0, productUpdateAuditService_1.recordFieldUpdates)(prod.productId, ["stockQuantity"], "invoice");
+            }
+            catch { }
             const unitPrice = Number(item.unitPrice ?? prod.price ?? 0);
             const totalCost = Number(item.subtotal ?? unitPrice * item.quantity);
             await prisma.customerPurchases.create({ data: {
@@ -812,6 +1104,7 @@ const processInvoiceManual = async (req, res) => {
             const qty = Number(it?.quantity ?? 0);
             if (!qty || qty <= 0)
                 continue;
+            const unit = String(it?.unit || 'ctn').toLowerCase();
             let product = null;
             if (it?.productId) {
                 const p = await prisma.products.findUnique({ where: { productId: String(it.productId) } });
@@ -833,24 +1126,34 @@ const processInvoiceManual = async (req, res) => {
                     }
                 }
             }
-            if (!product)
-                continue; // skip unknown product
-            // Deduct stock (clamp at 0)
-            const newQty = Math.max(0, Number(product.stockQuantity) - qty);
-            await prisma.products.update({ where: { productId: product.productId }, data: { stockQuantity: newQty } });
-            const unitPrice = Number(product.price);
+            if (unit === 'pcs') {
+                const nameForPcs = String(it?.name || product?.name || '').trim();
+                if (nameForPcs)
+                    (0, pcsInventoryService_1.adjustPcsQuantity)({ name: nameForPcs, delta: -qty });
+            }
+            else {
+                if (!product)
+                    continue; // skip unknown product for carton flow
+                // Deduct stock (clamp at 0)
+                const newQty = Math.max(0, Number(product.stockQuantity) - qty);
+                await prisma.products.update({ where: { productId: product.productId }, data: { stockQuantity: newQty } });
+            }
+            const unitPrice = Number(product?.price ?? 0);
             const totalCost = Number(unitPrice) * qty;
             // Record purchase
-            await prisma.customerPurchases.create({ data: {
-                    id: (0, crypto_1.randomUUID)(),
-                    customerId: cust.customerId,
-                    productId: product.productId,
-                    timestamp,
-                    quantity: qty,
-                    unitPrice,
-                    totalCost,
-                } });
-            updates.push({ productId: product.productId, name: product.name, deducted: qty });
+            if (product) {
+                await prisma.customerPurchases.create({ data: {
+                        id: (0, crypto_1.randomUUID)(),
+                        customerId: cust.customerId,
+                        productId: product.productId,
+                        timestamp,
+                        quantity: qty,
+                        unitPrice,
+                        totalCost,
+                    } });
+            }
+            if (product)
+                updates.push({ productId: product.productId, name: product.name, deducted: qty });
         }
         (0, notificationService_1.appendNotification)({ type: "inventory", message: `Processed manual invoice for ${cust.name}; updated ${updates.length} product(s).`, actorUserId: req.user?.userId });
         res.json({ customer: cust, updates });
@@ -868,6 +1171,23 @@ const deleteProduct = async (req, res) => {
         const existing = await prisma.products.findUnique({ where: { productId } });
         if (!existing) {
             res.status(404).json({ message: "Product not found" });
+            return;
+        }
+        // Guard: prevent deletion when related entries exist
+        const [purchaseCount, salesCount, purchasesCount] = await Promise.all([
+            prisma.customerPurchases.count({ where: { productId } }),
+            prisma.sales.count({ where: { productId } }),
+            prisma.purchases.count({ where: { productId } }),
+        ]);
+        if (purchaseCount > 0 || salesCount > 0 || purchasesCount > 0) {
+            res.status(409).json({ message: "Cannot delete product with related purchase/sales records. Clear related records first." });
+            return;
+        }
+        // Optional guard: prevent deletion if PCS inventory still references this product by name
+        const pcs = (0, pcsInventoryService_1.readPcsInventory)();
+        const hasPcsRef = pcs.some((e) => String(e.name || "").trim().toLowerCase() === String(existing.name || "").trim().toLowerCase());
+        if (hasPcsRef) {
+            res.status(409).json({ message: "Cannot delete product while PCS inventory contains entries referencing it." });
             return;
         }
         await prisma.customerPurchases.deleteMany({ where: { productId } });
@@ -925,3 +1245,20 @@ const getImportSample = async (req, res) => {
     }
 };
 exports.getImportSample = getImportSample;
+// Return last updated timestamps per product field
+const getProductUpdatesLast = async (req, res) => {
+    try {
+        const last = (0, productUpdateAuditService_1.getLastFieldUpdates)();
+        // Enrich with product names for display
+        const ids = Object.keys(last);
+        const products = ids.length ? await prisma.products.findMany({ where: { productId: { in: ids } } }) : [];
+        const nameMap = new Map(products.map(p => [p.productId, p.name]));
+        const payload = ids.map((id) => ({ productId: id, name: nameMap.get(id) || "Unknown", last: last[id] }));
+        res.json(payload);
+    }
+    catch (err) {
+        console.error("getProductUpdatesLast error:", err);
+        res.status(500).json({ message: "Failed to load last updates" });
+    }
+};
+exports.getProductUpdatesLast = getProductUpdatesLast;

@@ -13,6 +13,7 @@ import expenseRoutes from "./routes/expenseRoutes";
 import authRoutes from "./routes/authRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import customerRoutes from "./routes/customerRoutes";
+import reportRoutes from "./routes/reportRoutes";
 import { ensureAdminUser } from "./services/adminBootstrap";
 
 /* CONFIGURATIONS */
@@ -48,6 +49,7 @@ app.use("/users", userRoutes); // http://localhost:8000/users
 app.use("/expenses", expenseRoutes); // http://localhost:8000/expenses
 app.use("/notifications", notificationRoutes); // http://localhost:8000/notifications
 app.use("/customers", customerRoutes); // http://localhost:8000/customers
+app.use("/reports", reportRoutes); // http://localhost:8000/reports
 
 /* SERVER */
 const port = Number(process.env.PORT) || 3001;
