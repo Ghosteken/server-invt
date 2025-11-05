@@ -9,7 +9,7 @@
     "productId": "201ede52-83c5-4f6f-a58a-f7d789b13da7",
     "name": "APPLE FRUIT MILK 500ML",
     "price": 6375,
-    "stockQuantity": 71
+    "stockQuantity": 15
   },
   {
     "productId": "26e54545-24b4-48a6-8c93-c2ce3b00d24e",
@@ -27,7 +27,7 @@
     "productId": "9088f14a-bc0d-4f3e-b0f4-b43b5a499000",
     "name": "BAMBOO SKEWER STICK FALCON 10INCH",
     "price": 40340,
-    "stockQuantity": 190
+    "stockQuantity": 95
   },
   {
     "productId": "6df3a674-5981-42a3-bf85-224343700691",
@@ -42,16 +42,22 @@
     "stockQuantity": 95
   },
   {
+    "productId": "ee375f8b-4849-4d47-bc64-22660ce5f252",
+    "name": "BAMBOO SKEWER STICK FALCON 8INCH",
+    "price": 37527.5,
+    "stockQuantity": 95
+  },
+  {
     "productId": "fd3ea3fc-b1f6-442c-8fd5-1046644d09fd",
     "name": "BBSTAR APPLE",
     "price": 5750,
-    "stockQuantity": 43
+    "stockQuantity": 35
   },
   {
     "productId": "3fad28e7-8298-4d57-8473-0de17d5b71d4",
     "name": "BBSTAR ORANGE",
     "price": 5750,
-    "stockQuantity": 36
+    "stockQuantity": 33
   },
   {
     "productId": "2a160ee7-f377-416c-9d7c-e1f56502e558",
@@ -75,13 +81,13 @@
     "productId": "50da33b7-6704-440e-a642-69607dca8e24",
     "name": "BOBO MILK DRINK ORANGE 180ML",
     "price": 5312.5,
-    "stockQuantity": 12
+    "stockQuantity": 0
   },
   {
     "productId": "fa024867-5cfa-4ebd-ae80-e42f52d87d4d",
     "name": "BOBO MILK DRINK VANILLA 180ML",
     "price": 5312.5,
-    "stockQuantity": 4
+    "stockQuantity": 0
   },
   {
     "productId": "682f9cea-ab3d-47c0-9d54-dbbb224bf14d",
@@ -135,7 +141,7 @@
     "productId": "20cb24de-4f66-4484-8aed-faee8137859d",
     "name": "CHECKERS CUSTARD 3IN1 REFILL 700GM",
     "price": 15275,
-    "stockQuantity": 18
+    "stockQuantity": 17
   },
   {
     "productId": "35d4144c-e731-4d56-946f-74b664c7b354",
@@ -189,7 +195,7 @@
     "productId": "1fb0c5a1-d9eb-4fa8-b944-d65560cfc1ac",
     "name": "CHECKERS CUSTARD VANILLA JAR 1KG",
     "price": 10675,
-    "stockQuantity": 14
+    "stockQuantity": 12
   },
   {
     "productId": "68357c85-f767-41e3-9c2d-ce6ae723f0e4",
@@ -207,13 +213,13 @@
     "productId": "e9ab17ee-76f7-480e-882e-aee216ded6eb",
     "name": "CHECKERS CUSTARD VANILLA REFILL PACK 1KG",
     "price": 13606.25,
-    "stockQuantity": 16
+    "stockQuantity": 15
   },
   {
     "productId": "7fccfc16-49fb-428d-b15a-44c6b65029c7",
     "name": "CHECKERS CUSTARD VANILLA REFILL PACK 400GMS",
     "price": 12898.75,
-    "stockQuantity": 26
+    "stockQuantity": 25
   },
   {
     "productId": "479b2034-f33e-4e75-b233-4a8baf701b2e",
@@ -249,7 +255,7 @@
     "productId": "ecffbe30-ecf7-4834-b741-a180f86aa85c",
     "name": "CHOCOLATE 500ML",
     "price": 10625,
-    "stockQuantity": 163
+    "stockQuantity": 33
   },
   {
     "productId": "7aa4d0e7-4910-42c6-99b1-ffbebe8461ce",
@@ -291,7 +297,7 @@
     "productId": "e821fc87-b26f-46f6-81e8-efe54a7af0d4",
     "name": "DISPENSER WATER WITH BOTTLE",
     "price": 5000,
-    "stockQuantity": 415
+    "stockQuantity": 413
   },
   {
     "productId": "6cc4eb26-fa47-465f-874f-1f486fbc3c2d",
@@ -321,7 +327,7 @@
     "productId": "1eb879b0-d7cf-460d-b7d6-3774d0d35729",
     "name": "ENSURE STRAWBERRY 237ML",
     "price": 90000,
-    "stockQuantity": 17
+    "stockQuantity": 12
   },
   {
     "productId": "eb61a3fb-8688-4739-b1eb-1af40cce7095",
@@ -357,55 +363,55 @@
     "productId": "8744d2d6-c51d-4836-b511-bb9f683b1946",
     "name": "HAZELNUT NUTELLA 160G",
     "price": 62500,
-    "stockQuantity": 49
+    "stockQuantity": 0
   },
   {
     "productId": "724c4c7e-157a-469d-a4a4-a6d8f2e34f9f",
     "name": "HAZELNUT NUTELLA 350G",
     "price": 106250,
-    "stockQuantity": 163
+    "stockQuantity": 4
   },
   {
     "productId": "0c977dc9-d87e-40c9-8840-d80e2f6f0c22",
     "name": "HAZELNUT NUTELLA 750G",
     "price": 156250,
-    "stockQuantity": 1
+    "stockQuantity": 0
   },
   {
     "productId": "1c74f4f5-5074-4d7a-828a-ea7e326fe8b1",
     "name": "IJELE BITTERS-HIBISCUS TEA BAGS 50G",
     "price": 27000,
-    "stockQuantity": 85
+    "stockQuantity": 80
   },
   {
     "productId": "27228ce3-90bb-466d-afa2-0000de9c179b",
     "name": "IJELE BITTERS-LEMON TEA BAGS 50G",
     "price": 27000,
-    "stockQuantity": 86
+    "stockQuantity": 80
   },
   {
     "productId": "2b3e1b6b-34cc-464f-a3cf-77defb5d57a7",
     "name": "IJELE HIBISCUS, LEMON & GINGER TEA BAGS 50G",
     "price": 19500,
-    "stockQuantity": 100
+    "stockQuantity": 95
   },
   {
     "productId": "7d360dde-f72b-4da0-b2bb-639cd1f838bb",
     "name": "IJELE LEMON & GINGER TEA BAGS 50G",
     "price": 19500,
-    "stockQuantity": 97
+    "stockQuantity": 92
   },
   {
     "productId": "143726e5-333c-4263-acfb-f6e276db9d05",
     "name": "IJELE POST-PARTUM TEA BAGS 50G",
     "price": 30000,
-    "stockQuantity": 52
+    "stockQuantity": 47
   },
   {
     "productId": "91c5efca-f998-4a4d-a73a-18f6d34b788c",
     "name": "IJELE WHOLE HEALTH & WELLNESS TEA BAGS 50G",
     "price": 30000,
-    "stockQuantity": 69
+    "stockQuantity": 64
   },
   {
     "productId": "0a65b336-2bdb-490a-ba5e-6eb0ad5d47e8",
@@ -495,13 +501,13 @@
     "productId": "411f4694-6f7c-404c-914e-b72adc47596c",
     "name": "MILK POWDER SOYA SWEETENED AGV 360G",
     "price": 70875,
-    "stockQuantity": 31
+    "stockQuantity": 27
   },
   {
     "productId": "c864bc4e-80d1-4aaa-8f4a-ab307de11223",
     "name": "MILK POWDER SOYA UNSWEETEN AGV 360G",
     "price": 70875,
-    "stockQuantity": 52
+    "stockQuantity": 49
   },
   {
     "productId": "c3bb68a2-419e-4435-8a19-6529a764ba21",
@@ -537,7 +543,13 @@
     "productId": "854dffc5-6f0a-4792-9828-e3d33a568a41",
     "name": "PLAIN YOGHURT 500ML",
     "price": 6875,
-    "stockQuantity": 68
+    "stockQuantity": 58
+  },
+  {
+    "productId": "e5c13bf7-0a8b-4498-90ef-6bd5789e1a11",
+    "name": "PUPPY MEAT CHUNKS WITH LAMB IN GRAVY TROY 410G",
+    "price": 0,
+    "stockQuantity": 1
   },
   {
     "productId": "4379bd64-c2d3-4555-aaa2-acf3f85dedc7",
@@ -597,13 +609,19 @@
     "productId": "17f21a4f-d253-4d7d-a8e4-225e42c3c75b",
     "name": "SOYA BEANS UNSWEET POWDER AGV 360G",
     "price": 70875,
-    "stockQuantity": 18
+    "stockQuantity": 22
+  },
+  {
+    "productId": "2751473c-1a81-47cc-8a15-3d22b0888641",
+    "name": "SOYA MILK  MIXED AGV 360G",
+    "price": 0,
+    "stockQuantity": 66
   },
   {
     "productId": "d29ea819-7f2d-4162-834b-fe832f109ea6",
     "name": "SOYA POWDER CHOC SWEETENED AGV 360G",
     "price": 70875,
-    "stockQuantity": 17
+    "stockQuantity": 36
   },
   {
     "productId": "5cd98b0b-a42a-4e17-aea5-47c8a9596064",
@@ -627,7 +645,7 @@
     "productId": "9e70dd52-f540-4dcb-b337-0fc46bc4fe9b",
     "name": "SPARKLING CIDER MARTINELLI'S 750ML",
     "price": 100000,
-    "stockQuantity": 152
+    "stockQuantity": 52
   },
   {
     "productId": "8fed11e0-6cbf-470e-b4bb-8867ddc1248c",
@@ -711,13 +729,13 @@
     "productId": "6e83ccf8-fdd8-4e2c-afb5-885aee010b68",
     "name": "VCOOL COLA",
     "price": 3725,
-    "stockQuantity": 73
+    "stockQuantity": 71
   },
   {
     "productId": "91a8a809-cd65-46a1-80c9-1d71f2e9e42d",
     "name": "VCOOL ORANGE",
     "price": 3725,
-    "stockQuantity": 80
+    "stockQuantity": 78
   },
   {
     "productId": "211f03c0-fb64-4e39-a9f6-dd78196ec3f7",
@@ -735,19 +753,19 @@
     "productId": "63f7122d-0705-4b0c-8583-b7137e265ed7",
     "name": "VSMATIC WHEAT 1L",
     "price": 17250,
-    "stockQuantity": 53
+    "stockQuantity": 49
   },
   {
     "productId": "ea5955a8-3a28-40de-bcd6-559f303dcc42",
     "name": "WESSON CANOLA OIL",
     "price": 100000,
-    "stockQuantity": 49
+    "stockQuantity": 1
   },
   {
     "productId": "728adab6-d27c-4581-abbe-020500ed1b36",
     "name": "WHEAT 500ML",
     "price": 10625,
-    "stockQuantity": 97
+    "stockQuantity": 33
   },
   {
     "productId": "3005fbce-1252-4cdd-98cd-ed93aed5ed26",
@@ -756,39 +774,45 @@
     "stockQuantity": 18
   },
   {
+    "productId": "1475e4ed-be32-4a06-b87c-544c7741b2b6",
+    "name": "WISMO BISCUITS",
+    "price": 0,
+    "stockQuantity": 128
+  },
+  {
     "productId": "f9e03988-1057-48b9-8dfc-2587421d553f",
     "name": "YEAST INSTANT DRY STK ROYAL 500G",
     "price": 75000,
-    "stockQuantity": 113
+    "stockQuantity": 2
   },
   {
     "productId": "09f31cde-1702-43ca-a5f7-4612cf31f775",
     "name": "YUGO YOGURT APPLE 3300ML",
     "price": 5687.5,
-    "stockQuantity": 95
+    "stockQuantity": 92
   },
   {
     "productId": "61f43d26-51f5-4bc5-8236-965734ef67dc",
     "name": "YUGO YOGURT APPLE 500ML",
     "price": 7625,
-    "stockQuantity": 82
+    "stockQuantity": 48
   },
   {
     "productId": "99c11544-73cc-4932-bca2-0399b866717b",
     "name": "YUGO YOGURT BANANA 3300ML",
     "price": 5687.5,
-    "stockQuantity": 60
+    "stockQuantity": 55
   },
   {
     "productId": "4110a50e-b506-4825-b53a-05c57fd0c214",
     "name": "YUGO YOGURT BANANA 500ML",
     "price": 7625,
-    "stockQuantity": 61
+    "stockQuantity": 54
   },
   {
     "productId": "4febb399-6f1b-4eef-92f6-4534965c54f4",
     "name": "YUGO YOGURT MIXED 500ML",
     "price": 7625,
-    "stockQuantity": 51
+    "stockQuantity": 15
   }
 ]

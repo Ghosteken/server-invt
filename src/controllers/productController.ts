@@ -3,6 +3,8 @@ import { PrismaClient } from "@prisma/client";
 import { appendNotification } from "../services/notificationService";
 import { syncProductsJsonFromDb, writeEmptyProductsJson, writeEmptyImportedProductsJson } from "../services/productSyncService";
 import { appendCustomerSales } from "../services/customerSalesService";
+import { readPcsInventory, upsertPcsEntries, adjustPcsQuantity } from "../services/pcsInventoryService";
+import { recordFieldUpdates, getLastFieldUpdates } from "../services/productUpdateAuditService";
 import XLSX from "xlsx";
 import fs from "node:fs";
 import path from "node:path";
@@ -126,6 +128,20 @@ export const updateProduct = async (
     if (packSize !== undefined) data.packSize = packSize ?? null;
 
     const updated = await prisma.products.update({ where: { productId }, data });
+    try {
+      const changed: string[] = [];
+      const keys = Object.keys(data);
+      for (const k of keys) {
+        const oldVal = (existing as any)[k];
+        const newVal = (data as any)[k];
+        const oldNorm = oldVal instanceof Date ? oldVal.getTime() : oldVal;
+        const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
+        if (oldNorm !== newNorm) changed.push(k);
+      }
+      if (changed.length) recordFieldUpdates(productId, changed, "api");
+    } catch (logErr) {
+      console.warn("Failed to log field updates on updateProduct:", logErr);
+    }
     appendNotification({
       type: "product",
       message: `Product updated: ${updated.name}`,
@@ -156,6 +172,159 @@ export const exportProducts = async (
   }
 };
 
+export const getPcsProducts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const pcs = readPcsInventory();
+    // Load all products to allow robust matching and enrichment
+    const products = await prisma.products.findMany({});
+
+    // Helper normalization (aligned with invoice parsing heuristics)
+    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+    const normalizeWithSynonyms = (s: string) => normalize(
+      s
+        .replace(/\byoghurt\b/gi, "yogurt")
+        .replace(/\bflavour\b/gi, "flavor")
+        .replace(/(\d+)([a-z]+)/gi, "$1 $2")
+    );
+    const tokensOf = (s: string) => normalizeWithSynonyms(s).split(" ").filter(Boolean);
+    const FILLER_TOKENS = new Set(["drink", "flavor", "flavour", "ctn", "carton", "pack", "copy", "x"]);
+    const normSimple = (s: unknown) => String(s ?? "").replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+    const extractNum = (s: unknown): number | null => {
+      const m = String(s ?? "").match(/\d+/);
+      return m ? Number(m[0]) : null;
+    };
+    const packEq = (a: unknown, b: unknown) => {
+      const na = extractNum(a);
+      const nb = extractNum(b);
+      if (na != null && nb != null) return na === nb;
+      return normSimple(a) === normSimple(b);
+    };
+
+    // Build indices for quick matching
+    const byExact = new Map(products.map(p => [p.name.toLowerCase(), p] as const));
+    const byNorm = new Map<string, { product: any; toks: Set<string> }>();
+    for (const p of products) {
+      const toks = new Set(tokensOf(p.name).filter(t => !FILLER_TOKENS.has(t)));
+      byNorm.set(normalizeWithSynonyms(p.name), { product: p, toks });
+    }
+
+    // Accumulate results with deduplication by matched product or normalized name
+    const agg = new Map<string, {
+      productId: string | number;
+      name: string;
+      pcsQuantity: number;
+      packSize?: string | null;
+      category?: string | null;
+      expiryDate?: Date | null;
+      price?: number;
+      purchasePrice?: number | null;
+    }>();
+
+    for (const e of pcs) {
+      const exact = byExact.get(e.name.toLowerCase());
+      let matched = exact ?? null;
+      if (!matched) {
+        const etoks = new Set(tokensOf(e.name).filter(t => !FILLER_TOKENS.has(t)));
+        // Score candidates by token overlap; prefer pack match when available
+        let best: { product: any; score: number } | null = null;
+        for (const { product, toks } of byNorm.values()) {
+          // quick skip when overlap is tiny
+          const overlap = Array.from(etoks).filter(t => toks.has(t)).length;
+          if (overlap === 0) continue;
+          let score = overlap;
+          if (e.packSize && packEq(e.packSize, product.packSize)) score += 2;
+          if (!best || score > best.score) best = { product, score };
+        }
+        matched = best?.product ?? null;
+      }
+
+      const key = matched?.productId ? String(matched.productId) : normalizeWithSynonyms(e.name);
+      const prev = agg.get(key);
+      const pcsQuantity = (prev?.pcsQuantity ?? 0) + (e.quantity || 0);
+      const payload = {
+        productId: matched?.productId || e.productId || e.name,
+        name: matched?.name || e.name,
+        pcsQuantity,
+        packSize: (matched?.packSize ?? e.packSize ?? null) as string | null,
+        category: matched?.category ?? null,
+        expiryDate: matched?.expiryDate ?? null,
+        price: matched?.price ?? 0,
+        purchasePrice: matched?.purchasePrice ?? null,
+      } as const;
+      agg.set(key, payload as any);
+    }
+
+    const enriched = Array.from(agg.values());
+    res.json(enriched);
+  } catch (err) {
+    console.error("getPcsProducts error:", err);
+    res.status(500).json({ message: "Failed to load PCS products" });
+  }
+};
+
+export const importPcsProducts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const file = (req as any).file as Express.Multer.File | undefined;
+    if (!file) {
+      res.status(400).json({ message: "No file uploaded. Use field name 'file'." });
+      return;
+    }
+    const workbook = XLSX.read(file.buffer, { type: "buffer" });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, { defval: null });
+    if (!rows.length) {
+      res.status(400).json({ message: "Uploaded sheet is empty." });
+      return;
+    }
+    const norm = (k: string) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+    const coerceNumber = (val: any): number | null => {
+      if (val === null || val === undefined) return null;
+      if (typeof val === "number" && Number.isFinite(val)) return val;
+      const s = String(val);
+      const m = s.replace(/[,]/g, "").match(/-?\d+(?:\.\d+)?/);
+      if (!m) return null;
+      const n = Number(m[0]);
+      return Number.isFinite(n) ? n : null;
+    };
+    const incoming: { name: string; quantity: number; packSize?: string | null }[] = [];
+    for (const row of rows) {
+      const kv: Record<string, any> = {};
+      for (const k of Object.keys(row)) kv[norm(k)] = row[k];
+      let name = kv["name"] ?? kv["product"] ?? kv["item"] ?? kv["product description"] ?? kv["description"];
+      // Fallback: first non-empty string cell as name
+      if (!name) {
+        const firstStrKey = Object.keys(kv).find((k) => typeof kv[k] === "string" && String(kv[k]).trim().length > 0);
+        if (firstStrKey) name = kv[firstStrKey];
+      }
+      if (!name) continue;
+
+      let qty = coerceNumber(
+        kv["pcs"] ?? kv["quantity"] ?? kv["qty"] ?? kv["pcs qty"] ?? kv["qty pcs"] ?? kv["pcs quantity"] ?? kv["quantity pcs"] ?? kv["pieces"] ?? kv["pcs count"] ?? kv["count pcs"]
+      );
+      // Fallback: first numeric-like cell in the row
+      if (qty == null) {
+        for (const key of Object.keys(kv)) {
+          const n = coerceNumber(kv[key]);
+          if (n != null) {
+            qty = n;
+            break;
+          }
+        }
+      }
+      // If quantity is still missing, import the item with quantity 0
+      if (qty == null) qty = 0;
+      const packSize = kv["pack size"] ?? kv["pack"] ?? null;
+      incoming.push({ name: String(name).trim(), quantity: Math.max(0, Number(qty)), packSize: packSize ? String(packSize).trim() : null });
+    }
+    const merged = upsertPcsEntries(incoming);
+    appendNotification({ type: "product", message: `Imported ${incoming.length} PCS products`, actorUserId: req.user?.userId });
+    res.json({ imported: incoming.length, total: merged.length });
+  } catch (err) {
+    console.error("importPcsProducts error:", err);
+    res.status(500).json({ message: "Failed to import PCS products" });
+  }
+};
 /**
  * Bulk import products from an uploaded Excel file.
  * Accepts a single file under field name "file". The Excel sheet should contain
@@ -240,9 +409,9 @@ export const importProducts = async (
           return null; // category header row; skip insert
         }
 
-        // Basic validation
-        if (!name || priceRaw === null || priceRaw === undefined || stockRaw === null || stockRaw === undefined) {
-          return null; // skip invalid rows
+        // Basic validation: require only name; allow missing price/quantity and default them later
+        if (!name) {
+          return null; // skip rows without a name/description
         }
         const price = coerceNumber(priceRaw);
         const purchasePrice = purchasePriceRaw === null || purchasePriceRaw === undefined ? null : coerceNumber(purchasePriceRaw);
@@ -263,16 +432,16 @@ export const importProducts = async (
         };
         const expiryDate = coerceDate(expiryRaw);
 
-        if (price === null || stockQuantity === null) {
-          return null;
-        }
+        // Default missing numeric fields to 0 to ensure products are created even with incomplete info
+        const finalPrice = price === null ? 0 : price;
+        const finalStock = stockQuantity === null ? 0 : Math.floor(stockQuantity as number);
 
         return {
           productId: String(productId),
           name: String(name),
-          price: price as number,
+          price: finalPrice as number,
           purchasePrice: (purchasePrice !== null && Number.isFinite(purchasePrice)) ? (purchasePrice as number) : null,
-          stockQuantity: Math.floor(stockQuantity as number),
+          stockQuantity: finalStock,
           expiryDate: expiryDate ?? null,
           category: (category ? String(category) : (currentCategory ? String(currentCategory) : null)),
           description: description ? String(description) : null,
@@ -331,25 +500,75 @@ export const importProducts = async (
       packSize: string | null;
     }> = [];
 
+    // Parse optional selective update fields from multipart form (CSV or JSON array)
+    const rawUpdateFields = (req.body?.updateFields as string | undefined) ?? undefined;
+    let updateFieldsSet: Set<string> | null = null;
+    if (rawUpdateFields && typeof rawUpdateFields === "string") {
+      try {
+        const trimmed = rawUpdateFields.trim();
+        let arr: string[] = [];
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+          arr = JSON.parse(trimmed);
+        } else {
+          arr = trimmed.split(/[,;\s]+/).filter(Boolean);
+        }
+        const normalizeField = (s: string) => s.toLowerCase().replace(/[^a-z]/g, "");
+        const allowed = new Set([
+          "name",
+          "price",
+          "purchaseprice",
+          "stockquantity",
+          "expirydate",
+          "category",
+          "description",
+          "packsize",
+        ]);
+        const selected = arr
+          .map(normalizeField)
+          .filter(f => allowed.has(f));
+        if (selected.length > 0) updateFieldsSet = new Set(selected);
+      } catch {
+        // ignore parse errors; fall back to updating all fields
+        updateFieldsSet = null;
+      }
+    }
+
     for (const item of productsToInsert) {
       const key = keyOf({ name: item.name, packSize: item.packSize });
       const existing = existingMap.get(key);
       if (existing) {
-        const dataUpdate: any = {
-          name: item.name,
-          price: item.price,
-          purchasePrice: item.purchasePrice,
-          stockQuantity: item.stockQuantity,
-          expiryDate: item.expiryDate ?? null,
-          // Prefer existing category unless missing; then use imported category/header-derived
-          category: existing.category ?? item.category ?? null,
-          description: item.description ?? existing.description ?? null,
-          packSize: item.packSize ?? existing.packSize ?? null,
-        };
+        const dataUpdate: any = {};
+        const should = (field: string) => !updateFieldsSet || updateFieldsSet.has(field);
+        if (should("name")) dataUpdate.name = item.name;
+        if (should("price")) dataUpdate.price = item.price;
+        if (should("purchaseprice")) dataUpdate.purchasePrice = item.purchasePrice;
+        if (should("stockquantity")) dataUpdate.stockQuantity = item.stockQuantity;
+        if (should("expirydate")) dataUpdate.expiryDate = item.expiryDate ?? null;
+        if (should("category")) dataUpdate.category = (existing.category ?? item.category ?? null);
+        if (should("description")) dataUpdate.description = item.description ?? existing.description ?? null;
+        if (should("packsize")) dataUpdate.packSize = item.packSize ?? existing.packSize ?? null;
         await prisma.products.update({ where: { productId: existing.productId }, data: dataUpdate });
+        try {
+          const changed: string[] = [];
+          for (const k of Object.keys(dataUpdate)) {
+            const oldVal = (existing as any)[k];
+            const newVal = (dataUpdate as any)[k];
+            const oldNorm = oldVal instanceof Date ? oldVal.getTime() : oldVal;
+            const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
+            if (oldNorm !== newNorm) changed.push(k);
+          }
+          if (changed.length) recordFieldUpdates(existing.productId, changed, "import");
+        } catch (logErr) {
+          console.warn("Failed to log field updates on import update:", logErr);
+        }
         mergedItemsForJson.push({ ...item, productId: existing.productId });
       } else {
         await prisma.products.create({ data: item });
+        try {
+          recordFieldUpdates(item.productId, ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize"].filter((f) => (item as any)[f] !== undefined), "import");
+        } catch (logErr) {
+          console.warn("Failed to log field updates on import create:", logErr);
+        }
         insertedCount += 1;
         mergedItemsForJson.push(item);
       }
@@ -554,7 +773,7 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
       return { name, pack };
     };
 
-    type Item = { name: string; quantity: number; unitPrice?: number; subtotal?: number; packSize?: string | null };
+    type Item = { name: string; quantity: number; unitPrice?: number; subtotal?: number; packSize?: string | null; unit?: "ctn" | "pcs" };
     const items: Item[] = [];
     let pendingName: string | null = null;
     let pendingPackSize: string | null = null;
@@ -579,7 +798,7 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
           const unitPrice = nums.length >= 2 ? nums[1] : undefined;
           const subtotal = nums.length >= 3 ? nums[2] : undefined;
           if (quantity > 0) {
-            items.push({ name: nameCol, quantity, unitPrice, subtotal });
+            items.push({ name: nameCol, quantity, unitPrice, subtotal, unit: /\bpcs\b/i.test(numberCols) ? "pcs" : "ctn" });
             continue;
           }
         }
@@ -587,13 +806,14 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
 
       // If we already captured a product name, check for a quantity line with unit label before handling comma+digits lines.
       if (pendingName) {
-        const qtyMatch = l.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units)\b/i);
+        const qtyMatch = l.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units|PCS)\b/i);
         const priceNums = parseNumbers(l);
         if (qtyMatch) {
           const quantity = Math.floor(Number(qtyMatch[1].replace(/,/g, "")) || 0);
           const unitPrice = priceNums.length >= 2 ? priceNums[priceNums.length - 2] : undefined;
           const subtotal = priceNums.length >= 1 ? priceNums[priceNums.length - 1] : undefined;
-          items.push({ name: pendingName, quantity, unitPrice, subtotal, packSize: pendingPackSize });
+          const unitLabel = String(qtyMatch[2] || '').toLowerCase();
+          items.push({ name: pendingName, quantity, unitPrice, subtotal, packSize: pendingPackSize, unit: unitLabel === 'pcs' ? 'pcs' : 'ctn' });
           pendingName = null;
           pendingPackSize = null;
           continue;
@@ -621,7 +841,7 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
           if (extracted.pack && !pendingPackSize) pendingPackSize = extracted.pack;
         }
         // Prefer explicit quantity pattern like "50.00 Ctn" when present
-        const qtyExplicit = rest.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units)\b/i);
+        const qtyExplicit = rest.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units|PCS)\b/i);
         if (qtyExplicit) {
           const quantity = Math.floor(Number(qtyExplicit[1].replace(/,/g, "")) || 0);
           const numsInline = parseNumbers(rest);
@@ -631,7 +851,8 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
             const extracted = extractPackFromText(pendingName ?? namePart);
             const finalName = extracted.name;
             if (extracted.pack && !pendingPackSize) pendingPackSize = extracted.pack;
-            items.push({ name: finalName, quantity, unitPrice, subtotal, packSize: pendingPackSize });
+            const unitLabel = String(qtyExplicit[2] || '').toLowerCase();
+            items.push({ name: finalName, quantity, unitPrice, subtotal, packSize: pendingPackSize, unit: unitLabel === 'pcs' ? 'pcs' : 'ctn' });
             pendingName = null;
             pendingPackSize = null;
             continue;
@@ -649,7 +870,7 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
             const extracted = extractPackFromText(pendingName ?? namePart);
             const finalName = extracted.name;
             if (extracted.pack && !pendingPackSize) pendingPackSize = extracted.pack;
-            items.push({ name: finalName, quantity, unitPrice, subtotal, packSize: pendingPackSize });
+            items.push({ name: finalName, quantity, unitPrice, subtotal, packSize: pendingPackSize, unit: /\bpcs\b/i.test(rest) ? 'pcs' : 'ctn' });
             pendingName = null;
             pendingPackSize = null;
             continue;
@@ -665,13 +886,14 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
       }
       // Late fallback for quantity lines (requires unit label to avoid pack-size lines)
       if (pendingName) {
-        const qtyMatch = l.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units)\b/i);
+        const qtyMatch = l.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units|PCS)\b/i);
         const priceNums = parseNumbers(l);
         if (qtyMatch) {
           const quantity = Math.floor(Number(qtyMatch[1].replace(/,/g, "")) || 0);
           const unitPrice = priceNums.length >= 2 ? priceNums[priceNums.length - 2] : undefined;
           const subtotal = priceNums.length >= 1 ? priceNums[priceNums.length - 1] : undefined;
-          items.push({ name: pendingName, quantity, unitPrice, subtotal, packSize: pendingPackSize });
+          const unitLabel = String(qtyMatch[2] || '').toLowerCase();
+          items.push({ name: pendingName, quantity, unitPrice, subtotal, packSize: pendingPackSize, unit: unitLabel === 'pcs' ? 'pcs' : 'ctn' });
           pendingName = null;
           pendingPackSize = null;
           continue;
@@ -782,11 +1004,30 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
           }
         }
       }
+      // When unit is PCS, adjust PCS inventory file and do not change carton stockQuantity
+      if (item.unit === 'pcs') {
+        adjustPcsQuantity({ name: item.name, delta: -item.quantity });
+        if (prod) {
+          const unitPrice = Number(item.unitPrice ?? prod.price ?? 0);
+          const totalCost = Number(item.subtotal ?? unitPrice * item.quantity);
+          await prisma.customerPurchases.create({ data: {
+            id: randomUUID(),
+            customerId: cust.customerId,
+            productId: prod.productId,
+            quantity: item.quantity,
+            unitPrice,
+            totalCost,
+          } });
+          updates.push({ productId: prod.productId, name: prod.name, deducted: item.quantity });
+        }
+        continue;
+      }
       if (!prod) {
         continue; // skip unmatched
       }
       const newQty = Math.max(0, (prod.stockQuantity || 0) - (item.quantity || 0));
       await prisma.products.update({ where: { productId: prod.productId }, data: { stockQuantity: newQty } });
+      try { recordFieldUpdates(prod.productId, ["stockQuantity"], "invoice"); } catch {}
       const unitPrice = Number(item.unitPrice ?? prod.price ?? 0);
       const totalCost = Number(item.subtotal ?? unitPrice * item.quantity);
       await prisma.customerPurchases.create({ data: {
@@ -831,7 +1072,7 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
 export const processInvoiceManual = async (req: Request, res: Response): Promise<void> => {
   try {
     const prismaDate = (d?: string | number | Date) => (d ? new Date(d) : new Date());
-    type ManualItemInput = { productId?: string; name?: string; quantity: number };
+    type ManualItemInput = { productId?: string; name?: string; quantity: number; unit?: "ctn" | "pcs" };
     type ManualInvoiceBody = { customerName: string; date?: string | number | Date; items: ManualItemInput[] };
     const body = req.body as ManualInvoiceBody;
     const customerName = String(body?.customerName || '').trim();
@@ -861,6 +1102,7 @@ export const processInvoiceManual = async (req: Request, res: Response): Promise
     for (const it of itemsInput) {
       const qty = Number(it?.quantity ?? 0);
       if (!qty || qty <= 0) continue;
+      const unit = String(it?.unit || 'ctn').toLowerCase();
 
       let product: { productId: string; name: string; price: number; stockQuantity: number } | null = null;
       if (it?.productId) {
@@ -883,27 +1125,33 @@ export const processInvoiceManual = async (req: Request, res: Response): Promise
         }
       }
 
-      if (!product) continue; // skip unknown product
+      if (unit === 'pcs') {
+        const nameForPcs = String(it?.name || product?.name || '').trim();
+        if (nameForPcs) adjustPcsQuantity({ name: nameForPcs, delta: -qty });
+      } else {
+        if (!product) continue; // skip unknown product for carton flow
+        // Deduct stock (clamp at 0)
+        const newQty = Math.max(0, Number(product.stockQuantity) - qty);
+        await prisma.products.update({ where: { productId: product.productId }, data: { stockQuantity: newQty } });
+      }
 
-      // Deduct stock (clamp at 0)
-      const newQty = Math.max(0, Number(product.stockQuantity) - qty);
-      await prisma.products.update({ where: { productId: product.productId }, data: { stockQuantity: newQty } });
-
-      const unitPrice = Number(product.price);
+      const unitPrice = Number(product?.price ?? 0);
       const totalCost = Number(unitPrice) * qty;
 
       // Record purchase
-      await prisma.customerPurchases.create({ data: {
-        id: randomUUID(),
-        customerId: cust.customerId,
-        productId: product.productId,
-        timestamp,
-        quantity: qty,
-        unitPrice,
-        totalCost,
-      } });
+      if (product) {
+        await prisma.customerPurchases.create({ data: {
+          id: randomUUID(),
+          customerId: cust.customerId,
+          productId: product.productId,
+          timestamp,
+          quantity: qty,
+          unitPrice,
+          totalCost,
+        } });
+      }
 
-      updates.push({ productId: product.productId, name: product.name, deducted: qty });
+      if (product) updates.push({ productId: product.productId, name: product.name, deducted: qty });
     }
 
     appendNotification({ type: "inventory", message: `Processed manual invoice for ${cust.name}; updated ${updates.length} product(s).`, actorUserId: req.user?.userId });
@@ -978,5 +1226,24 @@ export const getImportSample = async (
   } catch (err) {
     console.error("getImportSample error:", err);
     res.status(500).json({ message: "Failed to generate sample file" });
+  }
+};
+
+// Return last updated timestamps per product field
+export const getProductUpdatesLast = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const last = getLastFieldUpdates();
+    // Enrich with product names for display
+    const ids = Object.keys(last);
+    const products = ids.length ? await prisma.products.findMany({ where: { productId: { in: ids } } }) : [];
+    const nameMap = new Map(products.map(p => [p.productId, p.name] as const));
+    const payload = ids.map((id) => ({ productId: id, name: nameMap.get(id) || "Unknown", last: last[id] }));
+    res.json(payload);
+  } catch (err) {
+    console.error("getProductUpdatesLast error:", err);
+    res.status(500).json({ message: "Failed to load last updates" });
   }
 };

@@ -173,5 +173,59 @@
     "type": "inventory",
     "message": "Processed invoice for CHRISCORIN ADESANYA; updated 2 product(s).",
     "timestamp": "2025-11-05T02:07:10.570Z"
+  },
+  {
+    "id": "1762364223668-rjvg7k",
+    "type": "product",
+    "message": "Imported 1 products from Excel (processed 132)",
+    "timestamp": "2025-11-05T17:37:03.668Z"
+  },
+  {
+    "id": "1762365384408-pqat90",
+    "type": "product",
+    "message": "Imported 3 products from Excel (processed 135)",
+    "timestamp": "2025-11-05T17:56:24.408Z"
+  },
+  {
+    "id": "1762370063579-onlhhd",
+    "type": "product",
+    "message": "Imported 0 PCS products",
+    "timestamp": "2025-11-05T19:14:23.579Z"
+  },
+  {
+    "id": "1762370492444-3186xu",
+    "type": "product",
+    "message": "Imported 0 PCS products",
+    "timestamp": "2025-11-05T19:21:32.444Z"
+  },
+  {
+    "id": "1762370612466-4zuatt",
+    "type": "product",
+    "message": "Imported 0 PCS products",
+    "timestamp": "2025-11-05T19:23:32.466Z"
+  },
+  {
+    "id": "1762370650727-fywch6",
+    "type": "product",
+    "message": "Imported 61 PCS products",
+    "timestamp": "2025-11-05T19:24:10.727Z"
+  },
+  {
+    "id": "1762372024585-zy4y83",
+    "type": "product",
+    "message": "Imported 61 PCS products",
+    "timestamp": "2025-11-05T19:47:04.585Z"
+  },
+  {
+    "id": "1762372772948-cxkpt2",
+    "type": "product",
+    "message": "Imported 62 PCS products",
+    "timestamp": "2025-11-05T19:59:32.948Z"
+  },
+  {
+    "id": "1762373027269-g5nciz",
+    "type": "product",
+    "message": "Imported 62 PCS products",
+    "timestamp": "2025-11-05T20:03:47.269Z"
   }
 ]
