@@ -12,8 +12,14 @@ const node_crypto_1 = require("node:crypto");
 async function ensureAdminUser() {
     const prisma = new client_1.PrismaClient();
     try {
-        const adminEmail = (process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
-        const adminPassword = process.env.ADMIN_PASSWORD || "admin2@12ad";
+        const configuredEmail = process.env.ADMIN_EMAIL;
+        const configuredPassword = process.env.ADMIN_PASSWORD;
+        if (!configuredEmail || !configuredPassword) {
+            console.log("adminBootstrap: ADMIN_EMAIL/ADMIN_PASSWORD not set; skipping admin ensure.");
+            return;
+        }
+        const adminEmail = configuredEmail.toLowerCase().trim();
+        const adminPassword = configuredPassword;
         const existing = await prisma.users.findFirst({ where: { email: adminEmail } });
         const hashedPassword = bcryptjs_1.default.hashSync(String(adminPassword), 10);
         if (!existing) {

@@ -47,5 +47,131 @@
     "type": "product",
     "message": "Purged all products and related records",
     "timestamp": "2025-11-04T00:16:46.606Z"
+  },
+  {
+    "id": "1762302166713-wkz35w",
+    "type": "product",
+    "message": "Imported 132 products from Excel",
+    "timestamp": "2025-11-05T00:22:46.713Z"
+  },
+  {
+    "id": "1762302438742-avaa05",
+    "type": "product",
+    "message": "Imported 132 products from Excel",
+    "timestamp": "2025-11-05T00:27:18.742Z"
+  },
+  {
+    "id": "1762303015765-hkkhab",
+    "type": "product",
+    "message": "Imported 0 products from Excel (processed 132)",
+    "timestamp": "2025-11-05T00:36:55.766Z"
+  },
+  {
+    "id": "1762303045069-n3xufg",
+    "type": "product",
+    "message": "Imported 0 products from Excel (processed 132)",
+    "timestamp": "2025-11-05T00:37:25.070Z"
+  },
+  {
+    "id": "1762303779845-18rnw5",
+    "type": "product",
+    "message": "Imported 0 products from Excel (processed 132)",
+    "timestamp": "2025-11-05T00:49:39.845Z"
+  },
+  {
+    "id": "1762304138346-f3d93l",
+    "type": "product",
+    "message": "Imported 0 products from Excel (processed 132)",
+    "timestamp": "2025-11-05T00:55:38.346Z"
+  },
+  {
+    "id": "1762304665590-ukqa7q",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:04:25.590Z"
+  },
+  {
+    "id": "1762304983322-bw2ewb",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:09:43.322Z"
+  },
+  {
+    "id": "1762305477659-j8bgbi",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:17:57.659Z"
+  },
+  {
+    "id": "1762305502824-icq5y0",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:18:22.824Z"
+  },
+  {
+    "id": "1762305635675-v5l74u",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:20:35.675Z"
+  },
+  {
+    "id": "1762305641027-xv1y3u",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:20:41.027Z"
+  },
+  {
+    "id": "1762305660176-45knoa",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:21:00.176Z"
+  },
+  {
+    "id": "1762306294971-wrqyu4",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:31:34.971Z"
+  },
+  {
+    "id": "1762306327956-upu0e4",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:32:07.956Z"
+  },
+  {
+    "id": "1762306350193-gekh3u",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:32:30.193Z"
+  },
+  {
+    "id": "1762306359271-h850fv",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:32:39.271Z"
+  },
+  {
+    "id": "1762306399855-w2outs",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:33:19.855Z"
+  },
+  {
+    "id": "1762306930786-p5feus",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:42:10.786Z"
+  },
+  {
+    "id": "1762306975801-k1jjsn",
+    "type": "inventory",
+    "message": "Processed invoice for MUMMY FAVOUR; updated 0 product(s).",
+    "timestamp": "2025-11-05T01:42:55.801Z"
+  },
+  {
+    "id": "1762308430569-u4wr4r",
+    "type": "inventory",
+    "message": "Processed invoice for CHRISCORIN ADESANYA; updated 2 product(s).",
+    "timestamp": "2025-11-05T02:07:10.570Z"
   }
 ]

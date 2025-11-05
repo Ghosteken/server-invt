@@ -31,6 +31,12 @@ model Products {
   rating        Float?
   stockQuantity Int
   expiryDate    DateTime?
+  // New descriptive fields for richer inventory details
+  category      String?
+  description   String?
+  packSize      String?
+  // Optional purchase price (cost) from supplier/import sheet
+  purchasePrice Float?
   Sales         Sales[]
   Purchases     Purchases[]
   CustomerPurchases CustomerPurchases[]

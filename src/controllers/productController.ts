@@ -47,13 +47,16 @@ export const createProduct = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { name, price, stockQuantity } = req.body;
+    const { name, price, stockQuantity, category, description, packSize } = req.body;
     const product = await prisma.products.create({
       data: {
         productId: randomUUID(),
         name,
         price,
         stockQuantity,
+        category,
+        description,
+        packSize,
       },
     });
     // Log notification for product creation
@@ -93,7 +96,7 @@ export const updateProduct = async (
 ): Promise<void> => {
   try {
     const { productId } = req.params;
-    const { name, price, stockQuantity, expiryDate } = req.body;
+    const { name, price, purchasePrice, stockQuantity, expiryDate, category, description, packSize } = req.body;
 
     const existing = await prisma.products.findUnique({ where: { productId } });
     if (!existing) {
@@ -104,6 +107,7 @@ export const updateProduct = async (
     const data: any = {};
     if (typeof name === "string") data.name = name;
     if (price !== undefined && price !== null && !isNaN(Number(price))) data.price = Number(price);
+    if (purchasePrice !== undefined && purchasePrice !== null && !isNaN(Number(purchasePrice))) data.purchasePrice = Number(purchasePrice);
     if (stockQuantity !== undefined && stockQuantity !== null && !isNaN(Number(stockQuantity))) data.stockQuantity = Number(stockQuantity);
     if (expiryDate !== undefined) {
       if (expiryDate === null || expiryDate === "") {
@@ -117,6 +121,9 @@ export const updateProduct = async (
         data.expiryDate = d;
       }
     }
+    if (category !== undefined) data.category = category ?? null;
+    if (description !== undefined) data.description = description ?? null;
+    if (packSize !== undefined) data.packSize = packSize ?? null;
 
     const updated = await prisma.products.update({ where: { productId }, data });
     appendNotification({
@@ -181,49 +188,117 @@ export const importProducts = async (
       return;
     }
 
-    // Normalize header keys to lower-case for flexible matching
-    const normalizeKey = (k: string) => k.toString().trim().toLowerCase();
+    // Normalize header keys: lower-case, collapse spaces, replace NBSP, and also provide a no-punctuation variant
+    const normalizeKey = (k: string) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
 
+    // Helper to coerce mixed-formatted numeric cells (e.g., "$1,234.50", "GH₵ 12.3", "50 Qty")
+    const coerceNumber = (val: any): number | null => {
+      if (val === null || val === undefined) return null;
+      if (typeof val === "number" && Number.isFinite(val)) return val;
+      const s = String(val);
+      // Extract first numeric token including optional decimal
+      const m = s.replace(/[,]/g, "").match(/-?\d+(?:\.\d+)?/);
+      if (!m) return null;
+      const n = Number(m[0]);
+      return Number.isFinite(n) ? n : null;
+    };
+
+    let currentCategory: string | null = null;
     const productsToInsert = rows
       .map((row) => {
         const keys = Object.keys(row);
         const kv: Record<string, any> = {};
-        for (const k of keys) kv[normalizeKey(k)] = row[k];
+        for (const k of keys) {
+          const base = normalizeKey(k);
+          kv[base] = row[k];
+          const noPunct = base.replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+          if (noPunct && noPunct !== base) kv[noPunct] = row[k];
+        }
 
         const productId = kv["productid"] ?? kv["id"] ?? kv["sku"] ?? randomUUID();
-        const name = kv["name"];
-        const priceRaw = kv["price"];
-        const stockRaw = kv["stockquantity"] ?? kv["quantity"];
+        // Support description-driven files; if name missing but description present, use description as name and also store description
+        const description = kv["product description"] ?? kv["description"] ?? null;
+        const name = kv["name"] ?? description;
+        // Support multiple price header variants
+        const priceRaw = kv["price"] ?? kv["unit price"] ?? kv["selling price"] ?? kv["sales price"] ?? kv["amount"];
+        // Optional purchase price (cost) variants
+        const purchasePriceRaw = kv["purchase price"] ?? kv["purchaseprice"] ?? kv["cost"] ?? kv["unit cost"] ?? kv["buying price"] ?? kv["buy price"];
+        // Support quantity/stock variants
+        const stockRaw = kv["stockquantity"] ?? kv["quantity"] ?? kv["qty"] ?? kv["qty/ctn"] ?? kv["qty ctn"] ?? kv["stock"];
+        // Optional expiry date variants
+        const expiryRaw = kv["expiry date"] ?? kv["exp date"] ?? kv["expiry"] ?? kv["expity date"] ?? kv["expity"] ?? null;
+        // Additional fields
+        const category = kv["category"] ?? kv["product category"] ?? null;
+        const packSize = kv["pack size"] ?? kv["packsize"] ?? kv["size"] ?? null;
+
+        // Detect category rows: a single label like "SPREAD" with no numeric fields
+        const numericHints = [kv["price"], kv["unit price"], kv["selling price"], kv["sales price"], kv["amount"], kv["purchase price"], kv["purchaseprice"], kv["cost"], kv["unit cost"], kv["buying price"], kv["buy price"], kv["stockquantity"], kv["quantity"], kv["qty"], kv["qty/ctn"], kv["qty ctn"], kv["stock"]];
+        const hasAnyNumeric = numericHints.some(v => coerceNumber(v) !== null);
+        const hasOnlyLabel = !!description && !hasAnyNumeric && !packSize;
+        if (hasOnlyLabel) {
+          currentCategory = String(description).trim();
+          return null; // category header row; skip insert
+        }
 
         // Basic validation
         if (!name || priceRaw === null || priceRaw === undefined || stockRaw === null || stockRaw === undefined) {
           return null; // skip invalid rows
         }
+        const price = coerceNumber(priceRaw);
+        const purchasePrice = purchasePriceRaw === null || purchasePriceRaw === undefined ? null : coerceNumber(purchasePriceRaw);
+        const stockQuantity = coerceNumber(stockRaw);
+        const coerceDate = (val: any): Date | null => {
+          if (val === null || val === undefined) return null;
+          if (val instanceof Date && !Number.isNaN(val.getTime())) return val;
+          const s = String(val).trim().replace(/[.]+$/g, "");
+          const mmYYYY = s.match(/^(\d{1,2})[\/\-](\d{4})$/);
+          if (mmYYYY) {
+            const m = Number(mmYYYY[1]);
+            const y = Number(mmYYYY[2]);
+            const d = new Date(y, Math.max(0, Math.min(11, m - 1)), 1);
+            return Number.isNaN(d.getTime()) ? null : d;
+          }
+          const d = new Date(s);
+          return Number.isNaN(d.getTime()) ? null : d;
+        };
+        const expiryDate = coerceDate(expiryRaw);
 
-        const price = typeof priceRaw === "string" ? parseFloat(priceRaw) : Number(priceRaw);
-        const stockQuantity = typeof stockRaw === "string" ? parseInt(stockRaw, 10) : Number(stockRaw);
-
-        if (!isFinite(price) || !Number.isFinite(stockQuantity)) {
+        if (price === null || stockQuantity === null) {
           return null;
         }
 
         return {
           productId: String(productId),
           name: String(name),
-          price,
-          stockQuantity,
+          price: price as number,
+          purchasePrice: (purchasePrice !== null && Number.isFinite(purchasePrice)) ? (purchasePrice as number) : null,
+          stockQuantity: Math.floor(stockQuantity as number),
+          expiryDate: expiryDate ?? null,
+          category: (category ? String(category) : (currentCategory ? String(currentCategory) : null)),
+          description: description ? String(description) : null,
+          packSize: packSize ? String(packSize) : null,
         } as {
           productId: string;
           name: string;
           price: number;
+          purchasePrice: number | null;
           stockQuantity: number;
+          expiryDate: Date | null;
+          category: string | null;
+          description: string | null;
+          packSize: string | null;
         };
       })
       .filter(Boolean) as Array<{
         productId: string;
         name: string;
         price: number;
+        purchasePrice: number | null;
         stockQuantity: number;
+        expiryDate: Date | null;
+        category: string | null;
+        description: string | null;
+        packSize: string | null;
       }>;
 
     if (!productsToInsert.length) {
@@ -231,11 +306,125 @@ export const importProducts = async (
       return;
     }
 
-    // Bulk insert; skip duplicates by primary key (productId)
-    const result = await prisma.products.createMany({
-      data: productsToInsert,
-      skipDuplicates: true,
+    // Deduplicate by name + packSize: update existing rows; create new for unknown pairs
+    const normalizeText = (s: string | null | undefined) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+    const names = Array.from(new Set(productsToInsert.map(p => p.name)));
+    const existingCandidates = await prisma.products.findMany({
+      where: { name: { in: names } },
     });
+    const keyOf = (p: { name: string; packSize: string | null }) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`;
+    const existingMap = new Map<string, any>();
+    for (const p of existingCandidates) {
+      existingMap.set(keyOf({ name: p.name, packSize: (p as any).packSize ?? null }), p);
+    }
+
+    let insertedCount = 0;
+    const mergedItemsForJson: Array<{
+      productId: string;
+      name: string;
+      price: number;
+      purchasePrice: number | null;
+      stockQuantity: number;
+      expiryDate: Date | null;
+      category: string | null;
+      description: string | null;
+      packSize: string | null;
+    }> = [];
+
+    for (const item of productsToInsert) {
+      const key = keyOf({ name: item.name, packSize: item.packSize });
+      const existing = existingMap.get(key);
+      if (existing) {
+        const dataUpdate: any = {
+          name: item.name,
+          price: item.price,
+          purchasePrice: item.purchasePrice,
+          stockQuantity: item.stockQuantity,
+          expiryDate: item.expiryDate ?? null,
+          // Prefer existing category unless missing; then use imported category/header-derived
+          category: existing.category ?? item.category ?? null,
+          description: item.description ?? existing.description ?? null,
+          packSize: item.packSize ?? existing.packSize ?? null,
+        };
+        await prisma.products.update({ where: { productId: existing.productId }, data: dataUpdate });
+        mergedItemsForJson.push({ ...item, productId: existing.productId });
+      } else {
+        await prisma.products.create({ data: item });
+        insertedCount += 1;
+        mergedItemsForJson.push(item);
+      }
+    }
+
+    // After processing import rows, collapse any existing duplicates in DB for the same name+packSize
+    try {
+      const candidatesForDedupe = await prisma.products.findMany({ where: { name: { in: names } } });
+      const groups = new Map<string, typeof candidatesForDedupe>();
+      for (const p of candidatesForDedupe) {
+        const k = keyOf({ name: p.name, packSize: (p as any).packSize ?? null });
+        const arr = (groups.get(k) as any[]) ?? [];
+        arr.push(p);
+        groups.set(k, arr as any);
+      }
+      let dedupedCount = 0;
+      for (const [k, arr] of groups.entries()) {
+        if (arr.length <= 1) continue;
+        // Prefer categorized row as canonical
+        arr.sort((a, b) => {
+          const ac = a.category ? 1 : 0;
+          const bc = b.category ? 1 : 0;
+          if (ac !== bc) return bc - ac;
+          // Prefer having expiryDate
+          const ae = (a as any).expiryDate ? 1 : 0;
+          const be = (b as any).expiryDate ? 1 : 0;
+          if (ae !== be) return be - ae;
+          // Otherwise stable
+          return 0;
+        });
+        const canonical = arr[0];
+        // Avoid doubled quantities: keep the highest stock across duplicates
+        let mergedStock = canonical.stockQuantity ?? 0;
+        let mergedCategory = canonical.category ?? null;
+        let mergedPrice = canonical.price;
+        let mergedPurchase = canonical.purchasePrice ?? null;
+        let mergedExpiry = (canonical as any).expiryDate ?? null;
+        let mergedDesc = (canonical as any).description ?? null;
+        let mergedPack = (canonical as any).packSize ?? null;
+
+        for (let i = 1; i < arr.length; i++) {
+          const dup = arr[i] as any;
+          const dupStock = typeof dup.stockQuantity === "number" ? dup.stockQuantity : 0;
+          mergedStock = Math.max(mergedStock, dupStock);
+          if (!mergedCategory && dup.category) mergedCategory = dup.category;
+          if (typeof dup.price === "number") mergedPrice = dup.price;
+          if (dup.purchasePrice != null) mergedPurchase = dup.purchasePrice;
+          if (!mergedExpiry && dup.expiryDate) mergedExpiry = dup.expiryDate as Date;
+          if (!mergedDesc && dup.description) mergedDesc = dup.description;
+          if (!mergedPack && dup.packSize) mergedPack = dup.packSize;
+        }
+
+        await prisma.products.update({
+          where: { productId: canonical.productId },
+          data: {
+            stockQuantity: Math.max(0, Math.floor(mergedStock)),
+            category: mergedCategory,
+            price: mergedPrice,
+            purchasePrice: mergedPurchase,
+            expiryDate: mergedExpiry,
+            description: mergedDesc,
+            packSize: mergedPack,
+          },
+        });
+        for (let i = 1; i < arr.length; i++) {
+          await prisma.products.delete({ where: { productId: arr[i].productId } });
+          dedupedCount += 1;
+        }
+      }
+      if (dedupedCount > 0) {
+        console.log(`Deduped ${dedupedCount} duplicate products by name+packSize.`);
+      }
+    } catch (dedupeErr) {
+      console.warn("Failed to dedupe existing products:", dedupeErr);
+    }
 
     // Persist imported products to JSON file for audit and optional future seeding
     try {
@@ -256,12 +445,17 @@ export const importProducts = async (
       for (const item of existing) {
         if (item && item.productId) map.set(String(item.productId), item);
       }
-      for (const item of productsToInsert) {
+      for (const item of mergedItemsForJson) {
         map.set(item.productId, {
           productId: item.productId,
           name: item.name,
           price: item.price,
+          purchasePrice: item.purchasePrice ?? undefined,
           stockQuantity: item.stockQuantity,
+          expiryDate: item.expiryDate ?? undefined,
+          category: item.category ?? undefined,
+          description: item.description ?? undefined,
+          packSize: item.packSize ?? undefined,
         });
       }
       const merged = Array.from(map.values());
@@ -272,12 +466,12 @@ export const importProducts = async (
 
     appendNotification({
       type: "product",
-      message: `Imported ${result.count} products from Excel`,
+      message: `Imported ${insertedCount} products from Excel (processed ${productsToInsert.length})`,
       actorUserId: req.user?.userId,
     });
     // Sync JSON snapshot with DB after import
     await syncProductsJsonFromDb(prisma);
-    res.status(201).json({ insertedCount: result.count, attempted: productsToInsert.length });
+    res.status(201).json({ insertedCount, attempted: productsToInsert.length });
   } catch (error) {
     console.error("importProducts error:", error);
     res.status(500).json({ message: "Error importing products" });
@@ -287,7 +481,7 @@ export const importProducts = async (
 // Process an invoice: parse text or PDF and deduct stock; persist customer and purchases
 export const processInvoice = async (req: Request, res: Response): Promise<void> => {
   try {
-    const file = (req as any).file as Express.Multer.File | undefined;
+    const file = (req as Request & { file?: Express.Multer.File }).file;
     const { invoiceText } = req.body as { invoiceText?: string };
 
     let text: string | undefined = undefined;
@@ -337,13 +531,42 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
       const nums = s.match(/\d[\d,]*\.?\d*/g) || [];
       return nums.map(n => Number(n.replace(/,/g, ""))).filter(n => !Number.isNaN(n));
     };
+    // Name normalization with simple synonyms (e.g., yoghurt -> yogurt; flavour -> flavor)
+    const normalizeWithSynonyms = (s: string) => normalize(
+      s
+        .replace(/\byoghurt\b/gi, "yogurt")
+        .replace(/\bflavour\b/gi, "flavor")
+        // Split combined number+unit tokens so "500ml" and "500 ml" normalize equally
+        .replace(/(\d+)([a-z]+)/gi, "$1 $2")
+    );
+    const tokensOf = (s: string) => normalizeWithSynonyms(s).split(" ").filter(Boolean);
+    const FILLER_TOKENS = new Set(["drink", "flavor", "flavour", "ctn", "carton", "pack", "copy", "x"]);
+    const extractPackFromText = (s: string): { name: string; pack?: string | null } => {
+      // Only treat patterns like "X 12" as pack-size; do not capture "500ML" as pack
+      const m = s.match(/\b[xX]\s*(\d{1,4})(?:\s*\([^)]*\))?/);
+      let pack: string | null = null;
+      let name = s;
+      if (m) {
+        pack = m[1];
+        name = s.replace(m[0], " ");
+      }
+      name = name.replace(/\(copy\)/ig, " ").replace(/\s{2,}/g, " ").trim();
+      return { name, pack };
+    };
 
-    type Item = { name: string; quantity: number; unitPrice?: number; subtotal?: number };
+    type Item = { name: string; quantity: number; unitPrice?: number; subtotal?: number; packSize?: string | null };
     const items: Item[] = [];
     let pendingName: string | null = null;
+    let pendingPackSize: string | null = null;
 
     for (let i = 0; i < lines.length; i++) {
       const l = lines[i];
+      const isHeaderLine = (
+        /(Invoice\s*No\.|Customer|Total Paid|Total:|Bank Transfer|Date\b|SALES AGENT|Mobile:|Note:)/i.test(l)
+        || /^\s*Invoice\s*$/i.test(l)
+        || /Product\s+Quantity\s+Unit\s+Price\s+Subtotal/i.test(l)
+        || /AMAGYZ|LAGOS,\s+NIGERIA/i.test(l)
+      );
 
       // Single-line format with columns separated by 2+ spaces
       const cols = l.split(/\s{2,}/).map(c => c.trim()).filter(c => c.length > 0);
@@ -362,11 +585,41 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
         }
       }
 
+      // If we already captured a product name, check for a quantity line with unit label before handling comma+digits lines.
+      if (pendingName) {
+        const qtyMatch = l.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units)\b/i);
+        const priceNums = parseNumbers(l);
+        if (qtyMatch) {
+          const quantity = Math.floor(Number(qtyMatch[1].replace(/,/g, "")) || 0);
+          const unitPrice = priceNums.length >= 2 ? priceNums[priceNums.length - 2] : undefined;
+          const subtotal = priceNums.length >= 1 ? priceNums[priceNums.length - 1] : undefined;
+          items.push({ name: pendingName, quantity, unitPrice, subtotal, packSize: pendingPackSize });
+          pendingName = null;
+          pendingPackSize = null;
+          continue;
+        }
+      }
+
       // Comma+digits: either one-line or two-line format
       if (/,/.test(l) && /\d{4,}/.test(l)) {
         const parts = l.split(",");
         const namePart = parts[0].trim();
         const rest = parts.slice(1).join(",");
+        // If namePart looks like a pack-size line (e.g., "X 12 (copy)"), do not treat as product name
+        const namePartLooksLikePack = /^x\b|^X\b/.test(namePart) || (/^\d/.test(namePart) && !/[a-zA-Z]/.test(namePart));
+        if (namePartLooksLikePack) {
+          const packNumFromName = parseNumbers(namePart)[0];
+          const packNumFromRest = parseNumbers(rest)[0];
+          const packNum = (packNumFromName ?? packNumFromRest);
+          if (typeof packNum === "number" && packNum > 0 && packNum <= 1000) {
+            pendingPackSize = String(packNum);
+          }
+        } else {
+          // Likely the actual product name (may include pack info inline)
+          const extracted = extractPackFromText(namePart);
+          pendingName = extracted.name;
+          if (extracted.pack && !pendingPackSize) pendingPackSize = extracted.pack;
+        }
         // Prefer explicit quantity pattern like "50.00 Ctn" when present
         const qtyExplicit = rest.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units)\b/i);
         if (qtyExplicit) {
@@ -375,7 +628,12 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
           const unitPrice = numsInline.find(n => n >= 1 && n < 100000 && n !== quantity);
           const subtotal = numsInline.length ? numsInline[numsInline.length - 1] : undefined;
           if (quantity > 0) {
-            items.push({ name: namePart, quantity, unitPrice, subtotal });
+            const extracted = extractPackFromText(pendingName ?? namePart);
+            const finalName = extracted.name;
+            if (extracted.pack && !pendingPackSize) pendingPackSize = extracted.pack;
+            items.push({ name: finalName, quantity, unitPrice, subtotal, packSize: pendingPackSize });
+            pendingName = null;
+            pendingPackSize = null;
             continue;
           }
         }
@@ -388,25 +646,45 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
           const unitPrice = numsInline.length >= 3 ? numsInline[2] : undefined;
           const subtotal = numsInline.length >= 4 ? numsInline[3] : undefined;
           if (codeCandidate > 10000 && quantity > 0) {
-            items.push({ name: namePart, quantity, unitPrice, subtotal });
+            const extracted = extractPackFromText(pendingName ?? namePart);
+            const finalName = extracted.name;
+            if (extracted.pack && !pendingPackSize) pendingPackSize = extracted.pack;
+            items.push({ name: finalName, quantity, unitPrice, subtotal, packSize: pendingPackSize });
+            pendingName = null;
+            pendingPackSize = null;
             continue;
           }
         }
         // Fallback to two-line behaviour
-        pendingName = namePart;
+        if (!namePartLooksLikePack) {
+          const extracted = extractPackFromText(namePart);
+          pendingName = extracted.name;
+          if (extracted.pack && !pendingPackSize) pendingPackSize = extracted.pack;
+        }
         continue;
       }
+      // Late fallback for quantity lines (requires unit label to avoid pack-size lines)
       if (pendingName) {
-        const qtyMatch = l.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units)?/i);
+        const qtyMatch = l.match(/(\d+(?:\.\d+)?)\s*(Ctn|Qty|Units)\b/i);
         const priceNums = parseNumbers(l);
         if (qtyMatch) {
           const quantity = Math.floor(Number(qtyMatch[1].replace(/,/g, "")) || 0);
           const unitPrice = priceNums.length >= 2 ? priceNums[priceNums.length - 2] : undefined;
           const subtotal = priceNums.length >= 1 ? priceNums[priceNums.length - 1] : undefined;
-          items.push({ name: pendingName, quantity, unitPrice, subtotal });
+          items.push({ name: pendingName, quantity, unitPrice, subtotal, packSize: pendingPackSize });
           pendingName = null;
+          pendingPackSize = null;
           continue;
         }
+      }
+
+      // If we haven't captured a product name yet, and this line looks like a name (letters present) and is not a header,
+      // treat it as the pending product name. The following lines typically contain pack-size and quantity/price.
+      if (!pendingName && /[A-Za-z]/.test(l) && !isHeaderLine) {
+        const extracted = extractPackFromText(l);
+        pendingName = extracted.name;
+        if (extracted.pack && !pendingPackSize) pendingPackSize = extracted.pack;
+        continue;
       }
     }
 
@@ -432,39 +710,92 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
 
     // For each item, find product by name using robust matching, deduct stock, and record purchase
     const updates: Array<{ productId: string; name: string; deducted: number }> = [];
+    // Helpers for pack-size comparison
+    const normSimple = (s: unknown) => String(s ?? "").replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+    const extractNum = (s: unknown): number | null => {
+      const m = String(s ?? "").match(/\d+/);
+      return m ? Number(m[0]) : null;
+    };
+    const packEq = (a: unknown, b: unknown) => {
+      const na = extractNum(a);
+      const nb = extractNum(b);
+      if (na != null && nb != null) return na === nb;
+      return normSimple(a) === normSimple(b);
+    };
+
     for (const item of items) {
-      const normName = normalize(item.name);
-      // Fetch small candidate set by contains; then refine in app logic
-      const candidates = await prisma.products.findMany({ where: { name: { contains: item.name, mode: "insensitive" } }, take: 10 });
-      let prod = candidates.find(p => normalize(p.name) === normName);
-      if (!prod) {
-        prod = candidates.find(p => normalize(p.name).includes(normName) || normName.includes(normalize(p.name)));
+      const packNorm = (typeof item.packSize === "string" ? item.packSize : null);
+      const invTokens = new Set(tokensOf(item.name).filter(t => !FILLER_TOKENS.has(t)));
+      const keyTokens = Array.from(invTokens).filter(t => t.length >= 3).slice(0, 6);
+
+      let candidates: Array<{ productId: string; name: string; packSize?: string | null; price?: number; stockQuantity?: number }> = [];
+      if (keyTokens.length > 0) {
+        candidates = await prisma.products.findMany({
+          where: {
+            OR: keyTokens.map((t) => ({ name: { contains: t, mode: "insensitive" } })),
+          },
+        });
+      } else {
+        candidates = await prisma.products.findMany({ where: { name: { contains: item.name, mode: "insensitive" } } });
       }
-      if (!prod && candidates.length) {
-        // Token overlap (simple Jaccard) as a safe fuzzy fallback
-        const tokens = new Set(normName.split(" ").filter(Boolean));
-        let best: { p: typeof candidates[number]; score: number } | null = null;
-        for (const c of candidates) {
-          const ctoks = new Set(normalize(c.name).split(" ").filter(Boolean));
-          const inter = new Set([...tokens].filter(t => ctoks.has(t)));
-          const union = new Set([...tokens, ...ctoks]);
-          const score = inter.size / Math.max(1, union.size);
-          if (!best || score > best.score) best = { p: c, score };
+
+      const subsetMatches = candidates.filter((p) => {
+        const ptoks = new Set(tokensOf(p.name).filter((t) => !FILLER_TOKENS.has(t)));
+        // Require every product token to appear in invoice tokens
+        for (const t of ptoks) {
+          if (!invTokens.has(t)) return false;
         }
-        if (best && best.score >= 0.5) prod = best.p;
+        if (packNorm && p.packSize) {
+          if (!packEq(p.packSize, packNorm)) return false;
+        }
+        return true;
+      });
+
+      let prod: { productId: string; name: string; packSize?: string | null; price?: number; stockQuantity?: number } | undefined = subsetMatches[0];
+      if (!prod) {
+        // Fallbacks: strict normalized equality, then substring checks
+        const normName = normalizeWithSynonyms(item.name);
+        prod = candidates.find((p) => normalizeWithSynonyms(p.name) === normName && (packNorm ? packEq(p.packSize ?? null, packNorm) : true));
+        if (!prod) {
+          prod = candidates.find((p) => (normalizeWithSynonyms(p.name).includes(normName) || normName.includes(normalizeWithSynonyms(p.name))) && (packNorm ? packEq(p.packSize ?? null, packNorm) : true));
+        }
+        if (!prod && candidates.length) {
+          // Overlap-based scoring fallback: pick best token overlap candidate
+          let best: { productId: string; name: string; packSize?: string | null; price?: number; stockQuantity?: number } | null = null;
+          let bestScore = 0;
+          for (const p of candidates) {
+            const ptoks = new Set(tokensOf(p.name).filter((t) => !FILLER_TOKENS.has(t)));
+            let overlap = 0;
+            for (const t of ptoks) {
+              if (invTokens.has(t)) overlap++;
+            }
+            const packBonus = (packNorm && p.packSize && packEq(p.packSize, packNorm)) ? 1 : 0;
+            const score = overlap + packBonus;
+            if (score > bestScore) {
+              bestScore = score;
+              best = p;
+            }
+          }
+          // Require at least 2-token overlap to avoid spurious matches
+          if (best && bestScore >= 2) {
+            prod = best;
+          }
+        }
       }
       if (!prod) {
         continue; // skip unmatched
       }
       const newQty = Math.max(0, (prod.stockQuantity || 0) - (item.quantity || 0));
       await prisma.products.update({ where: { productId: prod.productId }, data: { stockQuantity: newQty } });
+      const unitPrice = Number(item.unitPrice ?? prod.price ?? 0);
+      const totalCost = Number(item.subtotal ?? unitPrice * item.quantity);
       await prisma.customerPurchases.create({ data: {
         id: randomUUID(),
         customerId: cust.customerId,
         productId: prod.productId,
         quantity: item.quantity,
-        unitPrice: item.unitPrice ?? prod.price,
-        totalCost: (item.subtotal ?? (item.unitPrice ?? prod.price) * item.quantity),
+        unitPrice,
+        totalCost,
       } });
       updates.push({ productId: prod.productId, name: prod.name, deducted: item.quantity });
     }
@@ -477,12 +808,12 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
           name: cust.name,
           mobile: cust.mobile,
           address: cust.address,
-          city: (cust as any).city,
-          state: (cust as any).state,
-          country: (cust as any).country,
+          city: cust.city,
+          state: cust.state,
+          country: cust.country,
         },
         itemsParsed: items.map(i => ({ raw: i.name, productName: i.name, quantity: i.quantity })),
-        matchedUpdates: updates.map(u => ({ productId: Number.NaN as any, name: u.name, deducted: u.deducted })),
+        matchedUpdates: updates.map(u => ({ productId: Number.NaN, name: u.name, deducted: u.deducted })),
       });
     } catch (persistErr) {
       console.warn("Failed to persist customerSales JSON:", persistErr);
@@ -493,6 +824,93 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
   } catch (error) {
     console.error("processInvoice error:", error);
     res.status(500).json({ message: "Error processing invoice" });
+  }
+};
+
+// Manual invoice processing: user provides customer, date, and selected products/quantities
+export const processInvoiceManual = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const prismaDate = (d?: string | number | Date) => (d ? new Date(d) : new Date());
+    type ManualItemInput = { productId?: string; name?: string; quantity: number };
+    type ManualInvoiceBody = { customerName: string; date?: string | number | Date; items: ManualItemInput[] };
+    const body = req.body as ManualInvoiceBody;
+    const customerName = String(body?.customerName || '').trim();
+    const timestamp = prismaDate(body?.date);
+    const itemsInput = Array.isArray(body?.items) ? body.items : [];
+
+    if (!customerName) {
+      res.status(400).json({ message: "customerName is required" });
+      return;
+    }
+    if (!itemsInput.length) {
+      res.status(400).json({ message: "items is required (array of { productId | name, quantity })" });
+      return;
+    }
+
+    // Create or find customer
+    let cust = await prisma.customers.findFirst({ where: { name: customerName } });
+    if (!cust) {
+      cust = await prisma.customers.create({ data: {
+        customerId: randomUUID(),
+        name: customerName,
+      } });
+    }
+
+    const updates: Array<{ productId: string; name: string; deducted: number }> = [];
+
+    for (const it of itemsInput) {
+      const qty = Number(it?.quantity ?? 0);
+      if (!qty || qty <= 0) continue;
+
+      let product: { productId: string; name: string; price: number; stockQuantity: number } | null = null;
+      if (it?.productId) {
+        const p = await prisma.products.findUnique({ where: { productId: String(it.productId) } });
+        if (p) product = { productId: p.productId, name: p.name, price: Number(p.price), stockQuantity: p.stockQuantity };
+      }
+      if (!product && it?.name) {
+        // Try exact by name then loose contains
+        const name = String(it.name).trim();
+        const pExact = await prisma.products.findFirst({ where: { name } });
+        if (pExact) {
+          product = { productId: pExact.productId, name: pExact.name, price: Number(pExact.price), stockQuantity: pExact.stockQuantity };
+        }
+        if (!product) {
+          const candidates = await prisma.products.findMany({ where: { name: { contains: name, mode: 'insensitive' } }, take: 1 });
+          if (candidates.length) {
+            const p = candidates[0];
+            product = { productId: p.productId, name: p.name, price: Number(p.price), stockQuantity: p.stockQuantity };
+          }
+        }
+      }
+
+      if (!product) continue; // skip unknown product
+
+      // Deduct stock (clamp at 0)
+      const newQty = Math.max(0, Number(product.stockQuantity) - qty);
+      await prisma.products.update({ where: { productId: product.productId }, data: { stockQuantity: newQty } });
+
+      const unitPrice = Number(product.price);
+      const totalCost = Number(unitPrice) * qty;
+
+      // Record purchase
+      await prisma.customerPurchases.create({ data: {
+        id: randomUUID(),
+        customerId: cust.customerId,
+        productId: product.productId,
+        timestamp,
+        quantity: qty,
+        unitPrice,
+        totalCost,
+      } });
+
+      updates.push({ productId: product.productId, name: product.name, deducted: qty });
+    }
+
+    appendNotification({ type: "inventory", message: `Processed manual invoice for ${cust.name}; updated ${updates.length} product(s).`, actorUserId: req.user?.userId });
+    res.json({ customer: cust, updates });
+  } catch (error) {
+    console.error("processInvoiceManual error:", error);
+    res.status(500).json({ message: "Error processing manual invoice" });
   }
 };
 
@@ -544,23 +962,18 @@ export const getImportSample = async (
   res: Response
 ): Promise<void> => {
   try {
-    const sampleRows = [
-      { name: "Sample Widget", price: 12.99, quantity: 50 },
-      { name: "Sample Gadget", price: 5.5, quantity: 200 },
-      { name: "Example Item", price: 99.0, quantity: 10 },
-    ];
-
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(sampleRows, { skipHeader: false });
-    XLSX.utils.book_append_sheet(wb, ws, "Inventory");
-
-    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-
+    // Serve the canonical sample file that defines the expected format
+    const samplePath = path.join(__dirname, "../../assets/full-products.xlsx");
+    if (!fs.existsSync(samplePath)) {
+      res.status(404).json({ message: "Sample file not found at server/assets/full-products.xlsx" });
+      return;
+    }
+    const buffer = fs.readFileSync(samplePath);
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
-    res.setHeader("Content-Disposition", "attachment; filename=sample-inventory.xlsx");
+    res.setHeader("Content-Disposition", "attachment; filename=full-products.xlsx");
     res.status(200).send(buffer);
   } catch (err) {
     console.error("getImportSample error:", err);
