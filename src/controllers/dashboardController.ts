@@ -72,3 +72,96 @@ export const getDashboardMetrics = async (
     res.status(500).json({ message: "Error retrieving dashboard metrics" });
   }
 };
+
+// Detailed low-stock list
+export const getLowStockProducts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const q = req.query?.threshold;
+    const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
+    const envNum = Number(process.env.LOW_STOCK_THRESHOLD);
+    const threshold = Number.isFinite(qNum) && qNum >= 0
+      ? qNum
+      : Number.isFinite(envNum) && envNum >= 0
+        ? envNum
+        : 5;
+
+    const products = await prisma.products.findMany({
+      where: { stockQuantity: { lt: threshold } },
+      select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true }
+    });
+    res.json(products.map(p => ({ ...p, price: Number(p.price) })));
+  } catch (error) {
+    res.status(500).json({ message: "Error retrieving low-stock products" });
+  }
+};
+
+// Products expiring within N days
+export const getExpiringProducts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const q = req.query?.days;
+    const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
+    const days = Number.isFinite(qNum) && qNum > 0 ? qNum : 90;
+    const cutoff = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+
+    const products = await prisma.products.findMany({
+      where: { expiryDate: { lte: cutoff } },
+      select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true }
+    });
+    res.json(products.map(p => ({ ...p, price: Number(p.price) })));
+  } catch (error) {
+    res.status(500).json({ message: "Error retrieving expiring products" });
+  }
+};
+
+// Dead stock: no sales in the past N days
+export const getDeadStockProducts = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const q = req.query?.days;
+    const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
+    const days = Number.isFinite(qNum) && qNum > 0 ? qNum : 90;
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+    // Find latest purchase per product since forever
+    // @ts-ignore Prisma groupBy typing verbosity
+    const grouped = await prisma.customerPurchases.groupBy({
+      by: ['productId'],
+      _max: { timestamp: true },
+    });
+    const latestByProduct = new Map<string, Date | null>(grouped.map((g: any) => [g.productId, g._max.timestamp ? new Date(g._max.timestamp) : null]));
+
+    const allProducts = await prisma.products.findMany({ select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true } });
+    const dead = allProducts.filter(p => {
+      const last = latestByProduct.get(p.productId) || null;
+      return !last || last < since;
+    });
+    res.json(dead.map(d => ({ ...d, price: Number(d.price) })));
+  } catch (error) {
+    res.status(500).json({ message: "Error retrieving dead stock products" });
+  }
+};
+
+// Top customers by purchase value
+export const getTopCustomers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const q = req.query?.limit;
+    const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
+    const limit = Number.isFinite(qNum) && qNum > 0 ? Math.min(50, qNum) : 5;
+
+    // @ts-ignore Prisma groupBy typing verbosity
+    const grouped = await prisma.customerPurchases.groupBy({
+      by: ['customerId'],
+      _sum: { totalCost: true },
+      orderBy: { _sum: { totalCost: 'desc' } },
+      take: limit,
+    });
+    const ids = grouped.map((g: any) => g.customerId);
+    const customers = await prisma.customers.findMany({ where: { customerId: { in: ids } }, select: { customerId: true, name: true, mobile: true, city: true, state: true, country: true } });
+    const result = customers.map((c) => ({
+      ...c,
+      totalPurchaseValue: Number(grouped.find((g: any) => g.customerId === c.customerId)?._sum.totalCost || 0),
+    })).sort((a, b) => b.totalPurchaseValue - a.totalPurchaseValue);
+    res.json(result);
+  } catch (error) {
+    res.status(500).json({ message: "Error retrieving top customers" });
+  }
+};
