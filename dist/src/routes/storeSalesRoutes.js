@@ -1,0 +1,9 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const storeSalesController_1 = require("../controllers/storeSalesController");
+const router = (0, express_1.Router)();
+router.get("/stores", storeSalesController_1.getStores);
+router.get("/branch-sales", storeSalesController_1.getStoreBranchSales);
+router.post("/stores/import", storeSalesController_1.upload.single("file"), storeSalesController_1.importStoresBranches);
+exports.default = router;
