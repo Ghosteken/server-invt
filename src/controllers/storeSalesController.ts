@@ -1,0 +1,116 @@
+import { Request, Response } from "express";
+import { PrismaClient } from "@prisma/client";
+import multer from "multer";
+import * as XLSX from "xlsx";
+import { readStores, writeStores } from "../services/storeService";
+
+const prisma = new PrismaClient();
+
+// Fallback defaults if no JSON exists
+const DEFAULT_STORE_CONFIG: Record<string, string[]> = {
+  blenco: ["Blenco Lekki", "Blenco Ikeja", "Blenco Ajah"],
+  spar: ["Spar Victoria Island", "Spar Ikeja", "Spar Ilupeju"],
+};
+
+export const getStores = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const data = readStores();
+    const stores = data.stores.length
+      ? data.stores
+      : Object.entries(DEFAULT_STORE_CONFIG).map(([store, branches]) => ({ store, branches }));
+    res.json({ stores });
+  } catch (err) {
+    console.error("getStores error:", err);
+    res.status(500).json({ message: "Failed to load stores" });
+  }
+};
+
+export const getStoreBranchSales = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const store = String(req.query.store || "").toLowerCase();
+    const branch = String(req.query.branch || "");
+    if (!store || !branch) {
+      res.status(400).json({ message: "Missing store or branch" });
+      return;
+    }
+    const data = readStores();
+    const map = new Map(data.stores.map((s) => [s.store.toLowerCase(), s.branches] as const));
+    const branches = map.get(store) || DEFAULT_STORE_CONFIG[store] || [];
+    if (!branches.includes(branch)) {
+      res.status(404).json({ message: "Unknown branch for store" });
+      return;
+    }
+
+    // Find the customer that matches this branch name
+    const customer = await prisma.customers.findFirst({ where: { name: branch } });
+    if (!customer) {
+      res.json({ sales: [] });
+      return;
+    }
+
+    const purchases = await prisma.customerPurchases.findMany({
+      where: { customerId: customer.customerId },
+      orderBy: { timestamp: "desc" },
+    });
+    const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
+    const products = await prisma.products.findMany({
+      where: { productId: { in: productIds } },
+      select: { productId: true, name: true, expiryDate: true },
+    });
+    const productMap = new Map(products.map((p) => [p.productId, p] as const));
+
+    const sales = purchases.map((p) => ({
+      id: p.id,
+      productId: p.productId,
+      productName: productMap.get(p.productId)?.name || undefined,
+      quantity: p.quantity,
+      expiryDate: productMap.get(p.productId)?.expiryDate || null,
+      timestamp: p.timestamp,
+    }));
+
+    res.json({ sales });
+  } catch (err) {
+    console.error("getStoreBranchSales error:", err);
+    res.status(500).json({ message: "Failed to load store branch sales" });
+  }
+};
+
+// Multer instance used by routes file
+export const upload = multer({ storage: multer.memoryStorage() });
+
+export const importStoresBranches = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const file = (req as any).file as Express.Multer.File | undefined;
+    if (!file) {
+      res.status(400).json({ message: "No file uploaded. Use field name 'file'." });
+      return;
+    }
+    const workbook = XLSX.read(file.buffer, { type: "buffer" });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, { defval: null });
+    const normalizeKey = (k: string) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+
+    const grouped = new Map<string, Set<string>>();
+    for (const row of rows) {
+      const kv: Record<string, any> = {};
+      for (const k of Object.keys(row)) {
+        kv[normalizeKey(k)] = row[k];
+      }
+      const storeRaw = kv["store"] ?? kv["chain"] ?? kv["market"];
+      const branchRaw = kv["branch"] ?? kv["location"] ?? kv["name"];
+      if (!storeRaw || !branchRaw) continue;
+      const store = String(storeRaw).trim().toLowerCase();
+      const branch = String(branchRaw).trim();
+      const set = grouped.get(store) || new Set<string>();
+      set.add(branch);
+      grouped.set(store, set);
+    }
+    const stores = Array.from(grouped.entries()).map(([store, set]) => ({ store, branches: Array.from(set.values()) }));
+    writeStores({ stores });
+    res.json({ importedStores: stores.length });
+  } catch (err) {
+    console.error("importStoresBranches error:", err);
+    res.status(500).json({ message: "Failed to import stores/branches" });
+  }
+};

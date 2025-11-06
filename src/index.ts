@@ -14,7 +14,9 @@ import authRoutes from "./routes/authRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import customerRoutes from "./routes/customerRoutes";
 import reportRoutes from "./routes/reportRoutes";
+import storeSalesRoutes from "./routes/storeSalesRoutes";
 import { ensureAdminUser } from "./services/adminBootstrap";
+import settingsRoutes from "./routes/settingsRoutes";
 
 /* CONFIGURATIONS */
 dotenv.config();
@@ -50,6 +52,8 @@ app.use("/expenses", expenseRoutes); // http://localhost:8000/expenses
 app.use("/notifications", notificationRoutes); // http://localhost:8000/notifications
 app.use("/customers", customerRoutes); // http://localhost:8000/customers
 app.use("/reports", reportRoutes); // http://localhost:8000/reports
+app.use("/settings", settingsRoutes); // http://localhost:8000/settings
+app.use("/store-sales", storeSalesRoutes); // http://localhost:8000/store-sales
 
 /* SERVER */
 const port = Number(process.env.PORT) || 3001;
