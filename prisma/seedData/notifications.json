@@ -245,5 +245,54 @@
     "type": "inventory",
     "message": "Processed manual invoice for QMB SUPERMARKET; updated 2 product(s).",
     "timestamp": "2025-11-06T23:00:45.301Z"
+  },
+  {
+    "id": "1762472299699-ixlzox",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-11-06T23:38:19.699Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1762472367065-3k81vv",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-11-06T23:39:27.065Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1762472422541-dyqhl3",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-11-06T23:40:22.541Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1762472470290-eyjbln",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-11-06T23:41:10.290Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1762472470336-tr5ztf",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-11-06T23:41:10.336Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1762472502676-95y6og",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-11-06T23:41:42.676Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1762472502706-tkciai",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-11-06T23:41:42.706Z",
+    "actorUserId": "tester"
   }
 ]

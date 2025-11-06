@@ -1,7 +1,5 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import prisma from "../db/prisma";
 
 // GET /purchases - list all customer purchases with joined names
 export const getPurchases = async (_req: Request, res: Response): Promise<void> => {

@@ -1,10 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../db/prisma"));
 const featureFlagsService_1 = require("../services/featureFlagsService");
 const router = (0, express_1.Router)();
-const prisma = new client_1.PrismaClient();
+// Use shared Prisma client
 // Get features for a user by ID
 router.get("/features/:userId", async (req, res) => {
     try {
@@ -35,7 +38,7 @@ router.put("/features/by-email", async (req, res) => {
     try {
         const email = String(req.body?.email || "");
         const features = Array.isArray(req.body?.features) ? req.body.features : [];
-        const user = await prisma.users.findUnique({ where: { email } });
+        const user = await prisma_1.default.users.findUnique({ where: { email } });
         if (!user) {
             res.status(404).json({ message: "User not found" });
             return;

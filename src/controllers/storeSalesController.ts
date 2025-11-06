@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../db/prisma";
 import multer from "multer";
 import * as XLSX from "xlsx";
 import { readStores, writeStores } from "../services/storeService";
 import fs from "node:fs";
 import path from "node:path";
 
-const prisma = new PrismaClient();
+// Use shared Prisma client
 
 // Canonical store chains to present in UI
 const CANONICAL_CHAINS: Array<{ name: string; token: string }> = [

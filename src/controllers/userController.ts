@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../db/prisma";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { appendNotification } from "../services/notificationService";
 
-const prisma = new PrismaClient();
+// Use shared Prisma client
 
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {

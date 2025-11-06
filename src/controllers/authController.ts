@@ -1,10 +1,10 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../db/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
 
-const prisma = new PrismaClient();
+// Use shared Prisma client
 // Load JWT secret from environment (server/index.ts calls dotenv.config()).
 // Fallback kept for local/dev convenience but you should set JWT_SECRET in production.
 const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";

@@ -4,7 +4,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getProductUpdatesLast = exports.exportPcsExcel = exports.getPcsSample = exports.getImportSample = exports.purgeProducts = exports.deleteProduct = exports.processInvoiceManual = exports.processInvoice = exports.importProducts = exports.upsertPcsItems = exports.importPcsProducts = exports.getPcsProducts = exports.exportProductsExcel = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../db/prisma"));
+// Simple in-memory cache for product search results (per process)
+const PRODUCT_SEARCH_CACHE = new Map();
+const PRODUCT_SEARCH_TTL_MS = 30000; // 30s TTL
 const notificationService_1 = require("../services/notificationService");
 const productSyncService_1 = require("../services/productSyncService");
 const customerSalesService_1 = require("../services/customerSalesService");
@@ -17,14 +20,22 @@ const crypto_1 = require("crypto");
 // pdf-parse lacks TypeScript types; use require to avoid compile errors in ts-node
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const pdfParse = require("pdf-parse");
-const prisma = new client_1.PrismaClient();
+// Use shared Prisma client
 const getProducts = async (req, res) => {
     try {
         const rawSearch = req.query.search?.toString() ?? "";
         const search = rawSearch.trim();
+        // Cache key per search term
+        const cacheKey = search.toLowerCase();
+        const now = Date.now();
+        const cached = PRODUCT_SEARCH_CACHE.get(cacheKey);
+        if (cached && now - cached.ts < PRODUCT_SEARCH_TTL_MS) {
+            res.json(cached.data);
+            return;
+        }
         // If a search term is provided, perform a case-insensitive contains match.
         // If no search term, return all products.
-        const products = await prisma.products.findMany({
+        const products = await prisma_1.default.products.findMany({
             where: search
                 ? {
                     name: {
@@ -37,6 +48,7 @@ const getProducts = async (req, res) => {
                 name: "asc",
             },
         });
+        PRODUCT_SEARCH_CACHE.set(cacheKey, { ts: now, data: products });
         res.json(products);
     }
     catch (error) {
@@ -47,7 +59,7 @@ exports.getProducts = getProducts;
 const createProduct = async (req, res) => {
     try {
         const { name, price, stockQuantity, category, description, packSize } = req.body;
-        const product = await prisma.products.create({
+        const product = await prisma_1.default.products.create({
             data: {
                 productId: (0, crypto_1.randomUUID)(),
                 name,
@@ -65,7 +77,7 @@ const createProduct = async (req, res) => {
             actorUserId: req.user?.userId,
         });
         // Sync JSON snapshot after write
-        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma);
+        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma_1.default);
         res.status(201).json(product);
     }
     catch (error) {
@@ -76,7 +88,7 @@ exports.createProduct = createProduct;
 const getProductById = async (req, res) => {
     try {
         const { productId } = req.params;
-        const product = await prisma.products.findUnique({ where: { productId } });
+        const product = await prisma_1.default.products.findUnique({ where: { productId } });
         if (!product) {
             res.status(404).json({ message: "Product not found" });
             return;
@@ -92,7 +104,7 @@ const updateProduct = async (req, res) => {
     try {
         const { productId } = req.params;
         const { name, price, purchasePrice, stockQuantity, expiryDate, category, description, packSize } = req.body;
-        const existing = await prisma.products.findUnique({ where: { productId } });
+        const existing = await prisma_1.default.products.findUnique({ where: { productId } });
         if (!existing) {
             res.status(404).json({ message: "Product not found" });
             return;
@@ -125,7 +137,7 @@ const updateProduct = async (req, res) => {
             data.description = description ?? null;
         if (packSize !== undefined)
             data.packSize = packSize ?? null;
-        const updated = await prisma.products.update({ where: { productId }, data });
+        const updated = await prisma_1.default.products.update({ where: { productId }, data });
         try {
             const changed = [];
             const keys = Object.keys(data);
@@ -149,7 +161,7 @@ const updateProduct = async (req, res) => {
             actorUserId: req.user?.userId,
         });
         // Sync JSON snapshot after update
-        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma);
+        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma_1.default);
         res.json(updated);
     }
     catch (error) {
@@ -160,7 +172,7 @@ const updateProduct = async (req, res) => {
 exports.updateProduct = updateProduct;
 const exportProducts = async (req, res) => {
     try {
-        const products = await prisma.products.findMany({ orderBy: { name: "asc" } });
+        const products = await prisma_1.default.products.findMany({ orderBy: { name: "asc" } });
         const json = JSON.stringify(products, null, 2);
         res.setHeader("Content-Type", "application/json");
         res.setHeader("Content-Disposition", "attachment; filename=products.json");
@@ -175,7 +187,7 @@ exports.exportProducts = exportProducts;
 // Export products as Excel
 const exportProductsExcel = async (req, res) => {
     try {
-        const products = await prisma.products.findMany({ orderBy: { name: "asc" } });
+        const products = await prisma_1.default.products.findMany({ orderBy: { name: "asc" } });
         const rows = products.map((p) => ({
             ProductId: p.productId,
             SKU: p.productId, // use ProductId as SKU for export (no separate sku field)
@@ -219,7 +231,7 @@ const getPcsProducts = async (req, res) => {
         const search = rawSearch.trim().toLowerCase();
         const pcs = (0, pcsInventoryService_1.readPcsInventory)();
         // Load all products to allow robust matching and enrichment
-        const products = await prisma.products.findMany({});
+        const products = await prisma_1.default.products.findMany({});
         // Helper normalization (aligned with invoice parsing heuristics)
         const normalize = (s) => s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
         const normalizeWithSynonyms = (s) => normalize(s
@@ -521,7 +533,7 @@ const importProducts = async (req, res) => {
         // Deduplicate by name + packSize: update existing rows; create new for unknown pairs
         const normalizeText = (s) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
         const names = Array.from(new Set(productsToInsert.map(p => p.name)));
-        const existingCandidates = await prisma.products.findMany({
+        const existingCandidates = await prisma_1.default.products.findMany({
             where: { name: { in: names } },
         });
         const keyOf = (p) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`;
@@ -588,7 +600,7 @@ const importProducts = async (req, res) => {
                     dataUpdate.description = item.description ?? existing.description ?? null;
                 if (should("packsize"))
                     dataUpdate.packSize = item.packSize ?? existing.packSize ?? null;
-                await prisma.products.update({ where: { productId: existing.productId }, data: dataUpdate });
+                await prisma_1.default.products.update({ where: { productId: existing.productId }, data: dataUpdate });
                 try {
                     const changed = [];
                     for (const k of Object.keys(dataUpdate)) {
@@ -608,7 +620,7 @@ const importProducts = async (req, res) => {
                 mergedItemsForJson.push({ ...item, productId: existing.productId });
             }
             else {
-                await prisma.products.create({ data: item });
+                await prisma_1.default.products.create({ data: item });
                 try {
                     (0, productUpdateAuditService_1.recordFieldUpdates)(item.productId, ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize"].filter((f) => item[f] !== undefined), "import");
                 }
@@ -621,7 +633,7 @@ const importProducts = async (req, res) => {
         }
         // After processing import rows, collapse any existing duplicates in DB for the same name+packSize
         try {
-            const candidatesForDedupe = await prisma.products.findMany({ where: { name: { in: names } } });
+            const candidatesForDedupe = await prisma_1.default.products.findMany({ where: { name: { in: names } } });
             const groups = new Map();
             for (const p of candidatesForDedupe) {
                 const k = keyOf({ name: p.name, packSize: p.packSize ?? null });
@@ -673,7 +685,7 @@ const importProducts = async (req, res) => {
                     if (!mergedPack && dup.packSize)
                         mergedPack = dup.packSize;
                 }
-                await prisma.products.update({
+                await prisma_1.default.products.update({
                     where: { productId: canonical.productId },
                     data: {
                         stockQuantity: Math.max(0, Math.floor(mergedStock)),
@@ -686,7 +698,7 @@ const importProducts = async (req, res) => {
                     },
                 });
                 for (let i = 1; i < arr.length; i++) {
-                    await prisma.products.delete({ where: { productId: arr[i].productId } });
+                    await prisma_1.default.products.delete({ where: { productId: arr[i].productId } });
                     dedupedCount += 1;
                 }
             }
@@ -743,7 +755,7 @@ const importProducts = async (req, res) => {
             actorUserId: req.user?.userId,
         });
         // Sync JSON snapshot with DB after import
-        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma);
+        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma_1.default);
         res.status(201).json({ insertedCount, attempted: productsToInsert.length });
     }
     catch (error) {
@@ -962,9 +974,9 @@ const processInvoice = async (req, res) => {
         }
         // Create or find customer
         const custName = customer.name || "Unknown Customer";
-        let cust = await prisma.customers.findFirst({ where: { name: custName } });
+        let cust = await prisma_1.default.customers.findFirst({ where: { name: custName } });
         if (!cust) {
-            cust = await prisma.customers.create({ data: {
+            cust = await prisma_1.default.customers.create({ data: {
                     customerId: (0, crypto_1.randomUUID)(),
                     name: custName,
                     mobile: customer.mobile,
@@ -995,14 +1007,14 @@ const processInvoice = async (req, res) => {
             const keyTokens = Array.from(invTokens).filter(t => t.length >= 3).slice(0, 6);
             let candidates = [];
             if (keyTokens.length > 0) {
-                candidates = await prisma.products.findMany({
+                candidates = await prisma_1.default.products.findMany({
                     where: {
                         OR: keyTokens.map((t) => ({ name: { contains: t, mode: "insensitive" } })),
                     },
                 });
             }
             else {
-                candidates = await prisma.products.findMany({ where: { name: { contains: item.name, mode: "insensitive" } } });
+                candidates = await prisma_1.default.products.findMany({ where: { name: { contains: item.name, mode: "insensitive" } } });
             }
             const subsetMatches = candidates.filter((p) => {
                 const ptoks = new Set(tokensOf(p.name).filter((t) => !FILLER_TOKENS.has(t)));
@@ -1055,7 +1067,7 @@ const processInvoice = async (req, res) => {
                 if (prod) {
                     const unitPrice = Number(item.unitPrice ?? prod.price ?? 0);
                     const totalCost = Number(item.subtotal ?? unitPrice * item.quantity);
-                    await prisma.customerPurchases.create({ data: {
+                    await prisma_1.default.customerPurchases.create({ data: {
                             id: (0, crypto_1.randomUUID)(),
                             customerId: cust.customerId,
                             productId: prod.productId,
@@ -1071,14 +1083,14 @@ const processInvoice = async (req, res) => {
                 continue; // skip unmatched
             }
             const newQty = Math.max(0, (prod.stockQuantity || 0) - (item.quantity || 0));
-            await prisma.products.update({ where: { productId: prod.productId }, data: { stockQuantity: newQty } });
+            await prisma_1.default.products.update({ where: { productId: prod.productId }, data: { stockQuantity: newQty } });
             try {
                 (0, productUpdateAuditService_1.recordFieldUpdates)(prod.productId, ["stockQuantity"], "invoice");
             }
             catch { }
             const unitPrice = Number(item.unitPrice ?? prod.price ?? 0);
             const totalCost = Number(item.subtotal ?? unitPrice * item.quantity);
-            await prisma.customerPurchases.create({ data: {
+            await prisma_1.default.customerPurchases.create({ data: {
                     id: (0, crypto_1.randomUUID)(),
                     customerId: cust.customerId,
                     productId: prod.productId,
@@ -1133,9 +1145,9 @@ const processInvoiceManual = async (req, res) => {
             return;
         }
         // Create or find customer
-        let cust = await prisma.customers.findFirst({ where: { name: customerName } });
+        let cust = await prisma_1.default.customers.findFirst({ where: { name: customerName } });
         if (!cust) {
-            cust = await prisma.customers.create({ data: {
+            cust = await prisma_1.default.customers.create({ data: {
                     customerId: (0, crypto_1.randomUUID)(),
                     name: customerName,
                 } });
@@ -1148,19 +1160,19 @@ const processInvoiceManual = async (req, res) => {
             const unit = String(it?.unit || 'ctn').toLowerCase();
             let product = null;
             if (it?.productId) {
-                const p = await prisma.products.findUnique({ where: { productId: String(it.productId) } });
+                const p = await prisma_1.default.products.findUnique({ where: { productId: String(it.productId) } });
                 if (p)
                     product = { productId: p.productId, name: p.name, price: Number(p.price), stockQuantity: p.stockQuantity };
             }
             if (!product && it?.name) {
                 // Try exact by name then loose contains
                 const name = String(it.name).trim();
-                const pExact = await prisma.products.findFirst({ where: { name } });
+                const pExact = await prisma_1.default.products.findFirst({ where: { name } });
                 if (pExact) {
                     product = { productId: pExact.productId, name: pExact.name, price: Number(pExact.price), stockQuantity: pExact.stockQuantity };
                 }
                 if (!product) {
-                    const candidates = await prisma.products.findMany({ where: { name: { contains: name, mode: 'insensitive' } }, take: 1 });
+                    const candidates = await prisma_1.default.products.findMany({ where: { name: { contains: name, mode: 'insensitive' } }, take: 1 });
                     if (candidates.length) {
                         const p = candidates[0];
                         product = { productId: p.productId, name: p.name, price: Number(p.price), stockQuantity: p.stockQuantity };
@@ -1177,13 +1189,13 @@ const processInvoiceManual = async (req, res) => {
                     continue; // skip unknown product for carton flow
                 // Deduct stock (clamp at 0)
                 const newQty = Math.max(0, Number(product.stockQuantity) - qty);
-                await prisma.products.update({ where: { productId: product.productId }, data: { stockQuantity: newQty } });
+                await prisma_1.default.products.update({ where: { productId: product.productId }, data: { stockQuantity: newQty } });
             }
             const unitPrice = Number(product?.price ?? 0);
             const totalCost = Number(unitPrice) * qty;
             // Record purchase
             if (product) {
-                await prisma.customerPurchases.create({ data: {
+                await prisma_1.default.customerPurchases.create({ data: {
                         id: (0, crypto_1.randomUUID)(),
                         customerId: cust.customerId,
                         productId: product.productId,
@@ -1209,16 +1221,16 @@ exports.processInvoiceManual = processInvoiceManual;
 const deleteProduct = async (req, res) => {
     try {
         const { productId } = req.params;
-        const existing = await prisma.products.findUnique({ where: { productId } });
+        const existing = await prisma_1.default.products.findUnique({ where: { productId } });
         if (!existing) {
             res.status(404).json({ message: "Product not found" });
             return;
         }
         // Guard: prevent deletion when related entries exist
         const [purchaseCount, salesCount, purchasesCount] = await Promise.all([
-            prisma.customerPurchases.count({ where: { productId } }),
-            prisma.sales.count({ where: { productId } }),
-            prisma.purchases.count({ where: { productId } }),
+            prisma_1.default.customerPurchases.count({ where: { productId } }),
+            prisma_1.default.sales.count({ where: { productId } }),
+            prisma_1.default.purchases.count({ where: { productId } }),
         ]);
         if (purchaseCount > 0 || salesCount > 0 || purchasesCount > 0) {
             res.status(409).json({ message: "Cannot delete product with related purchase/sales records. Clear related records first." });
@@ -1231,12 +1243,12 @@ const deleteProduct = async (req, res) => {
             res.status(409).json({ message: "Cannot delete product while PCS inventory contains entries referencing it." });
             return;
         }
-        await prisma.customerPurchases.deleteMany({ where: { productId } });
-        await prisma.sales.deleteMany({ where: { productId } });
-        await prisma.purchases.deleteMany({ where: { productId } });
-        await prisma.products.delete({ where: { productId } });
+        await prisma_1.default.customerPurchases.deleteMany({ where: { productId } });
+        await prisma_1.default.sales.deleteMany({ where: { productId } });
+        await prisma_1.default.purchases.deleteMany({ where: { productId } });
+        await prisma_1.default.products.delete({ where: { productId } });
         (0, notificationService_1.appendNotification)({ type: "product", message: `Product deleted: ${existing.name}`, actorUserId: req.user?.userId });
-        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma);
+        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma_1.default);
         res.status(200).json({ success: true });
     }
     catch (error) {
@@ -1248,13 +1260,13 @@ exports.deleteProduct = deleteProduct;
 // Purge all products and dependent rows, clear JSON files, and sync
 const purgeProducts = async (req, res) => {
     try {
-        await prisma.customerPurchases.deleteMany({});
-        await prisma.sales.deleteMany({});
-        await prisma.purchases.deleteMany({});
-        await prisma.products.deleteMany({});
+        await prisma_1.default.customerPurchases.deleteMany({});
+        await prisma_1.default.sales.deleteMany({});
+        await prisma_1.default.purchases.deleteMany({});
+        await prisma_1.default.products.deleteMany({});
         (0, productSyncService_1.writeEmptyProductsJson)();
         (0, productSyncService_1.writeEmptyImportedProductsJson)();
-        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma);
+        await (0, productSyncService_1.syncProductsJsonFromDb)(prisma_1.default);
         (0, notificationService_1.appendNotification)({ type: "product", message: "Purged all products and related records", actorUserId: req.user?.userId });
         res.status(200).json({ success: true });
     }
@@ -1309,7 +1321,7 @@ exports.getPcsSample = getPcsSample;
 const exportPcsExcel = async (req, res) => {
     try {
         const pcs = (0, pcsInventoryService_1.readPcsInventory)();
-        const products = await prisma.products.findMany({});
+        const products = await prisma_1.default.products.findMany({});
         const byName = new Map(products.map((p) => [String(p.name).toLowerCase(), p]));
         const rows = pcs.map((e) => {
             const match = byName.get(String(e.name).toLowerCase());
@@ -1353,7 +1365,7 @@ const getProductUpdatesLast = async (req, res) => {
         const last = (0, productUpdateAuditService_1.getLastFieldUpdates)();
         // Enrich with product names for display
         const ids = Object.keys(last);
-        const products = ids.length ? await prisma.products.findMany({ where: { productId: { in: ids } } }) : [];
+        const products = ids.length ? await prisma_1.default.products.findMany({ where: { productId: { in: ids } } }) : [];
         const nameMap = new Map(products.map(p => [p.productId, p.name]));
         const payload = ids.map((id) => ({ productId: id, name: nameMap.get(id) || "Unknown", last: last[id] }));
         res.json(payload);

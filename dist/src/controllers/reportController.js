@@ -1,8 +1,10 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getSalesReport = void 0;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../db/prisma"));
 const getSalesReport = async (req, res) => {
     try {
         const fromRaw = req.query?.from;
@@ -17,7 +19,7 @@ const getSalesReport = async (req, res) => {
         const where = timestampFilter
             ? { timestamp: timestampFilter }
             : {};
-        const purchases = await prisma.customerPurchases.findMany({
+        const purchases = await prisma_1.default.customerPurchases.findMany({
             where,
             orderBy: { timestamp: "desc" },
         });
@@ -25,10 +27,10 @@ const getSalesReport = async (req, res) => {
         const productIds = Array.from(new Set(purchases.map((p) => p.productId).filter(Boolean)));
         const customerIds = Array.from(new Set(purchases.map((p) => p.customerId).filter(Boolean)));
         const products = productIds.length
-            ? await prisma.products.findMany({ where: { productId: { in: productIds } }, select: { productId: true, name: true } })
+            ? await prisma_1.default.products.findMany({ where: { productId: { in: productIds } }, select: { productId: true, name: true } })
             : [];
         const customers = customerIds.length
-            ? await prisma.customers.findMany({ where: { customerId: { in: customerIds } }, select: { customerId: true, name: true } })
+            ? await prisma_1.default.customers.findMany({ where: { customerId: { in: customerIds } }, select: { customerId: true, name: true } })
             : [];
         const productNameMap = new Map(products.map((p) => [p.productId, p.name]));
         const customerNameMap = new Map(customers.map((c) => [c.customerId, c.name]));

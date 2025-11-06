@@ -1,11 +1,14 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getExpensesByCategory = void 0;
-const client_1 = require("@prisma/client");
-const prisma = new client_1.PrismaClient();
+const prisma_1 = __importDefault(require("../db/prisma"));
+// Use shared Prisma client
 const getExpensesByCategory = async (req, res) => {
     try {
-        const expenseByCategorySummaryRaw = await prisma.expenseByCategory.findMany({
+        const expenseByCategorySummaryRaw = await prisma_1.default.expenseByCategory.findMany({
             orderBy: {
                 date: "desc",
             },

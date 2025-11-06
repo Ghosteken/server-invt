@@ -36,23 +36,140 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.importStoresBranches = exports.upload = exports.getStoreBranchSales = exports.getStores = void 0;
-const client_1 = require("@prisma/client");
+exports.importStoresBranchesSample = exports.importStoresBranches = exports.upload = exports.getStoreBranchSales = exports.getStores = void 0;
+const prisma_1 = __importDefault(require("../db/prisma"));
 const multer_1 = __importDefault(require("multer"));
 const XLSX = __importStar(require("xlsx"));
 const storeService_1 = require("../services/storeService");
-const prisma = new client_1.PrismaClient();
-// Fallback defaults if no JSON exists
-const DEFAULT_STORE_CONFIG = {
-    blenco: ["Blenco Lekki", "Blenco Ikeja", "Blenco Ajah"],
-    spar: ["Spar Victoria Island", "Spar Ikeja", "Spar Ilupeju"],
+const node_fs_1 = __importDefault(require("node:fs"));
+const node_path_1 = __importDefault(require("node:path"));
+// Use shared Prisma client
+// Canonical store chains to present in UI
+const CANONICAL_CHAINS = [
+    { name: "WINNIE", token: "winnie" },
+    { name: "UBA", token: "uba" },
+    { name: "TWINS", token: "twins" },
+    { name: "SHOPPERS", token: "shoppers" },
+    { name: "SAHAD", token: "sahad" },
+    { name: "RYTE", token: "ryte" },
+    { name: "QMB", token: "qmb" },
+    { name: "OZZY STORE", token: "ozzy" },
+    { name: "LIZZY STORE", token: "lizzy" },
+    { name: "HOSTS SUPERMARKET", token: "hosts" },
+    { name: "HEALTHRITE", token: "healthrite" },
+    { name: "GLOBUS SUPERMARKET", token: "globus" },
+    { name: "GLAMOUR SUPERMARKET", token: "glamour" },
+    { name: "CITY SUPERMARKET", token: "city" },
+    // Prefer short, deduped display names for duplicates
+    { name: "BLENCO", token: "blenco" },
+    { name: "TEMPLE", token: "temple" },
+    { name: "MEGA", token: "mega" },
+    { name: "MANO", token: "mano" },
+    { name: "JENDOL", token: "jendol" },
+    { name: "HYPERCITY", token: "hypercity" },
+    { name: "HUTOOS SUPERMARKET", token: "hutoos" },
+    { name: "GRAND", token: "grand" },
+    { name: "DELIGHT", token: "delight" },
+    { name: "AMAGZY", token: "amagzy" },
+    { name: "PRINCE", token: "prince" },
+    { name: "SHOPRITE", token: "shoprite" },
+    { name: "GLOBUS", token: "globus" },
+    { name: "SUPERSAVER", token: "supersaver" },
+    { name: "SPAR", token: "spar" },
+    { name: "JUSTRITE", token: "justrite" },
+];
+// Map common display names to canonical tokens to collapse duplicates
+const NAME_TO_TOKEN = {
+    "BLENCO": "blenco",
+    "BLENCO SUPERMARKET": "blenco",
+    "GLOBUS": "globus",
+    "GLOBUS SUPERMARKET": "globus",
+    "JENDOL": "jendol",
+    "JENDOL SUPERMARKET": "jendol",
+    "JENDOL SUPERSTORE": "jendol",
+    "PRINCE": "prince",
+    "PRINCE SUPERMARKET": "prince",
+    "SHOPRITE": "shoprite",
+    "SUPERSAVER": "supersaver",
+    "SPAR": "spar",
+    "JUSTRITE": "justrite",
 };
+const PRIMARY_DISPLAY_BY_TOKEN = {
+    blenco: "BLENCO",
+    globus: "GLOBUS",
+    jendol: "JENDOL",
+    prince: "PRINCE",
+    shoprite: "SHOPRITE",
+    supersaver: "SUPERSAVER",
+    spar: "SPAR",
+    justrite: "JUSTRITE",
+    winnie: "WINNIE",
+    uba: "UBA",
+    twins: "TWINS",
+    shoppers: "SHOPPERS",
+    sahad: "SAHAD",
+    ryte: "RYTE",
+    qmb: "QMB",
+    ozzy: "OZZY STORE",
+    lizzy: "LIZZY STORE",
+    hosts: "HOSTS SUPERMARKET",
+    healthrite: "HEALTHRITE",
+    glamour: "GLAMOUR SUPERMARKET",
+    city: "CITY SUPERMARKET",
+    temple: "TEMPLE",
+    mega: "MEGA",
+    mano: "MANO",
+    hypercity: "HYPERCITY",
+    hutoos: "HUTOOS",
+    grand: "GRAND",
+    delight: "DELIGHT",
+    amagzy: "AMAGZY",
+};
+function normalizeStoreTokenFromName(name) {
+    const trimmed = String(name || "").trim();
+    const upper = trimmed.toUpperCase();
+    if (NAME_TO_TOKEN[upper])
+        return NAME_TO_TOKEN[upper];
+    let lower = trimmed.toLowerCase();
+    // Remove common suffixes
+    lower = lower.replace(/\b(supermarket|superstore|market)\b/g, "").trim();
+    // Pick token by substring match
+    const tokens = Object.keys(PRIMARY_DISPLAY_BY_TOKEN);
+    for (const t of tokens) {
+        if (lower.includes(t))
+            return t;
+    }
+    return lower; // fallback
+}
+function aggregateBranchesByToken(token) {
+    const data = (0, storeService_1.readStores)();
+    const tokenLc = token.toLowerCase();
+    const branchesSet = new Set();
+    for (const entry of data.stores) {
+        const nameLc = String(entry.store).toLowerCase();
+        if (nameLc.includes(tokenLc)) {
+            for (const b of entry.branches || []) {
+                const bb = String(b).trim();
+                if (bb)
+                    branchesSet.add(bb);
+            }
+            // Optionally add the entry.store itself when it looks like a branch location variant
+            // e.g., "blenco lekki" should count as a branch under BLENCO
+            if (nameLc !== tokenLc && /\s/.test(nameLc)) {
+                branchesSet.add(entry.store.toUpperCase());
+            }
+        }
+    }
+    return Array.from(branchesSet.values());
+}
 const getStores = async (_req, res) => {
     try {
-        const data = (0, storeService_1.readStores)();
-        const stores = data.stores.length
-            ? data.stores
-            : Object.entries(DEFAULT_STORE_CONFIG).map(([store, branches]) => ({ store, branches }));
+        // Return only canonical chains with aggregated branches, deduped by token
+        const uniqueTokens = Array.from(new Set(CANONICAL_CHAINS.map((c) => c.token)));
+        const stores = uniqueTokens.map((token) => ({
+            store: PRIMARY_DISPLAY_BY_TOKEN[token] || token.toUpperCase(),
+            branches: aggregateBranchesByToken(token),
+        }));
         res.json({ stores });
     }
     catch (err) {
@@ -63,31 +180,31 @@ const getStores = async (_req, res) => {
 exports.getStores = getStores;
 const getStoreBranchSales = async (req, res) => {
     try {
-        const store = String(req.query.store || "").toLowerCase();
+        const store = String(req.query.store || "");
         const branch = String(req.query.branch || "");
         if (!store || !branch) {
             res.status(400).json({ message: "Missing store or branch" });
             return;
         }
-        const data = (0, storeService_1.readStores)();
-        const map = new Map(data.stores.map((s) => [s.store.toLowerCase(), s.branches]));
-        const branches = map.get(store) || DEFAULT_STORE_CONFIG[store] || [];
+        // Find canonical token by matching provided store name (case-insensitive)
+        const token = (CANONICAL_CHAINS.find((c) => c.name.toLowerCase() === store.toLowerCase())?.token) || store.toLowerCase();
+        const branches = aggregateBranchesByToken(token);
         if (!branches.includes(branch)) {
             res.status(404).json({ message: "Unknown branch for store" });
             return;
         }
         // Find the customer that matches this branch name
-        const customer = await prisma.customers.findFirst({ where: { name: branch } });
+        const customer = await prisma_1.default.customers.findFirst({ where: { name: branch } });
         if (!customer) {
             res.json({ sales: [] });
             return;
         }
-        const purchases = await prisma.customerPurchases.findMany({
+        const purchases = await prisma_1.default.customerPurchases.findMany({
             where: { customerId: customer.customerId },
             orderBy: { timestamp: "desc" },
         });
         const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
-        const products = await prisma.products.findMany({
+        const products = await prisma_1.default.products.findMany({
             where: { productId: { in: productIds } },
             select: { productId: true, name: true, expiryDate: true },
         });
@@ -132,13 +249,13 @@ const importStoresBranches = async (req, res) => {
             const branchRaw = kv["branch"] ?? kv["location"] ?? kv["name"];
             if (!storeRaw || !branchRaw)
                 continue;
-            const store = String(storeRaw).trim().toLowerCase();
+            const store = normalizeStoreTokenFromName(String(storeRaw));
             const branch = String(branchRaw).trim();
             const set = grouped.get(store) || new Set();
             set.add(branch);
             grouped.set(store, set);
         }
-        const stores = Array.from(grouped.entries()).map(([store, set]) => ({ store, branches: Array.from(set.values()) }));
+        const stores = Array.from(grouped.entries()).map(([token, set]) => ({ store: token, branches: Array.from(set.values()) }));
         (0, storeService_1.writeStores)({ stores });
         res.json({ importedStores: stores.length });
     }
@@ -148,3 +265,59 @@ const importStoresBranches = async (req, res) => {
     }
 };
 exports.importStoresBranches = importStoresBranches;
+/**
+ * Import stores and branches from server sample Customers1.xlsx.
+ * Assumes sheet lists store names each followed by its branches, then unmatched customers.
+ */
+const importStoresBranchesSample = async (_req, res) => {
+    try {
+        const samplePath = node_path_1.default.join(__dirname, "../../assets/Customers1.xlsx");
+        if (!node_fs_1.default.existsSync(samplePath)) {
+            res.status(404).json({ message: "Sample Customers1.xlsx not found" });
+            return;
+        }
+        const buffer = node_fs_1.default.readFileSync(samplePath);
+        const workbook = XLSX.read(buffer, { type: "buffer" });
+        const sheetName = workbook.SheetNames[0];
+        const ws = workbook.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null });
+        const grouped = new Map();
+        let currentToken = null;
+        const toText = (v) => (v == null ? "" : String(v).trim());
+        for (const row of rows) {
+            const cell = toText(row[0]);
+            if (!cell)
+                continue;
+            const isLikelyStore = /^[A-Z][A-Za-z0-9\s&.'()-]+$/.test(cell) && cell.split(" ").length <= 3;
+            // Heuristic: a branch often contains a location with spaces and is not all uppercase single token
+            const isLikelyBranch = !isLikelyStore && /[A-Za-z]/.test(cell);
+            if (isLikelyStore) {
+                currentToken = normalizeStoreTokenFromName(cell);
+                if (!grouped.has(currentToken))
+                    grouped.set(currentToken, new Set());
+                continue;
+            }
+            if (isLikelyBranch && currentToken) {
+                grouped.get(currentToken).add(cell);
+                continue;
+            }
+            // If neither, we may have reached unmatched customers; stop parsing
+            if (currentToken && !isLikelyBranch && !isLikelyStore) {
+                break;
+            }
+        }
+        const stores = Array.from(grouped.entries()).map(([token, set]) => ({ store: token, branches: Array.from(set.values()) }));
+        if (stores.length) {
+            (0, storeService_1.writeStores)({ stores });
+            res.json({ importedStores: stores.length });
+        }
+        else {
+            res.status(400).json({ message: "No stores parsed from sample" });
+        }
+    }
+    catch (err) {
+        console.error("importStoresBranchesSample error:", err);
+        res.status(500).json({ message: "Failed to import stores/branches from sample" });
+    }
+};
+exports.importStoresBranchesSample = importStoresBranchesSample;

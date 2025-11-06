@@ -40,6 +40,10 @@ model Products {
   Sales         Sales[]
   Purchases     Purchases[]
   CustomerPurchases CustomerPurchases[]
+
+  @@index([name])
+  @@index([category])
+  @@index([packSize])
 }
 
 model Sales {

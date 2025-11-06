@@ -1,12 +1,12 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../db/prisma";
 import * as XLSX from "xlsx";
 import { randomUUID } from "crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { writeStores } from "../services/storeService";
 
-const prisma = new PrismaClient();
+// Use shared Prisma client
 
 export const getCustomers = async (req: Request, res: Response): Promise<void> => {
   try {

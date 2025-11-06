@@ -10,4 +10,6 @@ const router = (0, express_1.Router)();
 router.get("/", customerController_1.getCustomers);
 const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
 router.post("/import", upload.single("file"), customerController_1.importCustomers);
+router.post("/import/sample", customerController_1.importCustomersSample);
+router.get("/export/excel", customerController_1.exportCustomersExcel);
 exports.default = router;

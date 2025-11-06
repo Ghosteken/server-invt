@@ -4,16 +4,16 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.unblockUser = exports.blockUser = exports.deleteUser = exports.purgeNonAdminUsers = exports.createUser = exports.getUsers = void 0;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../db/prisma"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const crypto_1 = require("crypto");
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const notificationService_1 = require("../services/notificationService");
-const prisma = new client_1.PrismaClient();
+// Use shared Prisma client
 const getUsers = async (req, res) => {
     try {
-        const users = await prisma.users.findMany({
+        const users = await prisma_1.default.users.findMany({
             select: {
                 userId: true,
                 name: true,
@@ -37,13 +37,13 @@ const createUser = async (req, res) => {
             res.status(400).json({ message: "Name, email and password are required" });
             return;
         }
-        const existing = await prisma.users.findFirst({ where: { email } });
+        const existing = await prisma_1.default.users.findFirst({ where: { email } });
         if (existing) {
             res.status(400).json({ message: "User with this email already exists" });
             return;
         }
         const hashedPassword = bcryptjs_1.default.hashSync(password, 10);
-        const newUser = await prisma.users.create({
+        const newUser = await prisma_1.default.users.create({
             data: {
                 userId: (0, crypto_1.randomUUID)(),
                 name,
@@ -97,7 +97,7 @@ const createUser = async (req, res) => {
 exports.createUser = createUser;
 const purgeNonAdminUsers = async (req, res) => {
     try {
-        const result = await prisma.users.deleteMany({
+        const result = await prisma_1.default.users.deleteMany({
             where: { NOT: { role: "admin" } },
         });
         res.json({ message: "Purged non-admin users", deletedCount: result.count });
@@ -116,7 +116,7 @@ exports.purgeNonAdminUsers = purgeNonAdminUsers;
 const deleteUser = async (req, res) => {
     try {
         const { userId } = req.params;
-        const target = await prisma.users.findUnique({ where: { userId } });
+        const target = await prisma_1.default.users.findUnique({ where: { userId } });
         if (!target) {
             res.status(404).json({ message: "User not found" });
             return;
@@ -130,7 +130,7 @@ const deleteUser = async (req, res) => {
             res.status(403).json({ message: "Cannot delete current admin user" });
             return;
         }
-        await prisma.users.delete({ where: { userId } });
+        await prisma_1.default.users.delete({ where: { userId } });
         res.json({ message: "User deleted" });
         (0, notificationService_1.appendNotification)({
             type: "user",
@@ -147,7 +147,7 @@ exports.deleteUser = deleteUser;
 const blockUser = async (req, res) => {
     try {
         const { userId } = req.params;
-        const target = await prisma.users.findUnique({ where: { userId } });
+        const target = await prisma_1.default.users.findUnique({ where: { userId } });
         if (!target) {
             res.status(404).json({ message: "User not found" });
             return;
@@ -160,7 +160,7 @@ const blockUser = async (req, res) => {
             res.status(403).json({ message: "Cannot block current admin user" });
             return;
         }
-        const updated = await prisma.users.update({
+        const updated = await prisma_1.default.users.update({
             where: { userId },
             data: { isBlocked: true },
             select: { userId: true, name: true, email: true, role: true, isBlocked: true },
@@ -181,12 +181,12 @@ exports.blockUser = blockUser;
 const unblockUser = async (req, res) => {
     try {
         const { userId } = req.params;
-        const target = await prisma.users.findUnique({ where: { userId } });
+        const target = await prisma_1.default.users.findUnique({ where: { userId } });
         if (!target) {
             res.status(404).json({ message: "User not found" });
             return;
         }
-        const updated = await prisma.users.update({
+        const updated = await prisma_1.default.users.update({
             where: { userId },
             data: { isBlocked: false },
             select: { userId: true, name: true, email: true, role: true, isBlocked: true },

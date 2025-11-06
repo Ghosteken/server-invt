@@ -1,9 +1,9 @@
 import { Router } from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../db/prisma";
 import { readFlags, writeFlags } from "../services/featureFlagsService";
 
 const router = Router();
-const prisma = new PrismaClient();
+// Use shared Prisma client
 
 // Get features for a user by ID
 router.get("/features/:userId", async (req, res) => {

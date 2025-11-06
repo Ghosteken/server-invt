@@ -1,5 +1,9 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../db/prisma";
+
+// Simple in-memory cache for product search results (per process)
+const PRODUCT_SEARCH_CACHE = new Map<string, { ts: number; data: any[] }>();
+const PRODUCT_SEARCH_TTL_MS = 30_000; // 30s TTL
 import { appendNotification } from "../services/notificationService";
 import { syncProductsJsonFromDb, writeEmptyProductsJson, writeEmptyImportedProductsJson } from "../services/productSyncService";
 import { appendCustomerSales } from "../services/customerSalesService";
@@ -13,7 +17,7 @@ import { randomUUID } from "crypto";
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const pdfParse = require("pdf-parse");
 
-const prisma = new PrismaClient();
+// Use shared Prisma client
 
 export const getProducts = async (
   req: Request,
@@ -22,6 +26,15 @@ export const getProducts = async (
   try {
     const rawSearch = req.query.search?.toString() ?? "";
     const search = rawSearch.trim();
+
+    // Cache key per search term
+    const cacheKey = search.toLowerCase();
+    const now = Date.now();
+    const cached = PRODUCT_SEARCH_CACHE.get(cacheKey);
+    if (cached && now - cached.ts < PRODUCT_SEARCH_TTL_MS) {
+      res.json(cached.data);
+      return;
+    }
 
     // If a search term is provided, perform a case-insensitive contains match.
     // If no search term, return all products.
@@ -38,6 +51,7 @@ export const getProducts = async (
         name: "asc",
       },
     });
+    PRODUCT_SEARCH_CACHE.set(cacheKey, { ts: now, data: products });
     res.json(products);
   } catch (error) {
     res.status(500).json({ message: "Error retrieving products" });

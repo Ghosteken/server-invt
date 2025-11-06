@@ -1,9 +1,9 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../db/prisma";
 import { readPcsInventory } from "../services/pcsInventoryService";
 import { withCache } from "../services/cache";
 
-const prisma = new PrismaClient();
+// Use shared Prisma client
 
 export const getDashboardMetrics = async (
   req: Request,

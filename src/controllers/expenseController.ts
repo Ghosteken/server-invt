@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../db/prisma";
 
-const prisma = new PrismaClient();
+// Use shared Prisma client
 
 export const getExpensesByCategory = async (
   req: Request,

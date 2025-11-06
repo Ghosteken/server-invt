@@ -22,6 +22,7 @@ const notificationRoutes_1 = __importDefault(require("./routes/notificationRoute
 const customerRoutes_1 = __importDefault(require("./routes/customerRoutes"));
 const reportRoutes_1 = __importDefault(require("./routes/reportRoutes"));
 const storeSalesRoutes_1 = __importDefault(require("./routes/storeSalesRoutes"));
+const purchasesRoutes_1 = __importDefault(require("./routes/purchasesRoutes"));
 function createApp() {
     dotenv_1.default.config();
     const app = (0, express_1.default)();
@@ -61,6 +62,7 @@ function createApp() {
     app.use("/reports", reportRoutes_1.default);
     app.use("/settings", require("./routes/settingsRoutes").default);
     app.use("/store-sales", storeSalesRoutes_1.default);
+    app.use("/purchases", purchasesRoutes_1.default);
     return app;
 }
 exports.default = createApp;

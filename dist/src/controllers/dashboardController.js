@@ -1,10 +1,13 @@
 "use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getLowStockPcs = exports.getTopCustomers = exports.getDeadStockProducts = exports.getExpiringProducts = exports.getLowStockProducts = exports.getDashboardMetrics = void 0;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../db/prisma"));
 const pcsInventoryService_1 = require("../services/pcsInventoryService");
 const cache_1 = require("../services/cache");
-const prisma = new client_1.PrismaClient();
+// Use shared Prisma client
 const getDashboardMetrics = async (req, res) => {
     try {
         // Simplified, live analytics (no dummy tables)
@@ -17,15 +20,15 @@ const getDashboardMetrics = async (req, res) => {
             : Number.isFinite(envNum) && envNum >= 0
                 ? envNum
                 : 5;
-        const totalProducts = await (0, cache_1.withCache)(`metrics:totalProducts`, 60, async () => prisma.products.count());
-        const lowStockCount = await (0, cache_1.withCache)(`metrics:lowStock:${LOW_STOCK_THRESHOLD}`, 60, async () => prisma.products.count({ where: { stockQuantity: { lt: LOW_STOCK_THRESHOLD } } }));
+        const totalProducts = await (0, cache_1.withCache)(`metrics:totalProducts`, 60, async () => prisma_1.default.products.count());
+        const lowStockCount = await (0, cache_1.withCache)(`metrics:lowStock:${LOW_STOCK_THRESHOLD}`, 60, async () => prisma_1.default.products.count({ where: { stockQuantity: { lt: LOW_STOCK_THRESHOLD } } }));
         const inventoryValue = await (0, cache_1.withCache)(`metrics:inventoryValue`, 60, async () => {
-            const productsBasic = await prisma.products.findMany({ select: { productId: true, name: true, price: true, stockQuantity: true } });
+            const productsBasic = await prisma_1.default.products.findMany({ select: { productId: true, name: true, price: true, stockQuantity: true } });
             return productsBasic.reduce((sum, p) => sum + (Number(p.price) * p.stockQuantity), 0);
         });
         const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
         const sales7dTotal = await (0, cache_1.withCache)(`metrics:sales7d`, 60, async () => {
-            const salesAgg = await prisma.customerPurchases.aggregate({ where: { timestamp: { gte: since7 } }, _sum: { totalCost: true } });
+            const salesAgg = await prisma_1.default.customerPurchases.aggregate({ where: { timestamp: { gte: since7 } }, _sum: { totalCost: true } });
             return Number(salesAgg._sum.totalCost || 0);
         });
         const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -33,7 +36,7 @@ const getDashboardMetrics = async (req, res) => {
         try {
             // Use groupBy to find most purchased products in last 30 days
             // @ts-ignore - Prisma groupBy typing can be verbose
-            popularGrouped = await prisma.customerPurchases.groupBy({
+            popularGrouped = await prisma_1.default.customerPurchases.groupBy({
                 by: ['productId'],
                 where: { timestamp: { gte: since30 } },
                 _count: { productId: true },
@@ -48,7 +51,7 @@ const getDashboardMetrics = async (req, res) => {
         let popularProducts = [];
         if (popularGrouped.length) {
             const ids = popularGrouped.map((g) => g.productId);
-            const details = await prisma.products.findMany({ where: { productId: { in: ids } }, select: { productId: true, name: true, price: true, stockQuantity: true } });
+            const details = await prisma_1.default.products.findMany({ where: { productId: { in: ids } }, select: { productId: true, name: true, price: true, stockQuantity: true } });
             popularProducts = details.map((d) => ({
                 ...d,
                 price: Number(d.price),
@@ -56,7 +59,7 @@ const getDashboardMetrics = async (req, res) => {
             }));
         }
         else {
-            const fallback = await prisma.products.findMany({ take: 5, orderBy: { stockQuantity: 'desc' }, select: { productId: true, name: true, price: true, stockQuantity: true } });
+            const fallback = await prisma_1.default.products.findMany({ take: 5, orderBy: { stockQuantity: 'desc' }, select: { productId: true, name: true, price: true, stockQuantity: true } });
             popularProducts = fallback.map((d) => ({ ...d, price: Number(d.price), purchaseCount: 0 }));
         }
         res.set("Cache-Control", "public, max-age=60");
@@ -94,7 +97,7 @@ const getLowStockProducts = async (req, res) => {
         const offset = rawOffset ? Math.max(0, Number(rawOffset)) : (page && typeof limit === 'number' ? (page - 1) * limit : undefined);
         const search = rawSearch.trim().toLowerCase();
         const products = await (0, cache_1.withCache)(`lowStock:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
-            return prisma.products.findMany({
+            return prisma_1.default.products.findMany({
                 where: {
                     stockQuantity: { lt: threshold },
                     ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),
@@ -120,7 +123,7 @@ const getExpiringProducts = async (req, res) => {
         const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
         const days = Number.isFinite(qNum) && qNum > 0 ? qNum : 90;
         const cutoff = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
-        const products = await prisma.products.findMany({
+        const products = await prisma_1.default.products.findMany({
             where: { expiryDate: { lte: cutoff } },
             select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true }
         });
@@ -141,12 +144,12 @@ const getDeadStockProducts = async (req, res) => {
         const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
         // Find latest purchase per product since forever
         // @ts-ignore Prisma groupBy typing verbosity
-        const grouped = await prisma.customerPurchases.groupBy({
+        const grouped = await prisma_1.default.customerPurchases.groupBy({
             by: ['productId'],
             _max: { timestamp: true },
         });
         const latestByProduct = new Map(grouped.map((g) => [g.productId, g._max.timestamp ? new Date(g._max.timestamp) : null]));
-        const allProducts = await prisma.products.findMany({ select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true } });
+        const allProducts = await prisma_1.default.products.findMany({ select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true } });
         const dead = allProducts.filter(p => {
             const last = latestByProduct.get(p.productId) || null;
             return !last || last < since;
@@ -166,14 +169,14 @@ const getTopCustomers = async (req, res) => {
         const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
         const limit = Number.isFinite(qNum) && qNum > 0 ? Math.min(50, qNum) : 5;
         // @ts-ignore Prisma groupBy typing verbosity
-        const grouped = await prisma.customerPurchases.groupBy({
+        const grouped = await prisma_1.default.customerPurchases.groupBy({
             by: ['customerId'],
             _sum: { totalCost: true },
             orderBy: { _sum: { totalCost: 'desc' } },
             take: limit,
         });
         const ids = grouped.map((g) => g.customerId);
-        const customers = await prisma.customers.findMany({ where: { customerId: { in: ids } }, select: { customerId: true, name: true, mobile: true, city: true, state: true, country: true } });
+        const customers = await prisma_1.default.customers.findMany({ where: { customerId: { in: ids } }, select: { customerId: true, name: true, mobile: true, city: true, state: true, country: true } });
         const result = customers.map((c) => ({
             ...c,
             totalPurchaseValue: Number(grouped.find((g) => g.customerId === c.customerId)?._sum.totalCost || 0),

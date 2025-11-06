@@ -4,11 +4,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.verifyToken = exports.adminLogin = exports.login = exports.signup = void 0;
-const client_1 = require("@prisma/client");
+const prisma_1 = __importDefault(require("../db/prisma"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const crypto_1 = require("crypto");
-const prisma = new client_1.PrismaClient();
+// Use shared Prisma client
 // Load JWT secret from environment (server/index.ts calls dotenv.config()).
 // Fallback kept for local/dev convenience but you should set JWT_SECRET in production.
 const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";
@@ -18,7 +18,7 @@ const signup = async (req, res) => {
         const normalizedEmail = String(email).toLowerCase();
         console.log(`auth: signup request for email=${email}`);
         // Check if user already exists
-        const existingUser = await prisma.users.findFirst({
+        const existingUser = await prisma_1.default.users.findFirst({
             where: { email: normalizedEmail },
         });
         if (existingUser) {
@@ -29,7 +29,7 @@ const signup = async (req, res) => {
         // Hash password (using bcryptjs sync to avoid native bindings)
         const hashedPassword = bcryptjs_1.default.hashSync(password, 10);
         // Create new user
-        const newUser = await prisma.users.create({
+        const newUser = await prisma_1.default.users.create({
             data: {
                 userId: (0, crypto_1.randomUUID)(),
                 name,
@@ -70,7 +70,7 @@ const login = async (req, res) => {
             return;
         }
         // Find user
-        let user = await prisma.users.findFirst({
+        let user = await prisma_1.default.users.findFirst({
             where: { email: normalizedEmail },
         });
         if (!user) {
@@ -132,7 +132,7 @@ const adminLogin = async (req, res) => {
             return;
         }
         // DB user path: require admin role
-        const user = await prisma.users.findFirst({ where: { email: normalizedEmail } });
+        const user = await prisma_1.default.users.findFirst({ where: { email: normalizedEmail } });
         if (!user) {
             res.status(401).json({ message: "Invalid credentials" });
             return;
@@ -150,7 +150,7 @@ const adminLogin = async (req, res) => {
         try {
             const adminEmail = (process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
             if (user.email.toLowerCase() === adminEmail && user.role !== "admin") {
-                await prisma.users.update({ where: { userId: user.userId }, data: { role: "admin" } });
+                await prisma_1.default.users.update({ where: { userId: user.userId }, data: { role: "admin" } });
             }
         }
         catch { }
@@ -193,7 +193,7 @@ const verifyToken = async (req, res) => {
             });
             return;
         }
-        const user = await prisma.users.findUnique({
+        const user = await prisma_1.default.users.findUnique({
             where: { userId: decoded.userId },
         });
         if (!user) {
