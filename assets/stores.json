@@ -1,0 +1,1122 @@
+{
+  "stores": [
+    {
+      "store": "name",
+      "branches": []
+    },
+    {
+      "store": "justrite",
+      "branches": []
+    },
+    {
+      "store": "justrite kemta",
+      "branches": []
+    },
+    {
+      "store": "justrite igando",
+      "branches": []
+    },
+    {
+      "store": "justrite owo",
+      "branches": []
+    },
+    {
+      "store": "justrite warehouse ikeja",
+      "branches": []
+    },
+    {
+      "store": "justrite akowonjo",
+      "branches": []
+    },
+    {
+      "store": "justrite ibafo",
+      "branches": []
+    },
+    {
+      "store": "justrite obantoko",
+      "branches": []
+    },
+    {
+      "store": "justrite ota",
+      "branches": []
+    },
+    {
+      "store": "justrite osun",
+      "branches": []
+    },
+    {
+      "store": "justrite ojodu",
+      "branches": []
+    },
+    {
+      "store": "justrite iyana-ipaja",
+      "branches": []
+    },
+    {
+      "store": "justrite isolo",
+      "branches": []
+    },
+    {
+      "store": "justrite ikorodu",
+      "branches": []
+    },
+    {
+      "store": "justrite iju-ishaga",
+      "branches": []
+    },
+    {
+      "store": "justrite gowon",
+      "branches": []
+    },
+    {
+      "store": "justrite dopemu",
+      "branches": []
+    },
+    {
+      "store": "justrite bariga",
+      "branches": []
+    },
+    {
+      "store": "justrite ayobo",
+      "branches": []
+    },
+    {
+      "store": "justrite alakuko",
+      "branches": []
+    },
+    {
+      "store": "justrite abule-egba",
+      "branches": []
+    },
+    {
+      "store": "justrite abeokuta",
+      "branches": []
+    },
+    {
+      "store": "prince",
+      "branches": []
+    },
+    {
+      "store": "prince ebano",
+      "branches": [
+        "PRINCE EBANO ORCHID ELEGANZA",
+        "PRINCE EBEANO JAKANDE, LAGOS STATE",
+        "PRINCE EBEANO, IKOYI LAGOS"
+      ]
+    },
+    {
+      "store": "prince ebeano warehouse",
+      "branches": [
+        "Prince Ebeano Chevron Drive"
+      ]
+    },
+    {
+      "store": "prince ebeano ikeja",
+      "branches": []
+    },
+    {
+      "store": "prince ebeano agwungi",
+      "branches": []
+    },
+    {
+      "store": "prince ebeano lekki",
+      "branches": []
+    },
+    {
+      "store": "prince ebeano oniru",
+      "branches": [
+        "PRINCE EBEANO AGUNGI LEKKI"
+      ]
+    },
+    {
+      "store": "prince ebeano dorhalty",
+      "branches": []
+    },
+    {
+      "store": "spar",
+      "branches": [
+        "SPAR MARKET, PORT HARCOURT",
+        "SPAR MARKET, ENUGU",
+        "SPAR MARKET, CALABAR",
+        "SPAR MARKET, WUSE",
+        "SPAR MARKET, LIFECAMP",
+        "SPAR MARKET, CEDDI PLAZA",
+        "SPAR MARKET, ILUPEJU MUSHIN",
+        "SPAR MARKET ISOLO WAREHOUSE",
+        "SPAR MARKET, VICTORIA ISLAND",
+        "SPAR MARKET, OPEBI IKEJA"
+      ]
+    },
+    {
+      "store": "spar market lekki",
+      "branches": []
+    },
+    {
+      "store": "jendol superstore",
+      "branches": [
+        "JENDOL SUPERSTORE, IDEDO OTA OGUN STATE",
+        "JENDOL SUPERSTORE, OJODU BERGER"
+      ]
+    },
+    {
+      "store": "jendol superstore alakuko",
+      "branches": [
+        "JENDOL SUPERSTORE, IGANDO",
+        "JENDOL SUPERSTORE AJAH, LAGOS STATE",
+        "JENDOL SUPERSTORE OJUORE OTTA",
+        "JENDOL SUPERSTORE IKORODU 2"
+      ]
+    },
+    {
+      "store": "jendol superstores ikorodu",
+      "branches": []
+    },
+    {
+      "store": "jendol superstore ogudu",
+      "branches": []
+    },
+    {
+      "store": "jendol superstore makoko",
+      "branches": []
+    },
+    {
+      "store": "supersaver",
+      "branches": []
+    },
+    {
+      "store": "supersaver ogudu",
+      "branches": []
+    },
+    {
+      "store": "supersaver lekki",
+      "branches": [
+        "SUPERSAVER FEMI OKUNNU LEKKI"
+      ]
+    },
+    {
+      "store": "supersaver ikosi",
+      "branches": []
+    },
+    {
+      "store": "supersaver shangisha",
+      "branches": []
+    },
+    {
+      "store": "supersaver magodo",
+      "branches": []
+    },
+    {
+      "store": "supersaver ketu",
+      "branches": []
+    },
+    {
+      "store": "supersaver alapere",
+      "branches": []
+    },
+    {
+      "store": "supersaver ago palace",
+      "branches": []
+    },
+    {
+      "store": "supersaver ajao estate",
+      "branches": []
+    },
+    {
+      "store": "blenco",
+      "branches": []
+    },
+    {
+      "store": "blenco egbeda",
+      "branches": []
+    },
+    {
+      "store": "blenco eputu",
+      "branches": []
+    },
+    {
+      "store": "blenco lekki",
+      "branches": []
+    },
+    {
+      "store": "blenco sangotedo",
+      "branches": []
+    },
+    {
+      "store": "blenco ado road",
+      "branches": []
+    },
+    {
+      "store": "shoprite",
+      "branches": []
+    },
+    {
+      "store": "shoprite benin",
+      "branches": []
+    },
+    {
+      "store": "shoprite galaxy mall",
+      "branches": [
+        "SHOPRITE CIRCLE MALL LEKKI"
+      ]
+    },
+    {
+      "store": "shoprite abia",
+      "branches": [
+        "SHOPRITE NOVARE LEKKI MALL"
+      ]
+    },
+    {
+      "store": "globus",
+      "branches": []
+    },
+    {
+      "store": "globus chevy veiw",
+      "branches": []
+    },
+    {
+      "store": "globus chevron drive",
+      "branches": []
+    },
+    {
+      "store": "globus ikota complex",
+      "branches": []
+    },
+    {
+      "store": "globus amuwo festac",
+      "branches": []
+    },
+    {
+      "store": "prince supermarket",
+      "branches": [
+        "ROYAL PRINCE SUPERMARKET, MAGODO"
+      ]
+    },
+    {
+      "store": "prince supermarket festac",
+      "branches": [
+        "DE PRINCE SUPERMARKET MAGODO",
+        "DE PRINCE SUPERMARKET GBAGADA"
+      ]
+    },
+    {
+      "store": "amagzy",
+      "branches": [
+        "AMAGZY GLOBAL VIC LIMIED"
+      ]
+    },
+    {
+      "store": "amagzy global ventures",
+      "branches": []
+    },
+    {
+      "store": "grand",
+      "branches": [
+        "GRANDELL SUPERMARKET LAGOS STATE"
+      ]
+    },
+    {
+      "store": "grand square vi",
+      "branches": []
+    },
+    {
+      "store": "grand square ikeja",
+      "branches": []
+    },
+    {
+      "store": "hutoos supermarket",
+      "branches": []
+    },
+    {
+      "store": "hutoos supermarket iju",
+      "branches": []
+    },
+    {
+      "store": "hutoos supermarket ogba",
+      "branches": [
+        "HUTOOS SUPERMARKET ABULE EGBA"
+      ]
+    },
+    {
+      "store": "hypercity",
+      "branches": [
+        "HYPERCITY RETAIL LMITED IKOKU",
+        "HYPERCITY RETAIL LIMITED NEW GRA",
+        "HYPERCITY RETAIL LIMITED OGUNABALI"
+      ]
+    },
+    {
+      "store": "jendol supermarket",
+      "branches": []
+    },
+    {
+      "store": "jendol supermarket isolo",
+      "branches": []
+    },
+    {
+      "store": "jendol supermarket egbeda",
+      "branches": []
+    },
+    {
+      "store": "jendol supermarket isheri",
+      "branches": []
+    },
+    {
+      "store": "mano",
+      "branches": [
+        "MANO TECH LIMITED VICTORIA ISLAND"
+      ]
+    },
+    {
+      "store": "mano ikeja",
+      "branches": []
+    },
+    {
+      "store": "mano tech limited",
+      "branches": []
+    },
+    {
+      "store": "mega",
+      "branches": [
+        "MEGA CONCEPT, AJAH"
+      ]
+    },
+    {
+      "store": "mega plaza vi",
+      "branches": []
+    },
+    {
+      "store": "megamart chevron",
+      "branches": []
+    },
+    {
+      "store": "temple",
+      "branches": []
+    },
+    {
+      "store": "temple hill sangotedo",
+      "branches": []
+    },
+    {
+      "store": "temple hill magodo",
+      "branches": []
+    },
+    {
+      "store": "temple hill festac",
+      "branches": []
+    },
+    {
+      "store": "blenco supermarket",
+      "branches": []
+    },
+    {
+      "store": "blenco supermarket abule-egba",
+      "branches": [
+        "BLENCO SUPERMARKET ILASAN LEKKI"
+      ]
+    },
+    {
+      "store": "city supermarket",
+      "branches": [
+        "CITY SUPERMARKET OGOMBO ROAD"
+      ]
+    },
+    {
+      "store": "delight city supermarket",
+      "branches": []
+    },
+    {
+      "store": "glamour supermarket",
+      "branches": []
+    },
+    {
+      "store": "glamour supermarket lekki",
+      "branches": []
+    },
+    {
+      "store": "glamour supermarket abijo",
+      "branches": []
+    },
+    {
+      "store": "globus supermarket",
+      "branches": []
+    },
+    {
+      "store": "globus supermarket warehouse",
+      "branches": [
+        "GLOBUS SUPERMARKET AGO PALACE"
+      ]
+    },
+    {
+      "store": "healthrite",
+      "branches": []
+    },
+    {
+      "store": "healthrite tejuosho",
+      "branches": [
+        "HEALTHRITE PHARMACY SUPERMART SURULERE"
+      ]
+    },
+    {
+      "store": "hosts supermarket",
+      "branches": [
+        "HOSTS SUPERMARKET, OKOTA BRANCH",
+        "HOSTS SUPERMARKET AJAO ESTATE, IKEJA"
+      ]
+    },
+    {
+      "store": "lizzy store",
+      "branches": [
+        "LIZZY STORE AJAH MARKET",
+        "RASHY LIZZY STORE, AJAH MARKET"
+      ]
+    },
+    {
+      "store": "ozzy store",
+      "branches": [
+        "OZZY STORE BIG FEMI OKUNNU RD"
+      ]
+    },
+    {
+      "store": "ozzy store small",
+      "branches": []
+    },
+    {
+      "store": "qmb",
+      "branches": []
+    },
+    {
+      "store": "qmb supermarket",
+      "branches": []
+    },
+    {
+      "store": "ryte",
+      "branches": []
+    },
+    {
+      "store": "ryte price supermarket",
+      "branches": []
+    },
+    {
+      "store": "sahad",
+      "branches": [
+        "SAHAD STORES LTD 2"
+      ]
+    },
+    {
+      "store": "sahad stores ltd.",
+      "branches": []
+    },
+    {
+      "store": "shoppers",
+      "branches": []
+    },
+    {
+      "store": "shoppers delight surulere",
+      "branches": []
+    },
+    {
+      "store": "shoppers delight vi",
+      "branches": []
+    },
+    {
+      "store": "twins",
+      "branches": [
+        "TWINS FAJA SUPERMARKET IJEGUN 2",
+        "TWINS FAJA SUPERMARKET IGBESA"
+      ]
+    },
+    {
+      "store": "uba",
+      "branches": [
+        "UBA PHARMACY & SUPERMARKET ELEGANZA"
+      ]
+    },
+    {
+      "store": "uba awoyaya",
+      "branches": []
+    },
+    {
+      "store": "winnie",
+      "branches": []
+    },
+    {
+      "store": "winnie supermaket ogudu",
+      "branches": [
+        "WINNIE PAYLESS OJUDU LAGOS"
+      ]
+    },
+    {
+      "store": "jendol",
+      "branches": []
+    },
+    {
+      "store": "jendol abule-egba",
+      "branches": []
+    },
+    {
+      "store": "customers",
+      "branches": [
+        "SYNERGY PACKAGING AND BEVERAGE LIMITED",
+        "cherubim",
+        "MUMMY FAVOUR, JAKANDE",
+        "nan",
+        "MUMMY GOLD,IGBARA",
+        "EUNIQ HERO STORE VENTURE"
+      ]
+    },
+    {
+      "store": "mama oyin",
+      "branches": []
+    },
+    {
+      "store": "alajah olorun",
+      "branches": []
+    },
+    {
+      "store": "pj global mart",
+      "branches": []
+    },
+    {
+      "store": "arola sunle majik",
+      "branches": [
+        "ALAJAH ERELA  AJAH MARKET",
+        "nan"
+      ]
+    },
+    {
+      "store": "iya zion",
+      "branches": []
+    },
+    {
+      "store": "oladunni store",
+      "branches": []
+    },
+    {
+      "store": "slim store",
+      "branches": [
+        "K & G VENTURES"
+      ]
+    },
+    {
+      "store": "mummy ola",
+      "branches": []
+    },
+    {
+      "store": "esu collins ishmael",
+      "branches": []
+    },
+    {
+      "store": "lilian store",
+      "branches": [
+        "ALAJAH KEMI, AJAH",
+        "CHINAL LIMITED - MR DONALD",
+        "MRS ADAOBI,AJAH",
+        "MR OKIKIOLA, AJAH",
+        "MR MOHAMMED DUDU,BERGER AJAH"
+      ]
+    },
+    {
+      "store": "histripes store sangotedo",
+      "branches": []
+    },
+    {
+      "store": "mummy demi jakande",
+      "branches": []
+    },
+    {
+      "store": "ajoke store",
+      "branches": []
+    },
+    {
+      "store": "jimmy store",
+      "branches": []
+    },
+    {
+      "store": "iya oyin ajah",
+      "branches": [
+        "nan",
+        "DIVINE CARE STORE THOMAS ESTATE AJAH"
+      ]
+    },
+    {
+      "store": "mama chidera",
+      "branches": []
+    },
+    {
+      "store": "the label store",
+      "branches": [
+        "OLA MUMMY,LAGOS ISLAND",
+        "DARE VENTURE, LAGOS ISLAND"
+      ]
+    },
+    {
+      "store": "remi supermarket",
+      "branches": [
+        "nan",
+        "2K SUPERMARKET & PHARMACY",
+        "MEDIX-PLUS PHARMACY & SUPERSTORE",
+        "MUMMY FAVOUR BERGER AJAH",
+        "CARE LIVES SUPERMARKET,",
+        "BONCET PHARMACY & STORE",
+        "EBUKA STORE AJAH, LAGOS STATE",
+        "ROSE GROCERY STORE AJAH, LAGOS STATE",
+        "MRS FLORENCE OGBE, AJAH LAGOS MARKET",
+        "JUMMY MINIMART AJAH, LAGOS STATE"
+      ]
+    },
+    {
+      "store": "dulux supermarket sangotedo",
+      "branches": [
+        "RANCE SUPEMARKET OGIDAN, SANGOTEDO",
+        "TRIPOD PHARMACY & STORE FESTAC AJAO",
+        "SIMI VENTURE, AJAH LAGOS STATE",
+        "MRS EZE, BERGER JUNCTION AJAH, LAGOS STATE",
+        "MADAM VIVIAN BERGER, AJAH LAGOS STATE",
+        "CHRISCORIN ADESANYA AJAH, LAGOS STATE",
+        "SPINNEYS SUPERMARKET ADO ROAD, AJAH LAGOS STATE",
+        "LASTPRIZE SUPERMARKET, AMALA JUNCTION FAGBA LAGOS STATE",
+        "MR KENNETH STORE, AJAH MARKET",
+        "MRS FADEYI ESTHER, AJAH MARKET",
+        "ALAJAH NINI OGOMBO ROAD, AJAH",
+        "MRS PATRICIA EBELE, AJAH MARKET",
+        "MR OLALEKAN CMS MARKET, LAGOS STATE",
+        "IYA RITA, BERGER JUNCTION AJAH"
+      ]
+    },
+    {
+      "store": "mrs grace bassey",
+      "branches": [
+        "OCHANYI CALEB VENTURES AJAH MARKET",
+        "MR TAOFEEQ CMS, LAGOS STATE",
+        "SAMBETHEL SUPERMARKET OGBA, LAGOS STATE",
+        "TOBA SUPERMARKET SHOMULU, LAGOS STATE"
+      ]
+    },
+    {
+      "store": "mr lekan",
+      "branches": [
+        "MR USMAN, AJAH MARKET",
+        "EVER BRIGHT STORES, NEW ROAD AWOYAY",
+        "MONCHERRY SUPERMARKET, OGOMBO LAGOS",
+        "OZZY SUPERSTORE, OGOMBO ROAD AJAH LAGOS STATE",
+        "nan"
+      ]
+    },
+    {
+      "store": "checkers africa limited",
+      "branches": [
+        "THE GREAT LIGHT STORES, BABA ADISA"
+      ]
+    },
+    {
+      "store": "bethos store awoyaya",
+      "branches": [
+        "VIJU INDUSTRIES NIGERIA LIMITED",
+        "OLADUNSI STORE ORCHID ROAD",
+        "MRS BALOGUN AJAH MARKET"
+      ]
+    },
+    {
+      "store": "yellow rose jakande",
+      "branches": []
+    },
+    {
+      "store": "onno jakande",
+      "branches": [
+        "TRIPLE CORE AJAH MARKET",
+        "MUMMY VICTOR AJAH MARKET",
+        "MUMMY LOVE STORE AJAH MARKET",
+        "ARABIE STORE AJAH MARKET",
+        "OLASILE STORE AJAH MARKET",
+        "ALHAJA KOLADE AJAH MARKET"
+      ]
+    },
+    {
+      "store": "alajah igbo-efon",
+      "branches": []
+    },
+    {
+      "store": "delux supermarket sangotedo",
+      "branches": [
+        "nan"
+      ]
+    },
+    {
+      "store": "arba store",
+      "branches": []
+    },
+    {
+      "store": "tonia store ajah",
+      "branches": []
+    },
+    {
+      "store": "gracia planta company",
+      "branches": []
+    },
+    {
+      "store": "mr samuel idimoju",
+      "branches": [
+        "JOS WINE STORE AJAH MARKET",
+        "TRIPO PHARMACY AGO PALACE WAY"
+      ]
+    },
+    {
+      "store": "mostan superstores gbagada",
+      "branches": [
+        "FAI MART SUPERMARKET LAKWE",
+        "CHI BEST BABA ADISA BUSSTOP LAGOS"
+      ]
+    },
+    {
+      "store": "skymall skymart",
+      "branches": [
+        "SHOP & GAIN STORE CONTAINER AWOYAYA",
+        "MUNA SUPERMARKET SANGOTEDO , LAGOS"
+      ]
+    },
+    {
+      "store": "gbenga store igbo-efon",
+      "branches": [
+        "BUGIS SUPERMARKET AMUWO FESTAC",
+        "MR CHINEDU ORI ILE",
+        "GROCERIES 2 GO SUPERMARKET",
+        "ALAEZE STORE AJAH MARKET"
+      ]
+    },
+    {
+      "store": "vigo supermarket olokunla",
+      "branches": []
+    },
+    {
+      "store": "xclusive supermarket olokunla",
+      "branches": [
+        "nan",
+        "ALAJAH ABASS STORE, AJAH MARKET",
+        "YAKUBU STORE, AJAH MARKET",
+        "BUKOLA STORE, AJAH MARKET"
+      ]
+    },
+    {
+      "store": "store ajah market",
+      "branches": []
+    },
+    {
+      "store": "fiscomart bogeji",
+      "branches": []
+    },
+    {
+      "store": "alhaja 2",
+      "branches": []
+    },
+    {
+      "store": "alhaja 1",
+      "branches": []
+    },
+    {
+      "store": "avi marine services",
+      "branches": []
+    },
+    {
+      "store": "sample products",
+      "branches": [
+        "TOMMAZ ENTERPRISE( OPEN MARKET)"
+      ]
+    },
+    {
+      "store": "warehouse benin",
+      "branches": []
+    },
+    {
+      "store": "glorious",
+      "branches": [
+        "foodie",
+        "nan",
+        "FIGO SUPERMARKET OLONKONLA SANGOTEDO"
+      ]
+    },
+    {
+      "store": "trusted supermarket babadisa",
+      "branches": [
+        "EMRITE SUPERMARKET OLUKONLA SANGOTEDO",
+        "nan"
+      ]
+    },
+    {
+      "store": "novelle supermarket festac",
+      "branches": [
+        "6 TO 9 SUPERMARKET GBAGADA",
+        "nan"
+      ]
+    },
+    {
+      "store": "fox brook",
+      "branches": [
+        "nan",
+        "BUY MORE SUPERMARKET IKEJA, LAGOS STATE"
+      ]
+    },
+    {
+      "store": "el foods supermaarket",
+      "branches": [
+        "BAKE AND COOK SUPERMARKET",
+        "nan"
+      ]
+    },
+    {
+      "store": "beverg store",
+      "branches": []
+    },
+    {
+      "store": "blueday industries limited",
+      "branches": []
+    },
+    {
+      "store": "best 4 less",
+      "branches": [
+        "DE AREENA SUPERMARKET SURULERE"
+      ]
+    },
+    {
+      "store": "emirate supermarket sangotedo",
+      "branches": [
+        "SEDA BUK STORE MAGODO"
+      ]
+    },
+    {
+      "store": "health rite omole",
+      "branches": []
+    },
+    {
+      "store": "one stop supermarket",
+      "branches": [
+        "OTSUKA NIGERIA NUTRACEUTICAL COMPANY",
+        "NEXT CASH & CARRY"
+      ]
+    },
+    {
+      "store": "d'tom supermarket",
+      "branches": [
+        "nan"
+      ]
+    },
+    {
+      "store": "amber drinks limited",
+      "branches": []
+    },
+    {
+      "store": "hutoo supermarket agege",
+      "branches": [
+        "TQV SUPERMARKET ADO RD",
+        "LOVELY MART ADO RD"
+      ]
+    },
+    {
+      "store": "teez mart abijor",
+      "branches": [
+        "nan"
+      ]
+    },
+    {
+      "store": "ema supermarket lekki",
+      "branches": [
+        "OZZYY VILLAGE MARKET MOBIL ROAD",
+        "SIX TO NINE SUPERMARKET GBAGADA",
+        "PHARM AFFAIRS SUPERMARKET OGUDU",
+        "MCNICHOLS CONSOLIDATED PLC MOWE IBAFOR",
+        "K & P MART SURULERE",
+        "SS GARDEN CITY MALL"
+      ]
+    },
+    {
+      "store": "ahleeys connect business",
+      "branches": []
+    },
+    {
+      "store": "rolcherp trust limited",
+      "branches": [
+        "AYO SUPERMARKET LESHA SURULERE"
+      ]
+    },
+    {
+      "store": "vatican bells surulere",
+      "branches": []
+    },
+    {
+      "store": "lifeback yaba",
+      "branches": []
+    },
+    {
+      "store": "abigail sangotedo",
+      "branches": []
+    },
+    {
+      "store": "nowell festac",
+      "branches": [
+        "nan",
+        "BETTER MART ADO ROAD"
+      ]
+    },
+    {
+      "store": "chitina supermarket surulere",
+      "branches": []
+    },
+    {
+      "store": "vertical bells surulere",
+      "branches": []
+    },
+    {
+      "store": "adebowale supermarket ojuelegba",
+      "branches": [
+        "TRIMART SUPERMARKET MARWA LEKKI 1"
+      ]
+    },
+    {
+      "store": "trebet supermarket",
+      "branches": []
+    },
+    {
+      "store": "jf supermarket sangotedo",
+      "branches": []
+    },
+    {
+      "store": "target supermarket sangotedo",
+      "branches": []
+    },
+    {
+      "store": "lifebade pharmacy yaba",
+      "branches": []
+    },
+    {
+      "store": "mallmart yaba",
+      "branches": []
+    },
+    {
+      "store": "benpat epe",
+      "branches": []
+    },
+    {
+      "store": "frenchoice eleko junction",
+      "branches": [
+        "MATTORIS SUPERMARKET FRIEND COLONY LEKKI"
+      ]
+    },
+    {
+      "store": "danny supermarket agungi",
+      "branches": []
+    },
+    {
+      "store": "asa supermarket eputu",
+      "branches": []
+    },
+    {
+      "store": "edge mart",
+      "branches": []
+    },
+    {
+      "store": "vtl store agungi",
+      "branches": [
+        "Ironi Supermarket Ikota Complex"
+      ]
+    },
+    {
+      "store": "adeleke store",
+      "branches": []
+    },
+    {
+      "store": "unique j. mart",
+      "branches": [
+        "FGC SUPERMARKET CELESTIAL WAY OGUDU LAGOS"
+      ]
+    },
+    {
+      "store": "maxiambi supermarket lakuwe",
+      "branches": []
+    },
+    {
+      "store": "mone stone eleko",
+      "branches": []
+    },
+    {
+      "store": "rev collections",
+      "branches": [
+        "AVRO SUPERMARKET SURULERE IJESHA ROAD"
+      ]
+    },
+    {
+      "store": "arena supermarket surulere",
+      "branches": []
+    },
+    {
+      "store": "ego supermarket surulere",
+      "branches": []
+    },
+    {
+      "store": "leadmart supermarket festac",
+      "branches": [
+        "PENNYMART AGO PALACE WAY OSOLO",
+        "ABLE SUPERMARKET AGO PALACE WAY  ISOLO",
+        "PHYMART SUPERMARKET ADO LANGBASA",
+        "MONIMAK PHARMACY & SUPERMARKET LANGOL;A"
+      ]
+    },
+    {
+      "store": "madam ossy",
+      "branches": [
+        "HOME AFFAIRS SUPERMARKET OGUDU"
+      ]
+    },
+    {
+      "store": "home affairs gbagada",
+      "branches": []
+    },
+    {
+      "store": "multeker supermarket",
+      "branches": []
+    },
+    {
+      "store": "rite price",
+      "branches": []
+    },
+    {
+      "store": "shop perfect ilupeju",
+      "branches": []
+    },
+    {
+      "store": "ideal supermarket",
+      "branches": []
+    },
+    {
+      "store": "monstan supermarket gbaguda",
+      "branches": []
+    },
+    {
+      "store": "buy more ikeja",
+      "branches": [
+        "CITY BEST THOMAS ESTATE"
+      ]
+    },
+    {
+      "store": "bl supermarket awoyaya",
+      "branches": [
+        "nan"
+      ]
+    },
+    {
+      "store": "edith",
+      "branches": []
+    },
+    {
+      "store": "just rite supermarket",
+      "branches": [
+        "Atreos Retail Platform Limited"
+      ]
+    },
+    {
+      "store": "oasis supermarket",
+      "branches": [
+        "nan",
+        "FRESHMART SUPERMARKET AGBOR, DELTA STATE."
+      ]
+    }
+  ]
+}

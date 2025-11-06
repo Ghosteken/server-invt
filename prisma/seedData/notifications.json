@@ -227,5 +227,23 @@
     "type": "product",
     "message": "Imported 62 PCS products",
     "timestamp": "2025-11-05T20:03:47.269Z"
+  },
+  {
+    "id": "1762469741301-sy7k0f",
+    "type": "inventory",
+    "message": "Processed manual invoice for QMB SUPERMARKET; updated 2 product(s).",
+    "timestamp": "2025-11-06T22:55:41.301Z"
+  },
+  {
+    "id": "1762469951096-lc00t9",
+    "type": "inventory",
+    "message": "Processed manual invoice for SPAR MARKET LEKKI; updated 2 product(s).",
+    "timestamp": "2025-11-06T22:59:11.096Z"
+  },
+  {
+    "id": "1762470045301-gq2opc",
+    "type": "inventory",
+    "message": "Processed manual invoice for QMB SUPERMARKET; updated 2 product(s).",
+    "timestamp": "2025-11-06T23:00:45.301Z"
   }
 ]
