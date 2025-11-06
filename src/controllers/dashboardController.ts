@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { PrismaClient } from "@prisma/client";
 import { readPcsInventory } from "../services/pcsInventoryService";
+import { withCache } from "../services/cache";
 
 const prisma = new PrismaClient();
 
@@ -20,15 +21,19 @@ export const getDashboardMetrics = async (
         ? envNum
         : 5;
 
-    const totalProducts = await prisma.products.count();
-    const lowStockCount = await prisma.products.count({ where: { stockQuantity: { lt: LOW_STOCK_THRESHOLD } } });
+    const totalProducts = await withCache(`metrics:totalProducts`, 60, async () => prisma.products.count());
+    const lowStockCount = await withCache(`metrics:lowStock:${LOW_STOCK_THRESHOLD}`, 60, async () => prisma.products.count({ where: { stockQuantity: { lt: LOW_STOCK_THRESHOLD } } }));
 
-    const productsBasic = await prisma.products.findMany({ select: { productId: true, name: true, price: true, stockQuantity: true } });
-    const inventoryValue = productsBasic.reduce((sum, p) => sum + (Number(p.price) * p.stockQuantity), 0);
+    const inventoryValue = await withCache(`metrics:inventoryValue`, 60, async () => {
+      const productsBasic = await prisma.products.findMany({ select: { productId: true, name: true, price: true, stockQuantity: true } });
+      return productsBasic.reduce((sum, p) => sum + (Number(p.price) * p.stockQuantity), 0);
+    });
 
     const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const salesAgg = await prisma.customerPurchases.aggregate({ where: { timestamp: { gte: since7 } }, _sum: { totalCost: true } });
-    const sales7dTotal = Number(salesAgg._sum.totalCost || 0);
+    const sales7dTotal = await withCache(`metrics:sales7d`, 60, async () => {
+      const salesAgg = await prisma.customerPurchases.aggregate({ where: { timestamp: { gte: since7 } }, _sum: { totalCost: true } });
+      return Number(salesAgg._sum.totalCost || 0);
+    });
 
     const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     let popularGrouped: Array<{ productId: string; _count: { productId: number } }> = [];
@@ -69,6 +74,7 @@ export const getDashboardMetrics = async (
       sales7dTotal,
       popularProducts,
     });
+    res.set("Cache-Control", "public, max-age=30");
   } catch (error) {
     res.status(500).json({ message: "Error retrieving dashboard metrics" });
   }
@@ -86,10 +92,26 @@ export const getLowStockProducts = async (req: Request, res: Response): Promise<
         ? envNum
         : 5;
 
-    const products = await prisma.products.findMany({
-      where: { stockQuantity: { lt: threshold } },
-      select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true }
+    const rawLimit = req.query?.limit?.toString();
+    const rawOffset = req.query?.offset?.toString();
+    const rawSearch = req.query?.search?.toString() ?? "";
+    const limit = rawLimit ? Math.min(200, Math.max(1, Number(rawLimit))) : undefined;
+    const offset = rawOffset ? Math.max(0, Number(rawOffset)) : undefined;
+    const search = rawSearch.trim().toLowerCase();
+
+    const products = await withCache(`lowStock:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
+      return prisma.products.findMany({
+        where: {
+          stockQuantity: { lt: threshold },
+          ...(search ? { name: { contains: search, mode: 'insensitive' as const } } : {}),
+        },
+        select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true },
+        ...(typeof limit === 'number' ? { take: limit } : {}),
+        ...(typeof offset === 'number' ? { skip: offset } : {}),
+        orderBy: { stockQuantity: 'asc' },
+      });
     });
+    res.set("Cache-Control", "public, max-age=30");
     res.json(products.map(p => ({ ...p, price: Number(p.price) })));
   } catch (error) {
     res.status(500).json({ message: "Error retrieving low-stock products" });
@@ -179,15 +201,30 @@ export const getLowStockPcs = async (req: Request, res: Response): Promise<void>
         ? envNum
         : 5;
 
-    const pcs = readPcsInventory();
-    const low = pcs
-      .filter((e) => (e.quantity || 0) < threshold)
-      .map((e) => ({
-        name: e.name,
-        pcsQuantity: e.quantity,
-        packSize: e.packSize ?? null,
-        productId: e.productId ?? null,
-      }));
+    const rawLimit = req.query?.limit?.toString();
+    const rawOffset = req.query?.offset?.toString();
+    const rawSearch = req.query?.search?.toString() ?? "";
+    const limit = rawLimit ? Math.min(500, Math.max(1, Number(rawLimit))) : undefined;
+    const offset = rawOffset ? Math.max(0, Number(rawOffset)) : undefined;
+    const search = rawSearch.trim().toLowerCase();
+
+    const low = await withCache(`lowPcs:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
+      const pcs = readPcsInventory();
+      const filtered = pcs
+        .filter((e) => (e.quantity || 0) < threshold)
+        .filter((e) => (search ? e.name.toLowerCase().includes(search) : true))
+        .map((e) => ({
+          name: e.name,
+          pcsQuantity: e.quantity,
+          packSize: e.packSize ?? null,
+          productId: e.productId ?? null,
+        }));
+      const sliced = typeof offset === 'number' || typeof limit === 'number'
+        ? filtered.slice(offset || 0, (offset || 0) + (limit || filtered.length))
+        : filtered;
+      return sliced;
+    });
+    res.set("Cache-Control", "public, max-age=30");
     res.json(low);
   } catch (error) {
     res.status(500).json({ message: "Error retrieving low-stock PCS items" });

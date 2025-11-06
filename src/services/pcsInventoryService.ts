@@ -1,6 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 
+// In-memory cache to avoid repeated disk I/O
+let pcsCache: PcsEntry[] | null = null;
+let flushTimer: NodeJS.Timeout | null = null;
+const FLUSH_DELAY_MS = 500; // debounce disk writes
+
 export type PcsEntry = {
   name: string;
   quantity: number;
@@ -12,24 +17,42 @@ const PCS_PATH = path.join(__dirname, "../../prisma/seedData/pcsInventory.json")
 
 export const readPcsInventory = (): PcsEntry[] => {
   try {
-    if (!fs.existsSync(PCS_PATH)) return [];
+    if (pcsCache) return pcsCache;
+    if (!fs.existsSync(PCS_PATH)) {
+      pcsCache = [];
+      return pcsCache;
+    }
     const data = JSON.parse(fs.readFileSync(PCS_PATH, "utf-8"));
-    if (!Array.isArray(data)) return [];
-    return data.map((e: any) => ({
+    if (!Array.isArray(data)) {
+      pcsCache = [];
+      return pcsCache;
+    }
+    pcsCache = data.map((e: any) => ({
       name: String(e.name || "").trim(),
       quantity: Math.max(0, Number(e.quantity) || 0),
       productId: e.productId ?? null,
       packSize: e.packSize ?? null,
     }));
+    return pcsCache;
   } catch {
-    return [];
+    pcsCache = [];
+    return pcsCache;
   }
 };
 
 const writePcsInventory = (entries: PcsEntry[]): void => {
+  pcsCache = entries;
   const dir = path.dirname(PCS_PATH);
   if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(PCS_PATH, JSON.stringify(entries, null, 2), "utf-8");
+  // Debounced flush to disk to reduce thrashing
+  if (flushTimer) clearTimeout(flushTimer);
+  flushTimer = setTimeout(() => {
+    try {
+      fs.writeFileSync(PCS_PATH, JSON.stringify(entries, null, 2), "utf-8");
+    } catch {
+      // swallow
+    }
+  }, FLUSH_DELAY_MS);
 };
 
 export const upsertPcsEntries = (

@@ -5,6 +5,8 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import path from "path";
+import compression from "compression";
+import rateLimit from "express-rate-limit";
 /* ROUTE IMPORTS */
 import dashboardRoutes from "./routes/dashboardRoutes";
 import productRoutes from "./routes/productRoutes";
@@ -21,6 +23,8 @@ import settingsRoutes from "./routes/settingsRoutes";
 /* CONFIGURATIONS */
 dotenv.config();
 const app = express();
+// Enable gzip compression (Brotli is handled by proxies/CDNs if present)
+app.use(compression());
 app.use(express.json());
 app.use(helmet());
 app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
@@ -28,6 +32,10 @@ app.use(morgan("common"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
+
+// Basic rate limiting to protect hot endpoints
+const limiter = rateLimit({ windowMs: 60 * 1000, max: Number(process.env.RATE_LIMIT_MAX || 300) });
+app.use(limiter);
 
 // Simple request logger that prints method, url and body for debugging
 app.use((req, res, next) => {
