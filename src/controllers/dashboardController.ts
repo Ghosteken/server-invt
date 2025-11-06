@@ -66,6 +66,7 @@ export const getDashboardMetrics = async (
       popularProducts = fallback.map((d) => ({ ...d, price: Number(d.price), purchaseCount: 0 }));
     }
 
+    res.set("Cache-Control", "public, max-age=60");
     res.json({
       totalProducts,
       lowStockCount,
@@ -74,7 +75,7 @@ export const getDashboardMetrics = async (
       sales7dTotal,
       popularProducts,
     });
-    res.set("Cache-Control", "public, max-age=30");
+    
   } catch (error) {
     res.status(500).json({ message: "Error retrieving dashboard metrics" });
   }
@@ -94,9 +95,11 @@ export const getLowStockProducts = async (req: Request, res: Response): Promise<
 
     const rawLimit = req.query?.limit?.toString();
     const rawOffset = req.query?.offset?.toString();
+    const rawPage = req.query?.page?.toString();
     const rawSearch = req.query?.search?.toString() ?? "";
     const limit = rawLimit ? Math.min(200, Math.max(1, Number(rawLimit))) : undefined;
-    const offset = rawOffset ? Math.max(0, Number(rawOffset)) : undefined;
+    const page = rawPage ? Math.max(1, Number(rawPage)) : undefined;
+    const offset = rawOffset ? Math.max(0, Number(rawOffset)) : (page && typeof limit === 'number' ? (page - 1) * limit : undefined);
     const search = rawSearch.trim().toLowerCase();
 
     const products = await withCache(`lowStock:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
@@ -130,6 +133,7 @@ export const getExpiringProducts = async (req: Request, res: Response): Promise<
       where: { expiryDate: { lte: cutoff } },
       select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true }
     });
+    res.set("Cache-Control", "public, max-age=30");
     res.json(products.map(p => ({ ...p, price: Number(p.price) })));
   } catch (error) {
     res.status(500).json({ message: "Error retrieving expiring products" });
@@ -157,6 +161,7 @@ export const getDeadStockProducts = async (req: Request, res: Response): Promise
       const last = latestByProduct.get(p.productId) || null;
       return !last || last < since;
     });
+    res.set("Cache-Control", "public, max-age=30");
     res.json(dead.map(d => ({ ...d, price: Number(d.price) })));
   } catch (error) {
     res.status(500).json({ message: "Error retrieving dead stock products" });
@@ -183,6 +188,7 @@ export const getTopCustomers = async (req: Request, res: Response): Promise<void
       ...c,
       totalPurchaseValue: Number(grouped.find((g: any) => g.customerId === c.customerId)?._sum.totalCost || 0),
     })).sort((a, b) => b.totalPurchaseValue - a.totalPurchaseValue);
+    res.set("Cache-Control", "public, max-age=60");
     res.json(result);
   } catch (error) {
     res.status(500).json({ message: "Error retrieving top customers" });
@@ -203,9 +209,11 @@ export const getLowStockPcs = async (req: Request, res: Response): Promise<void>
 
     const rawLimit = req.query?.limit?.toString();
     const rawOffset = req.query?.offset?.toString();
+    const rawPage = req.query?.page?.toString();
     const rawSearch = req.query?.search?.toString() ?? "";
     const limit = rawLimit ? Math.min(500, Math.max(1, Number(rawLimit))) : undefined;
-    const offset = rawOffset ? Math.max(0, Number(rawOffset)) : undefined;
+    const page = rawPage ? Math.max(1, Number(rawPage)) : undefined;
+    const offset = rawOffset ? Math.max(0, Number(rawOffset)) : (page && typeof limit === 'number' ? (page - 1) * limit : undefined);
     const search = rawSearch.trim().toLowerCase();
 
     const low = await withCache(`lowPcs:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
