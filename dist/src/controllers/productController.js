@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getProductUpdatesLast = exports.getImportSample = exports.purgeProducts = exports.deleteProduct = exports.processInvoiceManual = exports.processInvoice = exports.importProducts = exports.upsertPcsItems = exports.importPcsProducts = exports.getPcsProducts = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
+exports.getProductUpdatesLast = exports.exportPcsExcel = exports.getPcsSample = exports.getImportSample = exports.purgeProducts = exports.deleteProduct = exports.processInvoiceManual = exports.processInvoice = exports.importProducts = exports.upsertPcsItems = exports.importPcsProducts = exports.getPcsProducts = exports.exportProductsExcel = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
 const client_1 = require("@prisma/client");
 const notificationService_1 = require("../services/notificationService");
 const productSyncService_1 = require("../services/productSyncService");
@@ -172,6 +172,47 @@ const exportProducts = async (req, res) => {
     }
 };
 exports.exportProducts = exportProducts;
+// Export products as Excel
+const exportProductsExcel = async (req, res) => {
+    try {
+        const products = await prisma.products.findMany({ orderBy: { name: "asc" } });
+        const rows = products.map((p) => ({
+            ProductId: p.productId,
+            SKU: p.productId, // use ProductId as SKU for export (no separate sku field)
+            ProductDescription: p.name,
+            PackSize: p.packSize ?? "",
+            Category: p.category ?? "",
+            PurchasePrice: p.purchasePrice ?? "",
+            SalesPrice: p.price ?? "",
+            Quantity: p.stockQuantity ?? 0,
+            ExpiryDate: p.expiryDate ? new Date(p.expiryDate).toLocaleDateString() : "",
+            Description: p.description ?? "",
+        }));
+        const wb = xlsx_1.default.utils.book_new();
+        const ws = xlsx_1.default.utils.json_to_sheet(rows, { header: [
+                "ProductId",
+                "SKU",
+                "ProductDescription",
+                "PackSize",
+                "Category",
+                "PurchasePrice",
+                "SalesPrice",
+                "Quantity",
+                "ExpiryDate",
+                "Description",
+            ] });
+        xlsx_1.default.utils.book_append_sheet(wb, ws, "Products");
+        const buf = xlsx_1.default.write(wb, { type: "buffer", bookType: "xlsx" });
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", "attachment; filename=products.xlsx");
+        res.status(200).send(buf);
+    }
+    catch (error) {
+        console.error("exportProductsExcel error:", error);
+        res.status(500).json({ message: "Failed to export products as Excel" });
+    }
+};
+exports.exportProductsExcel = exportProductsExcel;
 const getPcsProducts = async (req, res) => {
     try {
         const rawSearch = req.query.search?.toString() ?? "";
@@ -1245,6 +1286,67 @@ const getImportSample = async (req, res) => {
     }
 };
 exports.getImportSample = getImportSample;
+// Serve PCS sample Excel
+const getPcsSample = async (req, res) => {
+    try {
+        const samplePath = node_path_1.default.join(__dirname, "../../assets/PCS.xlsx");
+        if (!node_fs_1.default.existsSync(samplePath)) {
+            res.status(404).json({ message: "PCS sample file not found at server/assets/PCS.xlsx" });
+            return;
+        }
+        const buffer = node_fs_1.default.readFileSync(samplePath);
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", "attachment; filename=PCS.xlsx");
+        res.status(200).send(buffer);
+    }
+    catch (err) {
+        console.error("getPcsSample error:", err);
+        res.status(500).json({ message: "Failed to serve PCS sample file" });
+    }
+};
+exports.getPcsSample = getPcsSample;
+// Export PCS inventory as Excel
+const exportPcsExcel = async (req, res) => {
+    try {
+        const pcs = (0, pcsInventoryService_1.readPcsInventory)();
+        const products = await prisma.products.findMany({});
+        const byName = new Map(products.map((p) => [String(p.name).toLowerCase(), p]));
+        const rows = pcs.map((e) => {
+            const match = byName.get(String(e.name).toLowerCase());
+            return {
+                ProductId: match?.productId ?? "",
+                ProductDescription: e.name,
+                PackSize: e.packSize ?? match?.packSize ?? "",
+                Category: match?.category ?? "",
+                PCSQuantity: e.quantity ?? 0,
+                PurchasePrice: match?.purchasePrice ?? "",
+                SalesPrice: match?.price ?? "",
+                ExpiryDate: match?.expiryDate ? new Date(match.expiryDate).toLocaleDateString() : "",
+            };
+        });
+        const wb = xlsx_1.default.utils.book_new();
+        const ws = xlsx_1.default.utils.json_to_sheet(rows, { header: [
+                "ProductId",
+                "ProductDescription",
+                "PackSize",
+                "Category",
+                "PCSQuantity",
+                "PurchasePrice",
+                "SalesPrice",
+                "ExpiryDate",
+            ] });
+        xlsx_1.default.utils.book_append_sheet(wb, ws, "PCS");
+        const buf = xlsx_1.default.write(wb, { type: "buffer", bookType: "xlsx" });
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", "attachment; filename=pcs.xlsx");
+        res.status(200).send(buf);
+    }
+    catch (err) {
+        console.error("exportPcsExcel error:", err);
+        res.status(500).json({ message: "Failed to export PCS inventory as Excel" });
+    }
+};
+exports.exportPcsExcel = exportPcsExcel;
 // Return last updated timestamps per product field
 const getProductUpdatesLast = async (req, res) => {
     try {

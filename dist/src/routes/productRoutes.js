@@ -12,9 +12,12 @@ router.get("/", productController_1.getProducts);
 router.post("/", productController_1.createProduct);
 router.post("/import", upload.single("file"), productController_1.importProducts);
 router.get("/import/sample", productController_1.getImportSample);
-router.get("/export", productController_1.exportProducts);
+router.get("/export", productController_1.exportProducts); // legacy JSON export
+router.get("/export/excel", productController_1.exportProductsExcel);
 router.get("/updates/last", productController_1.getProductUpdatesLast);
 router.get("/pcs", productController_1.getPcsProducts);
+router.get("/pcs/sample", productController_1.getPcsSample);
+router.get("/pcs/export", productController_1.exportPcsExcel);
 router.post("/pcs/import", upload.single("file"), productController_1.importPcsProducts);
 router.post("/pcs/upsert", productController_1.upsertPcsItems);
 router.post("/invoice/process", upload.single("file"), productController_1.processInvoice);
