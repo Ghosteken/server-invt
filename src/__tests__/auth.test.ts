@@ -22,6 +22,10 @@ jest.mock('@prisma/client', () => {
         const email = (where.email || '').toLowerCase();
         return usersFixture.find(u => u.email.toLowerCase() === email) || null;
       }),
+      findUnique: jest.fn(async ({ where }: any) => {
+        const id = where?.userId;
+        return usersFixture.find(u => u.userId === id) || null;
+      }),
       findMany: jest.fn(async () => usersFixture.slice()),
       update: jest.fn(async ({ where, data }: any) => {
         const idx = usersFixture.findIndex(u => u.userId === where.userId);
@@ -93,7 +97,7 @@ describe('Auth and protected user routes', () => {
       .get('/auth/verify')
       .set('Authorization', `Bearer ${token}`);
     expect(res.status).toBe(200);
-    expect(res.body).toMatchObject({ email: 'user@example.com', role: 'user' });
+    expect(res.body.user).toMatchObject({ email: 'user@example.com', role: 'user' });
   });
 
   test('GET /users requires auth and admin role', async () => {

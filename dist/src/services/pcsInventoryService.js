@@ -6,31 +6,54 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.adjustPcsQuantity = exports.upsertPcsEntries = exports.readPcsInventory = void 0;
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
+// In-memory cache to avoid repeated disk I/O
+let pcsCache = null;
+let flushTimer = null;
+const FLUSH_DELAY_MS = 500; // debounce disk writes
 const PCS_PATH = node_path_1.default.join(__dirname, "../../prisma/seedData/pcsInventory.json");
 const readPcsInventory = () => {
     try {
-        if (!node_fs_1.default.existsSync(PCS_PATH))
-            return [];
+        if (pcsCache)
+            return pcsCache;
+        if (!node_fs_1.default.existsSync(PCS_PATH)) {
+            pcsCache = [];
+            return pcsCache;
+        }
         const data = JSON.parse(node_fs_1.default.readFileSync(PCS_PATH, "utf-8"));
-        if (!Array.isArray(data))
-            return [];
-        return data.map((e) => ({
+        if (!Array.isArray(data)) {
+            pcsCache = [];
+            return pcsCache;
+        }
+        pcsCache = data.map((e) => ({
             name: String(e.name || "").trim(),
             quantity: Math.max(0, Number(e.quantity) || 0),
             productId: e.productId ?? null,
             packSize: e.packSize ?? null,
         }));
+        return pcsCache;
     }
     catch {
-        return [];
+        pcsCache = [];
+        return pcsCache;
     }
 };
 exports.readPcsInventory = readPcsInventory;
 const writePcsInventory = (entries) => {
+    pcsCache = entries;
     const dir = node_path_1.default.dirname(PCS_PATH);
     if (!node_fs_1.default.existsSync(dir))
         node_fs_1.default.mkdirSync(dir, { recursive: true });
-    node_fs_1.default.writeFileSync(PCS_PATH, JSON.stringify(entries, null, 2), "utf-8");
+    // Debounced flush to disk to reduce thrashing
+    if (flushTimer)
+        clearTimeout(flushTimer);
+    flushTimer = setTimeout(() => {
+        try {
+            node_fs_1.default.writeFileSync(PCS_PATH, JSON.stringify(entries, null, 2), "utf-8");
+        }
+        catch {
+            // swallow
+        }
+    }, FLUSH_DELAY_MS);
 };
 const upsertPcsEntries = (incoming) => {
     const existing = (0, exports.readPcsInventory)();
