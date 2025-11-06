@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { createProduct, getProducts, importProducts, getImportSample, getProductById, updateProduct, exportProducts, processInvoice, processInvoiceManual, deleteProduct, purgeProducts, getProductUpdatesLast, getPcsProducts, importPcsProducts, upsertPcsItems } from "../controllers/productController";
+import { createProduct, getProducts, importProducts, getImportSample, getProductById, updateProduct, exportProducts, processInvoice, processInvoiceManual, deleteProduct, purgeProducts, getProductUpdatesLast, getPcsProducts, importPcsProducts, upsertPcsItems, getPcsSample, exportProductsExcel, exportPcsExcel } from "../controllers/productController";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -9,9 +9,12 @@ router.get("/", getProducts);
 router.post("/", createProduct);
 router.post("/import", upload.single("file"), importProducts);
 router.get("/import/sample", getImportSample);
-router.get("/export", exportProducts);
+router.get("/export", exportProducts); // legacy JSON export
+router.get("/export/excel", exportProductsExcel);
 router.get("/updates/last", getProductUpdatesLast);
 router.get("/pcs", getPcsProducts);
+router.get("/pcs/sample", getPcsSample);
+router.get("/pcs/export", exportPcsExcel);
 router.post("/pcs/import", upload.single("file"), importPcsProducts);
 router.post("/pcs/upsert", upsertPcsItems);
 router.post("/invoice/process", upload.single("file"), processInvoice);

@@ -172,6 +172,49 @@ export const exportProducts = async (
   }
 };
 
+// Export products as Excel
+export const exportProductsExcel = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const products = await prisma.products.findMany({ orderBy: { name: "asc" } });
+    const rows = products.map((p) => ({
+      ProductId: p.productId,
+      SKU: p.productId, // use ProductId as SKU for export (no separate sku field)
+      ProductDescription: p.name,
+      PackSize: p.packSize ?? "",
+      Category: p.category ?? "",
+      PurchasePrice: p.purchasePrice ?? "",
+      SalesPrice: p.price ?? "",
+      Quantity: p.stockQuantity ?? 0,
+      ExpiryDate: p.expiryDate ? new Date(p.expiryDate).toLocaleDateString() : "",
+      Description: p.description ?? "",
+    }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows, { header: [
+      "ProductId",
+      "SKU",
+      "ProductDescription",
+      "PackSize",
+      "Category",
+      "PurchasePrice",
+      "SalesPrice",
+      "Quantity",
+      "ExpiryDate",
+      "Description",
+    ]});
+    XLSX.utils.book_append_sheet(wb, ws, "Products");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", "attachment; filename=products.xlsx");
+    res.status(200).send(buf);
+  } catch (error) {
+    console.error("exportProductsExcel error:", error);
+    res.status(500).json({ message: "Failed to export products as Excel" });
+  }
+};
+
 export const getPcsProducts = async (req: Request, res: Response): Promise<void> => {
   try {
     const rawSearch = req.query.search?.toString() ?? "";
@@ -1278,6 +1321,74 @@ export const getImportSample = async (
   } catch (err) {
     console.error("getImportSample error:", err);
     res.status(500).json({ message: "Failed to generate sample file" });
+  }
+};
+
+// Serve PCS sample Excel
+export const getPcsSample = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const samplePath = path.join(__dirname, "../../assets/PCS.xlsx");
+    if (!fs.existsSync(samplePath)) {
+      res.status(404).json({ message: "PCS sample file not found at server/assets/PCS.xlsx" });
+      return;
+    }
+    const buffer = fs.readFileSync(samplePath);
+    res.setHeader(
+      "Content-Type",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    );
+    res.setHeader("Content-Disposition", "attachment; filename=PCS.xlsx");
+    res.status(200).send(buffer);
+  } catch (err) {
+    console.error("getPcsSample error:", err);
+    res.status(500).json({ message: "Failed to serve PCS sample file" });
+  }
+};
+
+// Export PCS inventory as Excel
+export const exportPcsExcel = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const pcs = readPcsInventory();
+    const products = await prisma.products.findMany({});
+    const byName = new Map(products.map((p) => [String(p.name).toLowerCase(), p] as const));
+    const rows = pcs.map((e) => {
+      const match = byName.get(String(e.name).toLowerCase());
+      return {
+        ProductId: match?.productId ?? "",
+        ProductDescription: e.name,
+        PackSize: e.packSize ?? match?.packSize ?? "",
+        Category: match?.category ?? "",
+        PCSQuantity: e.quantity ?? 0,
+        PurchasePrice: match?.purchasePrice ?? "",
+        SalesPrice: match?.price ?? "",
+        ExpiryDate: match?.expiryDate ? new Date(match.expiryDate).toLocaleDateString() : "",
+      };
+    });
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows, { header: [
+      "ProductId",
+      "ProductDescription",
+      "PackSize",
+      "Category",
+      "PCSQuantity",
+      "PurchasePrice",
+      "SalesPrice",
+      "ExpiryDate",
+    ]});
+    XLSX.utils.book_append_sheet(wb, ws, "PCS");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", "attachment; filename=pcs.xlsx");
+    res.status(200).send(buf);
+  } catch (err) {
+    console.error("exportPcsExcel error:", err);
+    res.status(500).json({ message: "Failed to export PCS inventory as Excel" });
   }
 };
 
