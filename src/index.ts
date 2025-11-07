@@ -67,7 +67,7 @@ app.use("/purchases", purchasesRoutes); // http://localhost:8000/purchases
 
 /* SERVER */
 const port = Number(process.env.PORT) || 3001;
-const host = process.env.HOST || "127.0.0.1";
+const host = process.env.HOST || "0.0.0.0";
 
 import os from "os";
 
