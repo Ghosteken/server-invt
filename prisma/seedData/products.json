@@ -1,15 +1,105 @@
 [
   {
-    "productId": "d190bc91-b6eb-4c38-b761-4fcd200377ab",
-    "name": "ADOBO GOYA ALL PURPOSE SEASONING",
+    "productId": "8b6eaab6-45c0-48ec-a79b-dee047630d24",
+    "name": "A.LEGAL MACEDOINE MIXED VEGETABLES 400G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "b730f31b-70e1-4cf6-8b32-2e5b54ce6412",
+    "name": "ADULT DOG FOOD WITH BEEF MIX CANADIAN PRIDE 20KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "72496814-5d26-4f2a-b902-87c3b5a60ff8",
+    "name": "ADULT WET DOG FOOD PATE WITH CHICKEN CANADIAN PRIDE 375G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "74ed0c91-8d9f-4b70-b854-2ce79410fabd",
+    "name": "AIRFLOW CONTROL 5000 PUFFS IYUTAK",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "d12c917c-4755-4cdb-ab54-2193a64620a0",
+    "name": "AL OSTOURA STRAWBERRY FLAVOUR ",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "19b91f94-586a-46ff-8866-e20e69e1c265",
+    "name": "AL OSTOURA TWO APPLES FLAVOUR ",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "b277b1f8-e639-4b66-8df1-3c9eb092ca25",
+    "name": "ALL PURPOSE SEASONING ADOBO GOYA 793G",
     "price": 152500,
     "stockQuantity": 4
   },
   {
-    "productId": "201ede52-83c5-4f6f-a58a-f7d789b13da7",
-    "name": "APPLE FRUIT MILK 500ML",
+    "productId": "401beb70-5484-415a-9e04-13ee3a63c5bd",
+    "name": "ALL PURPOSE SEASONING TROPICAL SUN 100G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "6e4565b6-d4eb-4664-962c-761dc7a662e8",
+    "name": "ALMOND TROPICAL SUN 750G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ed0481db-c157-4227-af53-c94803e20b03",
+    "name": "ANDRES TISSUE BLUE CLASSIC CLEAN",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "bdc2a6cd-cbe0-43db-a1a0-6efbc0b072d1",
+    "name": "ANDRES TISSUE PINK GENTLE CLEAN",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "67132cd7-a06d-4a95-bf62-cb7888f3d1ca",
+    "name": "APPLE & EVE FRUIT PUNCH 200ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "014d52a6-ae9c-4dff-b6bb-a3289066ebbe",
+    "name": "APPLE & EVE VERY BERRY 200ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "36bc8a25-2714-4294-b40a-4e37daed31a3",
+    "name": "APPLE CIDER LUBELSKI 400ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "142e2ac9-f196-4ad3-beef-388556afdbc8",
+    "name": "APPLE FRUIT  VIJU 330ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "dc658bb9-049c-4dba-b1a7-ee9e1f03e162",
+    "name": "APPLE FRUIT MILK VIJU 500ML",
     "price": 6375,
     "stockQuantity": 15
+  },
+  {
+    "productId": "42dcb24b-800c-4131-bc20-58e4ea0f71b3",
+    "name": "APPLE JUICE DRINK STUTE 1.5L",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "26e54545-24b4-48a6-8c93-c2ce3b00d24e",
@@ -18,34 +108,40 @@
     "stockQuantity": 40
   },
   {
-    "productId": "6ed6f676-0a69-4721-9578-8de54a7c3f80",
-    "name": "BAKED YOGHURT 500ML",
+    "productId": "0a06a9cb-ac47-40db-b1a1-80dc27450996",
+    "name": "BAKED BEANS ESTUS 415G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "bcce9b50-3bbd-41cb-a5f2-6a90a5b04675",
+    "name": "BAKED YOGHURT 500ml",
     "price": 8625,
     "stockQuantity": 0
   },
   {
-    "productId": "9088f14a-bc0d-4f3e-b0f4-b43b5a499000",
-    "name": "BAMBOO SKEWER STICK FALCON 10INCH",
-    "price": 40340,
-    "stockQuantity": 95
+    "productId": "e2ee1317-28d0-421f-b34c-a9a42514b5ef",
+    "name": "BAKING POWDER HAVANA 100G",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "6df3a674-5981-42a3-bf85-224343700691",
-    "name": "BAMBOO SKEWER STICK FALCON 12INCH",
-    "price": 43996.25,
-    "stockQuantity": 94
-  },
-  {
-    "productId": "7d8a9659-15fb-45f0-9ed4-e6b05bff639b",
-    "name": "BAMBOO SKEWER STICK FALCON 6INCH",
-    "price": 33308.75,
-    "stockQuantity": 95
+    "productId": "938b1ff0-930f-422a-88c1-ca968f2d4e23",
+    "name": "BAKING POWDER HAVANA 300g",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "ee375f8b-4849-4d47-bc64-22660ce5f252",
     "name": "BAMBOO SKEWER STICK FALCON 8INCH",
-    "price": 37527.5,
-    "stockQuantity": 95
+    "price": 40340,
+    "stockQuantity": 395
+  },
+  {
+    "productId": "6863a5ea-9538-4be8-ace8-cef65133e4c9",
+    "name": "BAY LEAVES TROPICAL SUN 60G",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "fd3ea3fc-b1f6-442c-8fd5-1046644d09fd",
@@ -60,10 +156,100 @@
     "stockQuantity": 33
   },
   {
-    "productId": "2a160ee7-f377-416c-9d7c-e1f56502e558",
-    "name": "BISCUITS Dark Chocolate Digestive BELMONT 300G",
+    "productId": "f09f1a3c-4d40-4357-9fbb-c56a4dcfdf2a",
+    "name": "BEANS BAKED SUNRIPE 420G",
+    "price": 30000,
+    "stockQuantity": 4
+  },
+  {
+    "productId": "6c9e009d-4b03-4a45-ba20-2a3f05c8e5f8",
+    "name": "BEETROOT TEA LOOYS 25S",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ba261479-a482-4656-b0c8-ccd4e6dac37c",
+    "name": "BICUITS CRACKERS SKYFLAKES 800G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "e4b19f5b-9157-4f87-80e1-56ac348c4515",
+    "name": "BISCUIT NATURAL CRACKERS TASTINO 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "448073dc-b32f-4ba8-ade7-9c864ee95c54",
+    "name": "BISCUIT STICK BUTTER MILK WISMO 55G(4 BOXES ) ",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "4e8f5f43-8531-442e-95c7-53da68323b82",
+    "name": "BISCUIT TRIPLE MILK CHOCOLATE COOKIES LONDON 160G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "a81eed12-13e8-4c54-a5bd-d829044babae",
+    "name": "BISCUIT WHEAT OATIES  Towergate 300G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "610acf37-5073-4872-9365-c0ba0d95529e",
+    "name": "BISCUITS  CRUMBLY OATIES BELMONT 300G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "51a3c45c-8db3-4eb6-ab3e-95761b10c8aa",
+    "name": "BISCUITS Dark Chocolate Digestive TOWERGATE 300G",
     "price": 75000,
     "stockQuantity": 14
+  },
+  {
+    "productId": "b612ec01-f5fa-4af2-a9ed-b729c5260989",
+    "name": "BISCUITS DIGESTIVE LONDON 400G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "a195eb6f-a30e-429a-a354-f332be1d894f",
+    "name": "BISCUITS DIGESTIVE WHEAT BELMONT 400G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "e9ed69ea-c35d-4b28-aa7a-e4b99e0dc1ff",
+    "name": "BISCUITS HIGH FIBRE OWEN'S 200G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "c08852cf-fb9f-4e3d-8ae6-f1568e15f956",
+    "name": "BISCUITS malted milk TOWERGATE 200G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "6a4f64cb-cd9e-4748-8fc9-d5bd43efc678",
+    "name": "BISCUITS malted milk TOWERGATE 200G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ac718f3c-ab18-404f-abb8-d73c20a45c63",
+    "name": "BISCUITS MILK 3 IN 1 DESMOND'S 600G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "356d9ebc-2e91-4466-8365-93034ca4f792",
+    "name": "BISCUITS MILK CHOC BELMONT 300G",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "a9e8006c-dead-46b1-95c6-ebc1d1e51e66",
@@ -72,40 +258,250 @@
     "stockQuantity": 20
   },
   {
+    "productId": "ba5003a9-fee2-48ad-b69d-04477ab6bd28",
+    "name": "BISCUITS OAT MILK DESMOND'S 600G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "b40f129d-caa6-4775-96a8-b693682bcf30",
+    "name": "BISCUITS OAT MLK FLAV GOLD SCOTTISH 600G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "2af5ba7b-b256-496a-927b-a63f5fea0341",
+    "name": "BISCUITS OATIES MILK CHOCOLATE TOWER GATE 300G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ab773891-1a99-4f18-89e6-9237b96b0eb7",
+    "name": "BISCUITS OATMEAL OWEN'S 200G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "194ebe21-2361-45e8-a049-de5918910fae",
+    "name": "BISCUITS ONION CRACKER OWEN'S 200G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "94eed9a9-04a6-45d0-a67d-b03e806b4dd8",
+    "name": "BISCUITS RICH MILK CRACKERS OWEN'S 100G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "9e442bb8-bd29-4b61-9706-475eac9d03aa",
+    "name": "BISCUITS RICH TEA BELMONT 300G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "acc19ce9-4cc6-4eeb-9a3b-fdc9f5af534c",
+    "name": "BISCUITS RICH TEA LONDON 300G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "6f3d6f8a-1411-4f78-8073-2153969411be",
+    "name": "BISCUITS RICH TEA TOWER GATE 300G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "9c24cb4b-ca32-47b1-9e3f-aef0eb36f997",
+    "name": "BISCUITS SHORTBREAD FINGERS LONDON 210G ",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "f57dd187-880b-43db-864d-00c71cfc6d1c",
+    "name": "BISCUITS Shortbread TOWERGATE 210G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "e7e44006-ecc0-488f-a9df-40b466ad89e4",
+    "name": "BISCUITS WHEAT COOKIES OWEN'S 200G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "f6948e61-1fb7-44bc-9309-c39d839c57e8",
+    "name": "BLACKCURRANT ICE 3000 PUFFS NERD",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ee016cb2-3af1-4e54-98d0-f9751d1c53bc",
+    "name": "BLENDED SESAME OIL AMOYI  150ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "e07212cf-abf2-41cf-bf66-a2771ba80746",
+    "name": "BLENDED SESAME OIL MR ALEX 150G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "8bdaeffa-4d30-403d-9c14-275930fffa2c",
+    "name": "BLENDED SESAME OIL MR ALEX 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "5777943a-eba5-4ed9-bbc3-ac723f46df89",
+    "name": "BLUEBERRY LIME 600 PUFFS RELX",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
     "productId": "03817150-e719-4991-b7bf-87ea4f4a2112",
     "name": "BOBO 100 FLAVOURED MILK DRINK 210ML",
     "price": 6000,
     "stockQuantity": 37
   },
   {
-    "productId": "50da33b7-6704-440e-a642-69607dca8e24",
-    "name": "BOBO MILK DRINK ORANGE 180ML",
-    "price": 5312.5,
-    "stockQuantity": 0
-  },
-  {
     "productId": "fa024867-5cfa-4ebd-ae80-e42f52d87d4d",
     "name": "BOBO MILK DRINK VANILLA 180ML",
-    "price": 5312.5,
+    "price": 0,
     "stockQuantity": 0
   },
   {
-    "productId": "682f9cea-ab3d-47c0-9d54-dbbb224bf14d",
-    "name": "BOURBON CREAM BISCUIT BELMONT 200G",
+    "productId": "c3088853-c2f3-4b5e-a90b-b01f10c85656",
+    "name": "BOURBON CREAM BISCUIT TOWERGATE 200G",
     "price": 33125,
     "stockQuantity": 54
   },
   {
-    "productId": "392d8901-058c-48ea-8487-27e1634aa138",
-    "name": "CEREAL RAISING & ALMOND CROWNFIELD 1KG",
+    "productId": "6ba91f39-e693-4de4-b938-8ac159e29d8d",
+    "name": "BUZZING RED 600 PUFFS RELX",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "13219fc7-1ded-4b48-8ee2-a18570021f28",
+    "name": "CANNED MUSHROOM PIECES& STEM DINOR 400G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "c6830c1d-8367-40f5-a4a7-837eb77e5155",
+    "name": "CANOLA OIL WESSON 4.73L",
+    "price": 100000,
+    "stockQuantity": 1
+  },
+  {
+    "productId": "08bd878c-0375-4f41-a933-81dbd37def25",
+    "name": "CARNATION CARAMEL MILK 397G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "c02e3ff8-89e7-4583-9769-96e68cf11f1c",
+    "name": "CARNATION EVAPORATED MILK 410G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "9d7cee91-113a-4584-972a-98856e10af7f",
+    "name": "CEREAL CHOCO RICE CROWNFIELD 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "3b46b7f8-c158-4a77-a5fc-b0ff80ed2c60",
+    "name": "CEREAL CORN FLAKES CROWNFIELD 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "29ce7909-cd81-4dcd-8b81-239b8075298d",
+    "name": "CEREAL FRUIT AND FIBER CROWNFIELD 750g",
+    "price": 80000,
+    "stockQuantity": 1
+  },
+  {
+    "productId": "ea2628fa-eb66-4a86-b15b-7c9894b5591f",
+    "name": "CEREAL FRUIT&FIBER ASDA 750G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "9b336234-9a5a-4aa2-ae78-f9ec28741030",
+    "name": "CEREAL FRUIT&FIBRE TESCO 750G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "dbd3fa37-90a2-4e44-8085-bbd60a727426",
+    "name": "CEREAL FRUIT&FIBRE WEETBIX 400G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "c5c428b5-8fff-4497-8d51-4e3cb477ba40",
+    "name": "CEREAL HONEY NUT CROWNFIELD 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "841c2d6f-698e-4a32-81ea-4a400c1936f9",
+    "name": "CEREAL MALT WHEATIES CROWNFIELD 625G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "394a1fd5-811d-4c8c-a362-d18dc295dba6",
+    "name": "CEREAL O'S OREO 350G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "dcd8e42a-ddb2-426e-9a7b-3fc44352a5cc",
+    "name": "CEREAL RAISIN&ALMOND CROWNFIELD 1KG",
     "price": 142500,
     "stockQuantity": 8
+  },
+  {
+    "productId": "1bb4c5d4-a337-45af-ad3a-ff7f31ed48f2",
+    "name": "CEREAL RAISIN&ALMOND STOCKWELL 1KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "718700cc-d429-4d61-aaa8-bc72defb801b",
+    "name": "CEREAL TROPICAL GRANOLA CROWNFIELD 1KG",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "e96ab334-7476-4a44-b5b4-a3baa8f979d0",
     "name": "CERES APPLE JUICE",
     "price": 43750,
     "stockQuantity": 2
+  },
+  {
+    "productId": "57ff0f4c-1b22-4ba0-af29-d5c182c8bed3",
+    "name": "CHAMOMILE TEA PEPPERMINT LOOYS 25G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "fa1d6c0b-9060-4dd5-845c-b6097abcc9bc",
+    "name": "CHAMOMILE WITH HONEY TEA LOOYS 25G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "64cb0169-d966-407f-9dbc-72d630383063",
+    "name": "CHARCOAL ROUND AL FAKHAR",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "38c30b90-464b-4b4e-9242-b80c201db5cb",
@@ -126,15 +522,9 @@
     "stockQuantity": 10
   },
   {
-    "productId": "771ab6c3-b631-4d32-9d01-21a5e54b0f4d",
-    "name": "CHECKERS CUSTARD 3IN1 JAR 1KG",
-    "price": 13910,
-    "stockQuantity": 14
-  },
-  {
     "productId": "bf622774-5e14-4966-abc0-b0cfdfa0b9bc",
     "name": "CHECKERS CUSTARD 3IN1 JAR 400GM",
-    "price": 13657.5,
+    "price": 0,
     "stockQuantity": 19
   },
   {
@@ -150,40 +540,10 @@
     "stockQuantity": 22
   },
   {
-    "productId": "b25cc1c3-d245-4d1b-9ceb-d9ac88e6065b",
-    "name": "CHECKERS CUSTARD BANANA JAR 1KG",
-    "price": 11026.25,
-    "stockQuantity": 19
-  },
-  {
-    "productId": "1544ebf3-b371-4aed-b89c-16f9ec668c67",
-    "name": "CHECKERS CUSTARD BANANA JAR 2KG",
-    "price": 12305,
-    "stockQuantity": 14
-  },
-  {
-    "productId": "1f4f95c0-6776-463d-84a2-e2add7ec0d8f",
-    "name": "CHECKERS CUSTARD BANANA JAR 400GMS",
-    "price": 13050,
-    "stockQuantity": 16
-  },
-  {
-    "productId": "88d2d895-1ce8-4b18-89ea-e4e4ea39e8a7",
-    "name": "CHECKERS CUSTARD BANANA SACHET 45GMS",
-    "price": 12291.25,
-    "stockQuantity": 22
-  },
-  {
     "productId": "a29cf0c2-e93e-4163-adb5-5f60ee73af5a",
     "name": "CHECKERS CUSTARD CHOCOLATE JAR 1KG",
-    "price": 11228.75,
-    "stockQuantity": 7
-  },
-  {
-    "productId": "135477c2-5ff9-4d5f-9fd1-a45a033b7732",
-    "name": "CHECKERS CUSTARD CHOCOLATE JAR 400GMS",
-    "price": 10420,
-    "stockQuantity": 11
+    "price": 13910,
+    "stockQuantity": 14
   },
   {
     "productId": "c47a267c-29c2-4938-8d24-1b1d97b8822f",
@@ -194,19 +554,19 @@
   {
     "productId": "1fb0c5a1-d9eb-4fa8-b944-d65560cfc1ac",
     "name": "CHECKERS CUSTARD VANILLA JAR 1KG",
-    "price": 10675,
-    "stockQuantity": 12
+    "price": 11026.25,
+    "stockQuantity": 19
   },
   {
     "productId": "68357c85-f767-41e3-9c2d-ce6ae723f0e4",
     "name": "CHECKERS CUSTARD VANILLA JAR 2KG",
-    "price": 12493.75,
-    "stockQuantity": 7
+    "price": 12305,
+    "stockQuantity": 14
   },
   {
     "productId": "e40cbab0-d48e-4546-93ab-8cb131ad3e57",
     "name": "CHECKERS CUSTARD VANILLA JAR 400GMS",
-    "price": 12948.75,
+    "price": 13050,
     "stockQuantity": 42
   },
   {
@@ -224,8 +584,8 @@
   {
     "productId": "479b2034-f33e-4e75-b233-4a8baf701b2e",
     "name": "CHECKERS CUSTARD VANILLA SACHET 45GMS",
-    "price": 12190,
-    "stockQuantity": 15
+    "price": 12291.25,
+    "stockQuantity": 22
   },
   {
     "productId": "efc36899-34d6-42a7-a9f4-478b29897584",
@@ -246,22 +606,154 @@
     "stockQuantity": 15
   },
   {
+    "productId": "52f4ffd7-e6aa-4a19-a10e-63a68e40d2b0",
+    "name": "CHICKEN SEASONING POWDER SUNRIPE 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "9387e35f-9433-43de-bb1e-473da9850bde",
+    "name": "CHICKEN STOCK POWDER TROPICAL SUN 200G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
     "productId": "b3232cd9-91c5-455b-870d-f02ff1003cc3",
     "name": "CHOCO TEE CHECKERS 20G",
     "price": 18593.46894736842,
     "stockQuantity": 19
   },
   {
-    "productId": "ecffbe30-ecf7-4834-b741-a180f86aa85c",
-    "name": "CHOCOLATE 500ML",
+    "productId": "74584225-29e9-47c4-88bd-da996aa95f88",
+    "name": "CHOCO VIJU 320ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "c8ad7812-0660-4d33-a626-5ea5fbfef145",
+    "name": "CHOCOLATE VIJU 500ML",
     "price": 10625,
     "stockQuantity": 33
   },
   {
-    "productId": "7aa4d0e7-4910-42c6-99b1-ffbebe8461ce",
-    "name": "CROWNFIELD FRUIT AND FIBER",
-    "price": 80000,
-    "stockQuantity": 1
+    "productId": "449e124c-d6f4-470e-b434-7db4ed50bc90",
+    "name": "CIGAR 5in1 HONEY AUTHENTIC BACKWOODS",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "6030fb19-1200-44f9-b069-e236b5d8a14f",
+    "name": "CIGAR 5in1 SWEET AROMATIC BACKWOODS",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "27144a3a-8343-4674-b91d-d660b6e0bc26",
+    "name": "CIGAR BANANA BACKWOOD",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "28bc88a2-62c8-4bff-a22d-c2e91200642c",
+    "name": "CIGAR BLACK RUSSIAN BACKWOOD",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "950b6391-f0a9-4c4c-976b-6920157bb708",
+    "name": "CIGAR COGNAC XO BACKWOOD",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "98fe1297-39bc-4b0f-a4a9-0ef7197bbd63",
+    "name": "CIGAR DARK STOUT BACKWOOD",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "76d9883d-f6bb-4c8a-9697-dc1e3c23586e",
+    "name": "CIGAR DARK STOUT SINGLE BACKWOOD",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "9cb294e1-bfa5-448d-a4bd-bf3eb36f32be",
+    "name": "CIGAR HONEY BERRY USA BACKWOOD",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "c75fe627-1796-46ba-91ee-c3e25682b5bd",
+    "name": "CIGAR HONEY BOURBON BACKWOOD",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "4ee662e4-36f1-456f-be16-140363882c0e",
+    "name": "CIGAR HONEY BOURBON SINGLE BACKWOOD",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "7914f364-687a-4d29-abf0-9cb5bc47f573",
+    "name": "CIGAR RUSSIAN CREAM SINGLE BACKWOOD",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "b8263fe2-862a-4b65-92e2-babf7a5923cb",
+    "name": "CIGARETTE PAPER WE TOP 72S",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "87b13003-1283-472c-9050-3c53b0b21a07",
+    "name": "COFFEE COLA 500ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "61cf52b9-34f9-48fd-b184-feba9e604ff2",
+    "name": "COFFEE MILK VIJU 500ml",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "60659ced-a23c-4416-b3b0-bf3ba80d6730",
+    "name": "COLOURED PRAWN CRACKERS SUNRIPE 227G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ffdb9d9c-8d1a-4722-bf40-0caeb7488931",
+    "name": "CORN FLOUR HAVANA 350g",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "c44ddebf-24f6-4669-9dba-98647478c268",
+    "name": "CORNED BEEF CANNED MEAT TROPICAL SUN340G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ca18d61f-9842-409f-a1c6-1e8590da4094",
+    "name": "CORNED BEEF WITH ONION TROPICAL SUN 340G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "d1cccf4f-0cc7-4e27-8293-49f983910093",
+    "name": "CURRY GOAT SEASONING TROPICAL SUN 100G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "c89bb50b-679d-4c3a-b932-b38e647dd5b0",
+    "name": "CURRY POWDER HOT TROPICAL SUN 100G PACK",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "6b1889fe-4bcd-4a8a-bb8c-063f50617811",
@@ -282,46 +774,130 @@
     "stockQuantity": 8
   },
   {
+    "productId": "34ae6393-c51a-4f22-ad00-90444621bff1",
+    "name": "DARK SOY SAUCE AMOYI  625ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "cabdda8f-163b-4b7b-8637-11f60ccf584c",
+    "name": "DARK SOY SAUCE MR ALEX 150G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "b2eb6a1b-249f-4de8-a850-2f214b74b851",
+    "name": "DECAFF COFFEE KENCO 100G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
     "productId": "83b9ad15-8310-4403-a881-8dd42e8e76d5",
     "name": "DESMOND 3 IN 1 OAT MILK",
     "price": 56250,
     "stockQuantity": 1
   },
   {
+    "productId": "ff27547d-0acf-4535-91b4-0caf20b6ebb6",
+    "name": "DIABETIC JAM FINE CUT ORANGE STUTE 430G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "58d2bf4c-07b5-4b60-8ea6-1366ec68e5fc",
+    "name": "DIABETIC JAM MORELLO CHERRY STUTE 430G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "09519d7a-0808-4c39-a429-18166408763f",
+    "name": "DIABETIC JAM STARWBERRY STUTE 430G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
     "productId": "5944b83d-b684-419b-b544-a3ef82cdd139",
     "name": "DINOR SWEETCORN 184G",
     "price": 25000,
-    "stockQuantity": 12
+    "stockQuantity": 0
+  },
+  {
+    "productId": "fb501077-5445-4912-9692-1c93be09431e",
+    "name": "DINOR WHOLE SWEET CORN 340G",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "e821fc87-b26f-46f6-81e8-efe54a7af0d4",
     "name": "DISPENSER WATER WITH BOTTLE",
-    "price": 5000,
+    "price": 0,
     "stockQuantity": 413
   },
   {
-    "productId": "6cc4eb26-fa47-465f-874f-1f486fbc3c2d",
+    "productId": "b68e7a3e-de80-4a0b-9b96-f0b6f47bf13f",
+    "name": "DODAN CHOCOLATE PEANUT BUTTER CREAMY  SACHET 22.5G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "d88a08db-837f-4a27-b8e4-320dc945a76a",
+    "name": "DODAN CHOCOLATE PEANUT BUTTER CRUNCHY 185G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "e5211cfe-8832-40e4-8c10-d9e6004e2ba5",
+    "name": "DODAN CLASSIC CASHEW BUTTER 325G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "b6c59a97-7622-4d98-8670-464fe5b50d07",
+    "name": "DODAN CLASSIC CASHEW BUTTER SACHET 26.5G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "32ce035f-c05c-4491-a122-fd205dcd88e2",
+    "name": "DODAN COCONUT COATED PEANUT 25G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "8e462d05-3792-4e8a-a9d7-b95c6e99d852",
+    "name": "DODAN NATURAL PEANUT BUTTER CREAMY 465G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "d34e3fac-3878-45d2-9c03-d76d71ece70e",
+    "name": "DODAN VERTELLA 325G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "9504d102-085d-4cf5-b074-1056624e4db8",
+    "name": "DRIED FRUIT MIX SUNRIPE 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "214e1d88-e5be-4e72-8020-a5edbb2c7571",
     "name": "ENSURE CHOCOLATE 237ML",
     "price": 80000,
     "stockQuantity": 32
   },
   {
-    "productId": "214e1d88-e5be-4e72-8020-a5edbb2c7571",
-    "name": "ENSURE CHOCOLATE 237ML",
-    "price": 112500,
-    "stockQuantity": 3
-  },
-  {
-    "productId": "f0e85d65-6de8-4970-a700-48b1f55e926b",
-    "name": "ENSURE PLUS VANILLA DRINK SHAKE 237ML",
-    "price": 137500,
-    "stockQuantity": 4
-  },
-  {
     "productId": "07a60996-bd54-4415-95fd-1dfa4b1a81ea",
     "name": "ENSURE PLUS VANILLA DRINK SHAKE 237ML",
-    "price": 137500,
+    "price": 0,
     "stockQuantity": 97
+  },
+  {
+    "productId": "40ceee0a-19a2-426d-87ec-99db1692a7cd",
+    "name": "ENSURE STRAWBERRY 237ML",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "1eb879b0-d7cf-460d-b7d6-3774d0d35729",
@@ -332,20 +908,110 @@
   {
     "productId": "eb61a3fb-8688-4739-b1eb-1af40cce7095",
     "name": "ENSURE VANILLA 237ML",
-    "price": 112500,
-    "stockQuantity": 12
-  },
-  {
-    "productId": "a03c7e1b-81ff-439d-ada9-75af437c2f90",
-    "name": "ENSURE VANILLA 237ML",
     "price": 90000,
     "stockQuantity": 20
   },
   {
-    "productId": "91609770-9b7b-4e18-8346-6353bfef12e8",
-    "name": "GRACIA PLANTA FLOUR 1KG",
+    "productId": "468ed484-2189-415e-842b-1f005bd7f940",
+    "name": "ESTUS SARDINE 125G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "415928f7-120c-465f-bb34-eb77caff315d",
+    "name": "ESTUS SWEET CORN 184G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "1d826f63-8ce9-459c-9674-383fcf4354a9",
+    "name": "ESTUS SWEET CORN 340G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "261881f9-41a6-42fd-94d0-aa8ad4b4a9eb",
+    "name": "EVERYDAY ESSENTIAL PORRIDGE OAT  1KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "f47232b8-6834-4dc6-b26c-8a8f4c6bd8ab",
+    "name": "FLAKE TUNA SUNRIPE 160G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "3ac7d8d0-ec37-47b7-8588-1cc8acd4185b",
+    "name": "FLAV MILK UHT BB STAR VIJU 210ML PINEAPPLE ",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "62083803-e81d-4749-b6e3-55e1c3213310",
+    "name": "FLOUR PLANTAIN GRACIA PLANTA 1KG",
     "price": 46875,
     "stockQuantity": 2
+  },
+  {
+    "productId": "d6d67fef-9c36-4519-a0e2-ad113aa0150b",
+    "name": "FOIL ALUMINUM ",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "0d39badb-d3f6-4e0c-86a1-e61ea25215bd",
+    "name": "GARLIC POWDER TROPICAL SUN 100G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "798130b0-8920-488c-9838-4964f2ef10db",
+    "name": "GLUCERNA FLAV MILK CHOCOLATE GLUCERNA 237ML",
+    "price": 0,
+    "stockQuantity": 8
+  },
+  {
+    "productId": "e4f998e8-2732-47e8-9a24-c7b405a56df4",
+    "name": "GLUCERNA FLAV VANILLA GLUCERNA 237ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "83ca90ae-897e-4966-875e-04ffe83f3f76",
+    "name": "GRAIN RAISIN AND ALMOND  500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "b971bd9b-96bf-441a-9450-df3b16be3351",
+    "name": "GRAIN TROPICAL GRANOLA   500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "2576991d-a61a-4a17-82ca-7da09c32e5d0",
+    "name": "GRANOLA FRUIT&NUT TESCO 1Kg",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "d10fdac6-49b0-4ec3-86cd-02a25cea7d2b",
+    "name": "GRANOLA HONEY & ALMOND TESCO 1Kg",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "5995b1df-3556-4fdf-85dd-d3ddd9088e39",
+    "name": "GRANOLA STRAWBERRY & RASPBERRY TESCO 1Kg",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "6ee43b53-db8c-4908-9dd4-677fea2cda4e",
+    "name": "GRANOLA SUPER BERRY TESCO 500G",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "1e8ecbd6-af42-4a9b-82b6-b4f1c70aded2",
@@ -360,9 +1026,63 @@
     "stockQuantity": 0
   },
   {
+    "productId": "0186f090-c39d-49e0-8687-08911e57656e",
+    "name": "GREEN TEA APPLE SUPER BLEND 50G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "aa828ea2-9540-4c25-a6e6-6fa0857d8a82",
+    "name": "GREEN TEA BAG CRANBRY&GINGER LOOYS 4OG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "8a144014-47c1-4cf3-9243-14e25f28d8a2",
+    "name": "GREEN TEA BAG HONEY&GINGER LOOYS 40G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "b0d35b46-e4f7-4f99-993f-3fc882768250",
+    "name": "GROUND CINNAMON TROPICAL SUN 80G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ada61cd9-26ef-47c8-94a2-2279734e2c4d",
+    "name": "HARVEST MORN FRUIT AND FIBER   750g",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "fee1e606-aa70-4831-9061-c41edd61e33a",
+    "name": "HARVEST MORN RAISIN & ALMOND GRANOLA  1kg",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "79de9210-f93b-4e33-b7b0-e1f36df556ea",
+    "name": "HARVEST MORN TROPICAL FRUIT GRANOLA  1kg",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ffc6ce26-950c-4916-b6d5-fc5972ec2cff",
+    "name": "HAZELNUT CHOCOLATE NUTELLA 750G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
     "productId": "8744d2d6-c51d-4836-b511-bb9f683b1946",
     "name": "HAZELNUT NUTELLA 160G",
     "price": 62500,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ad1a8597-c640-4329-a512-00b60fc2b450",
+    "name": "HAZELNUT NUTELLA 180G",
+    "price": 0,
     "stockQuantity": 0
   },
   {
@@ -378,28 +1098,28 @@
     "stockQuantity": 0
   },
   {
-    "productId": "1c74f4f5-5074-4d7a-828a-ea7e326fe8b1",
-    "name": "IJELE BITTERS-HIBISCUS TEA BAGS 50G",
-    "price": 27000,
-    "stockQuantity": 80
+    "productId": "43589471-8206-409b-8f39-28366a684164",
+    "name": "HEAVY DUTY REFUSE PACKS TOVA",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "27228ce3-90bb-466d-afa2-0000de9c179b",
-    "name": "IJELE BITTERS-LEMON TEA BAGS 50G",
-    "price": 27000,
-    "stockQuantity": 80
+    "productId": "7110ada6-625a-4d9d-9916-b90a026af136",
+    "name": "HONEY RAW ETAK ORIGINAL 750ML",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "2b3e1b6b-34cc-464f-a3cf-77defb5d57a7",
-    "name": "IJELE HIBISCUS, LEMON & GINGER TEA BAGS 50G",
-    "price": 19500,
-    "stockQuantity": 95
+    "productId": "b4e72522-d840-495c-b3f8-56df1c0bb72d",
+    "name": "HOT PEPPER POWDER HAVANA 10g",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "7d360dde-f72b-4da0-b2bb-639cd1f838bb",
     "name": "IJELE LEMON & GINGER TEA BAGS 50G",
-    "price": 19500,
-    "stockQuantity": 92
+    "price": 27000,
+    "stockQuantity": 95
   },
   {
     "productId": "143726e5-333c-4263-acfb-f6e276db9d05",
@@ -420,8 +1140,14 @@
     "stockQuantity": 12
   },
   {
-    "productId": "e8bae168-cc68-4449-9b77-edd51acee1d4",
-    "name": "INSTANT COFFEE ASDA",
+    "productId": "13b70834-f6bb-4792-a0dd-569a1ac3d898",
+    "name": "INDIAN BASMATI RICE ROYAL PALACE 5KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "be538789-6df1-47af-9347-6d2079022743",
+    "name": "INSTANT COFFEE ASDA 100G",
     "price": 50000,
     "stockQuantity": 10
   },
@@ -432,58 +1158,142 @@
     "stockQuantity": 24
   },
   {
-    "productId": "4de40db1-1c18-44d7-8ca9-4ade5df6740d",
-    "name": "JUMBO CHEESE MAX FLAVOURISED STICK 20g",
-    "price": 5187.5,
-    "stockQuantity": 26
+    "productId": "21839a7b-3f73-4b25-83d6-95520e6d9c34",
+    "name": "INSTANT COFFEE STOCKWELL 100G",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "92685d47-bcb2-42e4-b54b-405a3ff0b390",
-    "name": "JUMBO CHOCOLATE FLAVOURISED STICK 10g",
-    "price": 5250,
-    "stockQuantity": 191
+    "productId": "88efe220-691e-461d-a225-a1afa1ad2bd4",
+    "name": "INSTANT DRY YEAST SILVER CROWN 500G",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "056fc483-5f1b-4ecd-94bc-8a88e7c52b6b",
-    "name": "JUMBO CHOCOLATE MAX FLAVOURISED STICK 20g",
-    "price": 5187.5,
-    "stockQuantity": 32
+    "productId": "a415b692-0ddb-4381-bfd6-90c69bcc4380",
+    "name": "INSTANT GOLD COFFEE DECAFF BELLAROM 100G",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "0a305dba-bfa3-490e-adb6-41e5ac826404",
-    "name": "JUMBO COCONUT STICKS GOLA 10G",
-    "price": 5250,
-    "stockQuantity": 236
+    "productId": "b0145aed-facb-4d36-bcc4-7926b79e6901",
+    "name": "JUICE ARIZONA 591ML, FRT PUNCH",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "dcc303c8-ad28-4269-8bcd-b0f1a55a54de",
-    "name": "JUMBO MILK STICKS GOLA 10G",
-    "price": 5250,
-    "stockQuantity": 103
+    "productId": "5048d3a6-55d7-4334-9634-b62c7e3998e0",
+    "name": "JUICE ARIZONA 591ML, WATERMELON",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "ff32c45a-d5a8-46a7-a9d2-53e285590a60",
-    "name": "JUMBO STRAWBERRY STICKS GOLA 10G",
+    "productId": "d91cfb1a-e301-4058-8ea6-1a732f4b5794",
+    "name": "JUMBO  MILK STICKS GOLA 10G ",
     "price": 5250,
     "stockQuantity": 342
   },
   {
-    "productId": "8fd0d37c-c4ad-4429-9a04-4653cb3ffab5",
-    "name": "KIRKLAND OAT 946ML",
-    "price": 35000,
-    "stockQuantity": 2
+    "productId": "6a646219-eb1a-46e4-8971-6ffa728d809c",
+    "name": "JUMBO CHEESE MAX FLAVOURISED STICK  20g",
+    "price": 5187.5,
+    "stockQuantity": 32
   },
   {
-    "productId": "ea648695-4286-49ea-82a2-ce76c09416b8",
-    "name": "KIRKLAND UNSWEETENED 946ML",
-    "price": 35000,
-    "stockQuantity": 13
+    "productId": "33239edf-1977-42df-8a16-41c61ea20d49",
+    "name": "JUMBO CHOCOLATE FLAVOURISED STICK  10g",
+    "price": 5250,
+    "stockQuantity": 191
   },
   {
-    "productId": "bcaf5d33-3d5b-4a8a-809d-442af9d3970a",
-    "name": "KOLAQ BITTER",
+    "productId": "ed1f55ac-b4ce-4a44-a611-7511aa29e4ed",
+    "name": "JUST MARGARINE LOW CHOLESTEROL  250g",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ddf2af3b-ce65-4b77-8d4c-561a9a502deb",
+    "name": "JUST MARGARINE LOW CHOLESTEROL  500g",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "e28980d2-b962-4480-990e-708a18a0f516",
+    "name": "KELLOGY'S FRUIT AND FIBER 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "3ce2c4ea-1d67-4e9c-8ecb-fb9f8013df4e",
+    "name": "KETCH UP TOMATO ALFA 340G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "3b425732-f606-44d4-8105-efb24b70fb96",
+    "name": "KETCHUP ALFA 850G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "048df17f-6a70-487b-8b14-c19a56e85baa",
+    "name": "KOH-KAE COCONUT PEANUT 110g",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "e7edadd1-7e8e-446f-a94d-46a6c152de18",
+    "name": "KOH-KAE COCONUT PEANUT 230g",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "75af853a-9048-4a6f-ae3e-d2cfd94291c0",
+    "name": "KTC GOLDEN SELLA BASMATI  ",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "a1f11d2a-d850-49dc-9fa6-bcc17f9ac2ca",
+    "name": "LAI QILLA DIABETIC BASMATI RICE 1KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ed60ea04-dddd-4750-bd2d-dee7f6825d7d",
+    "name": "LAI QILLA DIABETIC BASMATI RICE 5KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "90f4e6e2-fc1d-4975-9670-4792a158f84a",
+    "name": "LIGHT SOY SAUCE AMOYI   150ML          ",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "9c7963cf-5ecb-4968-a23a-3d96e8c3e09f",
+    "name": "LIQUER KOLAQ BITTERS",
     "price": 14375,
     "stockQuantity": 20
+  },
+  {
+    "productId": "e4bc4e5b-be2a-429d-b0ca-932ed817cf16",
+    "name": "LIQUER ODOGWU BITTERS",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "4bcb48ef-a38e-48c8-9698-7e2fb9aa7c49",
+    "name": "MACKEREL IN TOMATO ESTUS 155G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "da068336-f986-4c8a-a57c-f1e4ef95c750",
+    "name": "MAHARAMA BASMATIC DIABETIC RICE 5kg",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "a13cd9d3-88c4-4353-95ab-9fb430bcf748",
@@ -492,22 +1302,88 @@
     "stockQuantity": 3
   },
   {
+    "productId": "0e4d7d0a-0246-4da8-ae14-55a60d73b6f6",
+    "name": "MANGO FLAVOUR WINE GRAND MOSCATO 750ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "630e3d62-728a-4981-b227-b79e0cd0cca5",
+    "name": "MANGO ICE 6000 PUFFS IYUTAK",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "da6a0978-d2a4-4700-a695-4368999eace7",
+    "name": "MEDUIM STRENGTH TEA STOCKWELL TESCO 80S",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "d1390de2-1fda-45fa-9d88-eaf8205becc6",
+    "name": "MEISTER WHIPPED CREAM 1KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "48b51a1f-e63d-45a5-905b-c3d64ca98843",
+    "name": "MELVEETA COCOA CHOCO KOENIG 800G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "604b2e53-83ce-4c5c-9a1c-33fba53af747",
+    "name": "MILK COCONUT SUNRIPE 400G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
     "productId": "f43b974e-e941-4d64-8b78-d8178b6a97be",
     "name": "MILK FLAVOUR POWDER HAVANA 100g",
-    "price": 3125,
+    "price": 0,
     "stockQuantity": 95
   },
   {
     "productId": "411f4694-6f7c-404c-914e-b72adc47596c",
     "name": "MILK POWDER SOYA SWEETENED AGV 360G",
     "price": 70875,
-    "stockQuantity": 27
+    "stockQuantity": 49
   },
   {
-    "productId": "c864bc4e-80d1-4aaa-8f4a-ab307de11223",
-    "name": "MILK POWDER SOYA UNSWEETEN AGV 360G",
-    "price": 70875,
-    "stockQuantity": 49
+    "productId": "cb075dcc-1445-43c1-b855-abdd3c4ec964",
+    "name": "MILK POWDER TROPICAL SUN 400G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "2aedece1-cdfa-4441-81ec-921a416f7cfb",
+    "name": "MILK POWDER TROPICAL SUN 900G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "3e6396a0-b8b2-4ccd-89ec-df70c8474ab5",
+    "name": "MIXED FRUIT JAM BLUE PEARL 450G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "037fd877-541a-49bb-99c9-056720b04aca",
+    "name": "MIXED VEG SUNRIPE 400G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "4052f138-7b2f-49d0-92de-d8667c92fa41",
+    "name": "MIXED VEGETABLES ESTUS 425G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "3a56cfd7-b314-4041-9123-e8f2fe0df757",
+    "name": "MOJITO DANDASH",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "c3bb68a2-419e-4435-8a19-6529a764ba21",
@@ -516,22 +1392,136 @@
     "stockQuantity": 39
   },
   {
+    "productId": "db92ac37-f6cd-4c4c-9268-e9f090cf7cfe",
+    "name": "MR V. TABLE WATER",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "86e5b4c5-0cfb-4bd5-96f1-70b2ec9371a9",
+    "name": "MR. BEANS SOYA MILK  1L",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "5f8c31f9-240f-43f9-857a-159b574f1c52",
+    "name": "MUSHROOM WHOLE DINOR 400G CAN",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "cbd0c310-f3f2-403e-a8a7-1abd3915af83",
+    "name": "NICE BISCUIT TOWERGATE 200G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "82a92d90-365e-4269-887c-64b48ca56f9e",
+    "name": "NUSSA MILK & CHOCO HAZELNUT SPREAD KOENIG 400G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "55d50b4f-5223-42a2-b161-e0483c22b689",
+    "name": "NUTRITIONAL SHAKE CHOCOLATE EQUATE 237ml",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "35581d57-e238-43e7-b373-427285d48eba",
+    "name": "NUTS COCONUT&PEANUTS TROPICAL SUN 330G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "8d1fc84c-7e2e-41d7-b3fb-70088bb827f0",
+    "name": "OAT KIRKLAND 946ML",
+    "price": 35000,
+    "stockQuantity": 2
+  },
+  {
     "productId": "5e411387-0210-4b63-af56-a3bda9cad048",
     "name": "ODODGWU BITTER",
     "price": 11250,
     "stockQuantity": 5
   },
   {
-    "productId": "8c63f9db-0df8-4bbe-9eca-4f1106f12ae5",
-    "name": "PEDIASURE FLAV MILK 237ML, CHOCOLATE",
-    "price": 103750,
-    "stockQuantity": 3
+    "productId": "5073bd30-7773-41e7-ab13-c78870e49119",
+    "name": "ORANGE MINT FLAVOUR DANDASH",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "1639adb3-a909-4ea8-b529-3d4baa1218f4",
-    "name": "PEDIASURE FLAV MILK 237ML, VANILLA",
-    "price": 103750,
-    "stockQuantity": 8
+    "productId": "c7b79738-db62-44a5-81aa-5eeecb93d8e7",
+    "name": "OREGANO TROPICAL SUN 30G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "1df48802-cc0c-40fc-b8f2-fbda6a4dcb98",
+    "name": "ORGANIC SOY PURPLE KIRKLAND 946ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "4a26f5f6-565d-4ea5-9aa2-64aeb40dfa67",
+    "name": "OYSTER SAUCE AMOYI     150ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "7cbe31a4-7cac-46e7-87d2-4261eb5eadb5",
+    "name": "OYSTER SAUCE AMOYI  750ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "4618c14d-1d68-4def-88b9-dbf55f22c289",
+    "name": "PANCAKE & WAFFLE MIX HUNGRY JACK",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "f1977b05-4305-4dc7-8056-7f675914e200",
+    "name": "PASTA SHAPES ASDA 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "e8a822ae-8b9e-4eea-a5a7-74c4c623c3df",
+    "name": "PEANUTS CRUNCHY COCONT TROPICAL SUN 165G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "8f464447-fbe3-4490-b40d-9daa3691b510",
+    "name": "PEANUTS CRUNCHY COFFEE TROPICAL SUN 330G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "30fd3ccb-576f-49e0-ad5f-12056029a526",
+    "name": "PEAS GIANT MARROW FARROW'S 300G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "5d02bc53-cde4-4343-99db-2c90648506f9",
+    "name": "PEAS GIANT MARROWFAT ESTUS 300G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "3e922d99-93d7-4694-84f1-2e3e4f15f5be",
+    "name": "PEDIASURE FLAV MILK 237ML, STRAWBERRY",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ec960c7d-95a7-4273-88b4-ca6e8af0380c",
+    "name": "PENNE EVERYDAY 500G",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "f61aea17-88c7-45ba-9239-573bacd94bf2",
@@ -540,10 +1530,64 @@
     "stockQuantity": 21
   },
   {
-    "productId": "854dffc5-6f0a-4792-9828-e3d33a568a41",
-    "name": "PLAIN YOGHURT 500ML",
-    "price": 6875,
-    "stockQuantity": 58
+    "productId": "c66914bf-6554-4d18-8830-151fb424e2be",
+    "name": "PENNE PASTA SAVERS 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "19aaaeab-5761-436a-b59a-20f9fdd2a508",
+    "name": "PENNE SIMPLY 500G",
+    "price": 60000,
+    "stockQuantity": 2
+  },
+  {
+    "productId": "a3931fc2-b466-4fac-ab5a-1287261e55c1",
+    "name": "PENNE TESCO 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "3f2f3f20-34e1-47f0-a7d4-0299529789ed",
+    "name": "PETITE PEAS ESTUS 425G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "d08c7336-624d-4af0-8c74-50bdb3f0a395",
+    "name": "PINEAPPLE SLICE 1800 PUFFS WAKA SOLO",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "40636491-8343-42aa-8139-15517fd168a2",
+    "name": "PORRIDGE OAT TROPICAL SUN 1KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ef1e5faf-26fd-4ea1-9277-86391740ad67",
+    "name": "POWDERED CHICKEN STOCK SUNRIPE 17G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "b11cd093-a530-47fa-8149-c8dc68f293d3",
+    "name": "POWDERED MILK NIDO 2.5KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "bef3a8d3-6f25-4375-a570-fb23bc0478cf",
+    "name": "POWDERED MILK NIDO 400G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "0f4e51d2-f241-4495-8fe1-bc6a288be6ea",
+    "name": "PREMIUM OYSTER SAUCE MR ALEX 150G",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "e5c13bf7-0a8b-4498-90ef-6bd5789e1a11",
@@ -552,34 +1596,208 @@
     "stockQuantity": 1
   },
   {
-    "productId": "4379bd64-c2d3-4555-aaa2-acf3f85dedc7",
-    "name": "RED WINE MOSCATO",
+    "productId": "bb06537f-3f19-43e0-a5d9-b96f8b4d15d3",
+    "name": "PURDEYS REJUVENATE ENERGY DRINK 330ml",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "503ad64c-019a-4606-9a5a-3442bc6b1c77",
+    "name": "PURE ALMOND OIL KTC 200ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "dabd2d2b-f5d1-47bb-bf26-76df4e775b90",
+    "name": "PURE COCONUT OIL KTC 250ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "1fd622ed-8246-4903-a1ba-a3837edda5fe",
+    "name": "PURE COCONUT OIL TROPICAL SUN 250ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "c091ee72-5ab0-486c-b5a9-7a722440e966",
+    "name": "PURE COCONUT OIL TROPICAL SUN 2L",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "eceb8ae3-0605-457a-8672-65e6b0dd69e4",
+    "name": "PURE GREEN TEA LOOY'S 40G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "807ec324-511e-4115-a6d0-7d3a747ab853",
+    "name": "QUAKER INSTANT OATMEAL 800G TIN",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "f1b0b8c0-ea71-4ccf-b53a-b950eb6c6095",
+    "name": "RED KIDNEY ESTUS 400G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "e34e72da-6681-4c08-9422-c29ec8f3b375",
+    "name": "RED WINE GRAND MOSCATO 750ML",
     "price": 105000,
     "stockQuantity": 0
   },
   {
-    "productId": "8b6d109e-f343-417a-8e51-99871998a201",
-    "name": "RIPE CHILLI PLAINTAIN CHIPS AGV 400G",
-    "price": 82500,
-    "stockQuantity": 8
+    "productId": "88bb9dc9-5ef8-4b00-8723-e43fc362b9d8",
+    "name": "RED WINE MERLOT BREE 750ML",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "b5c27eaa-9f49-446b-b2a7-e1925028a509",
-    "name": "RIPE PLAINTAIN CHIPS AGV 400G",
-    "price": 82500,
-    "stockQuantity": 6
+    "productId": "39015293-fb2f-4b78-af94-730f072bca77",
+    "name": "RICE ASSORTED LONG GRAIN MAFA 10KG",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "1eb43050-a7a2-40ea-a0db-11e48f494f08",
-    "name": "ROYAL RICE 9.08KG",
+    "productId": "c84ce963-53f0-49b1-9b96-655dae2e084b",
+    "name": "RICE ASSORTED LONG GRAIN MAFA 5KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "dc74fc66-a432-43a4-9b6f-d813eba724d3",
+    "name": "RICE BASMATI AEROPLANE 1KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "962bae98-3d81-461d-8911-291ac97dcce8",
+    "name": "RICE BASMATI DUBAR INDIA GATE 5KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "e48d3b46-47a9-49b4-a363-5a91c6081655",
+    "name": "RICE BASMATI MAHARANI 5KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "4b734924-6971-4ccc-93b2-2a5aadc619d2",
+    "name": "RICE BASMATI TRADITIONAL LAL AQUILA 5KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "9d4e8ebf-3bd4-4b55-9b5d-599820d269f6",
+    "name": "RICE BASMATI TROPICAL SUN 2KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "bb42f5ba-15f2-45ad-8b2f-ef365d2e70ce",
+    "name": "RICE BASMATI TROPICAL SUN 5KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "bbf87e69-978a-4e99-8fd3-fb945b2c2511",
+    "name": "RICE BASMATIC PAR EXCELLENCE 4.5KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "f67f3f14-358c-4311-9f91-1d2b100e92ce",
+    "name": "RICE DIABETIC MAHARANI 1KG",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "bf25574d-8daf-40cf-acc9-01441c79c186",
+    "name": "RICE ROYAL 9.08KG",
     "price": 56250,
     "stockQuantity": 1
   },
   {
+    "productId": "ffcf3dae-5a81-4b45-a224-5f69426e792d",
+    "name": "RICH ROAST INSTANT COFFEE BELLAROM 200G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "b5c27eaa-9f49-446b-b2a7-e1925028a509",
+    "name": "RIPE PLAINTAIN CHIPS AGV 400G",
+    "price": 0,
+    "stockQuantity": 8
+  },
+  {
+    "productId": "e4f76c08-2d92-40d0-80d8-9fa42949da06",
+    "name": "ROSEMARY TROPICAL SUN 10G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "948d8c8a-a1ca-4950-b9b0-1b6841d737cd",
+    "name": "SARDINE IN SUNFLOWER OIL WITH CHILLI TROPICAL SUN 125G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
     "productId": "e60ea39b-68c4-489a-a0be-df6700c8d8b5",
     "name": "SAUCE LIGHT SOY MR ALEX 625G",
-    "price": 33000,
+    "price": 0,
     "stockQuantity": 6
+  },
+  {
+    "productId": "b066496b-fe4c-4990-95f1-d01cd2bf682b",
+    "name": "SAUCE MAQUEREAU IN TOMATO DINOR 400G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "4775a8e1-52a5-4f52-810e-87a19fc6a222",
+    "name": "SAUCE SWEET CHILLI MR ALEX 700G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "41eae264-744b-4430-ba7e-434deacd6265",
+    "name": "SEASONING TROPICAL SUN 100G, CHIC",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "4d1246d0-470b-41bb-85f3-54e42c9803f1",
+    "name": "Short Bread Biscuit BELMONT 210G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "5adb7115-58a3-4728-b88e-b7df13b43795",
+    "name": "SHORTBREAD BUTTER COOKIES DESMOND'S 150G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "6c0efc54-2f91-47a0-a1d5-ea87b2fa6106",
+    "name": "SHORTBREAD BUTTER COOKIES FRENCH MEAL 150G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "757d8fff-fdb0-4394-96b2-a95204fcbdf6",
+    "name": "SHORTBREAD MILK CHOCOLATE  DESMOND'S 150G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "2dafd5d9-74bc-4b49-a622-7d42f0a85c9c",
+    "name": "SHORTBREAD MILK CHOCOLATE  FRENCHMEAL 150G",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "11a32fef-6b33-496f-a4f8-b6d09b9f464f",
@@ -588,22 +1806,28 @@
     "stockQuantity": 15
   },
   {
-    "productId": "d780fef3-e132-4f0c-95c7-cae46b478fd5",
-    "name": "SIMPLY PENNE",
-    "price": 60000,
-    "stockQuantity": 2
+    "productId": "ef084f0c-2922-4385-ad31-85fa30ec0ded",
+    "name": "SOAP POWDER MULTI USE MAGIK 170g",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "7baa77ac-b726-468d-b750-5bb6fdd2cfa6",
-    "name": "SIMPLY SPAGHETTI",
-    "price": 37500,
-    "stockQuantity": 37
+    "productId": "22c053da-97d5-4b87-bd91-dcf15b39d254",
+    "name": "SOAP POWDER MULTI USE MAGIK 850g",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "47629eda-cb82-4a7c-9a78-4db8c6d3e7c3",
-    "name": "SMALL BAMBOO SKEWER STICK FALCON 12INCH",
-    "price": 32287.5,
-    "stockQuantity": 395
+    "productId": "dd97cf40-3793-4986-9f96-cb17cc6cd79b",
+    "name": "SOFT DRINK RASBERRY&ROSE  PURDEYS 330ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "c88d2719-0a9d-4061-99ea-5996f971f96a",
+    "name": "SOFT DRINK REFOCUS PURDEYS 330ML",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "17f21a4f-d253-4d7d-a8e4-225e42c3c75b",
@@ -618,16 +1842,76 @@
     "stockQuantity": 66
   },
   {
-    "productId": "d29ea819-7f2d-4162-834b-fe832f109ea6",
-    "name": "SOYA POWDER CHOC SWEETENED AGV 360G",
-    "price": 70875,
-    "stockQuantity": 36
+    "productId": "67b16555-450a-44af-819a-a9f04ddfe61a",
+    "name": "SPAGHETTI DELVERDE 500G PACK",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "5cd98b0b-a42a-4e17-aea5-47c8a9596064",
-    "name": "SPARKLING APPLE CIDER MARTINELLI'S 750ML",
-    "price": 100000,
-    "stockQuantity": 56
+    "productId": "e7212914-7622-4473-9b0b-a0845ad4396c",
+    "name": "SPAGHETTI EVERYDAY 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "9b9fd766-1a20-4265-8348-d2faee16fab1",
+    "name": "SPAGHETTI NAPOLINA 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "0d816dea-1f15-493d-a20c-5ceceea6a3cc",
+    "name": "SPAGHETTI PREMIUM ASDA 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "e808e925-1a21-4a0a-9509-d0e0f1ab80c2",
+    "name": "SPAGHETTI SAVER 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "a4e87c18-337f-475d-ade8-74cb52910d95",
+    "name": "SPAGHETTI SIMPLY 500G",
+    "price": 37500,
+    "stockQuantity": 37
+  },
+  {
+    "productId": "e3b580b4-8610-4732-b5f1-f3cb055448fa",
+    "name": "SPAGHETTI TESCO 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "1ceaff7a-a5e2-430d-93fa-ca37a0be9f3a",
+    "name": "SPAGHETTI WHOLE WHEAT ASDA 500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "32bb0dd1-504c-4ff0-b66a-4614c9d7b96b",
+    "name": "SPAGHETTI WHOLE WHEAT BARESA500G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "646df5c2-9748-43bf-8768-057f178266de",
+    "name": "SPARK. WINE WHT GRAPE CTL WELCH'S 750ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "af0e23a9-79ab-450d-b2fe-aa69165ff77d",
+    "name": "SPARKLING  APPLE JUICE MARTINELLI'S 296ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "9f2d510c-ae48-450c-8dad-3ced4853b35a",
+    "name": "SPARKLING APPLE CIDER MARTINELLI'S 250ML",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "a3e89061-0fb9-412b-b4e1-e88d72030ba4",
@@ -636,34 +1920,130 @@
     "stockQuantity": 3
   },
   {
-    "productId": "4b6cf927-d5d6-496e-8195-49a15f583511",
-    "name": "SPARKLING CIDER MARTINELLI'S 250ML",
-    "price": 75000,
-    "stockQuantity": 8
+    "productId": "c1a80cfd-ac7d-4aec-8a57-0ad41dae134b",
+    "name": "SPARKLING BLUSH MARTINELLI'S  296ML",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "9e70dd52-f540-4dcb-b337-0fc46bc4fe9b",
     "name": "SPARKLING CIDER MARTINELLI'S 750ML",
-    "price": 100000,
-    "stockQuantity": 52
+    "price": 75000,
+    "stockQuantity": 56
   },
   {
-    "productId": "8fed11e0-6cbf-470e-b4bb-8867ddc1248c",
-    "name": "SUNRIPE BAKED BEANS 200G",
+    "productId": "a7b28c5c-2869-4dcd-8e48-26cef1c9c8c3",
+    "name": "SPICE ONION POWDER TROPICAL SUN 100G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "78830944-ce13-4025-9999-eeba17091c82",
+    "name": "SPRK JUICE CERES 275ML, APL",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "83c9b6d9-73b4-4acb-9537-5d7ce3c993cf",
+    "name": "SPRK JUICE CERES 275ML, WHT GRAPE",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "e3ba941e-c5b0-445e-b992-2cd37a433fa7",
+    "name": "STRAWBERRY COUNTRY CRISP JORDAN",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "a86bf72f-ac3f-447a-98fc-abd6e01607d8",
+    "name": "STRAWBERRY JAM BLUE PEARL 450G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "4d8d871e-a128-4e6f-9250-5103b2de4f0a",
+    "name": "STRWBERRY GREEN TEA LOOYS 40G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "2639ce42-e9ba-4a81-8e26-4a22ef029cbf",
+    "name": "STUMBRAS VODKA CENTURY 750ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "0920f044-8819-4a14-92bd-2cba974ccfda",
+    "name": "STUMBRAS VODKA CRANBERRY FLAVOR 750ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "07f30f15-76ce-413a-8d6b-7b7bfa8489f3",
+    "name": "SUNFLOWER OIL PURE KTC 5L",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "aec2490a-64c7-4480-b512-9d2a6a4336b7",
+    "name": "SUNRIPE BAKE BEANS 200G",
     "price": 36250,
     "stockQuantity": 4
   },
   {
-    "productId": "95c5ee72-6a4b-46ab-b2a6-8a7a07e1ef3c",
-    "name": "SUNRIPE BAKED BEANS 420G",
-    "price": 30000,
-    "stockQuantity": 4
+    "productId": "ff13dab0-42b4-4083-9a1c-4fa82c675f4f",
+    "name": "SUNRIPE GIANT MARROWFAT PROCESSED PEAS 300G",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "04b58911-0f94-46fb-a25f-0985333ae816",
-    "name": "SUNRIPE RED KIDNEY 200G",
+    "productId": "3fb44c25-5775-40cb-840b-87b4c1e1ea68",
+    "name": "SUNRIPE GIANT MARROWFAT PROCESSED PEAS 538G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "4f2cec6e-2da0-4f56-bebe-9621cdff48f6",
+    "name": "SUNRIPE RED KIDNEY BEANS 200G",
     "price": 32000,
     "stockQuantity": 2
+  },
+  {
+    "productId": "2c343562-d303-4016-86dd-d66274f3f41b",
+    "name": "SUNRIPE RED KIDNEY BEANS 400G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "cd9dcc0e-8b2d-4498-a8fb-aa96286b8281",
+    "name": "SUNRIPE SARDINE 125G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "4aa0c4f1-521e-4bfd-a376-25672de8d134",
+    "name": "SUNRIPE WHOLE SWEET CORN 184G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "5236c739-7409-4df8-9885-0290f14d2088",
+    "name": "SWEET CHILI SAUCE MR ALEX 150G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "be970cfa-e977-4686-85a1-804196b8a9cb",
+    "name": "SWEETCORN GREEN GIANT 184G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "56600e12-6df4-4139-8442-17332ff1da44",
+    "name": "SWEETCORN GREEN GIANT 340G",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "151bd28b-24df-484a-843c-9f1bc42bef4c",
@@ -684,10 +2064,94 @@
     "stockQuantity": 86
   },
   {
+    "productId": "103b7de8-758e-49c7-896e-acf2a2672061",
+    "name": "SYRUP PANCAKE MILLVILLE 710ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
     "productId": "c48ebecb-a238-498d-8ea9-df476b34eb29",
     "name": "TABLE WATER VIJU",
     "price": 1687.5,
     "stockQuantity": 180
+  },
+  {
+    "productId": "1b008d70-27ff-43fc-b4d7-eec57d68748b",
+    "name": "TEA BAG CARROT LOOYS 40G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "a7a50cd2-cb6f-4877-a4bd-40c4322e8d41",
+    "name": "TEA BAG GINGER&GARLIC LEGEND SATCHET 360G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "865ceb8a-2194-466f-9fc0-c3496e4de4cc",
+    "name": "TEA BAG GINGER&GINSENG LOOYS 160G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "45953fe2-869b-48f4-93e6-8e97e2ec36dc",
+    "name": "TEA BAG GREEN TEA&TURMERIC LEGEND 25S",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "56040a75-7145-4f50-a752-4ef2e1edaeb8",
+    "name": "TEA GINGER WITH LEMON LOOYS 160G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "5b0f884c-0e1e-4cee-be2d-098f005bf6c5",
+    "name": "TEA INSTANT GINGER DRINK WORLD STAR 20S",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "2c0724bc-3a45-4d36-8f37-e85d5e371a8b",
+    "name": "TEABAG GINGER&HONEY&LEMON LEGEND 180G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "ae9bd9a4-0a67-4838-8dea-d922be95e01d",
+    "name": "TEABAGS DECAF TETLEY 125G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "df02b309-01b0-406f-9af0-9a561da95fee",
+    "name": "TEABAGS GING&HONEY&GARLIC LEGEND 180G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "92dded9c-74af-4e9c-b88f-1888b8b97dcd",
+    "name": "TEABAGS GINGER&BLK SEED LEGEND 180G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "8860cba3-29fb-414b-949b-e6aed495e12e",
+    "name": "TEABAGS GINGER&MORINGA LEGEND 180G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "bb91b823-41a7-4ab9-9218-a67d053730bb",
+    "name": "TEABAGS GREEN TEA&CINNAMON LEGEND 25S",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "284ab485-2620-4197-959a-f4d366b42eba",
+    "name": "TEABAGS LEMON&GINGER LEGEND 10S",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "a25afa83-7f0e-4541-a0a1-6d4afd91b43c",
@@ -702,22 +2166,88 @@
     "stockQuantity": 6
   },
   {
+    "productId": "8a57022f-b7f2-43d4-8d40-9c218a3bd5fc",
+    "name": "TOOTHPASTE MINT APPLE ONE FAMILY 10G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "15a88504-7fb2-47b3-83b7-ffe1e631fba0",
+    "name": "TOOTHPASTE MINT APPLE ONE FAMILY 130G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
     "productId": "5988704b-2db2-4a86-b7d1-c5c40aba5ed4",
     "name": "TOWER GATE RIICH TEA",
     "price": 67500,
     "stockQuantity": 6
   },
   {
-    "productId": "405a8741-f520-4973-895b-93a36b2b93b9",
-    "name": "UNRIPE PLAINTAIN CHIPS AGV 400G",
-    "price": 82500,
-    "stockQuantity": 6
+    "productId": "eafe1d38-5065-4899-a343-ac94c2295bb8",
+    "name": "TOWERGATE MILK CHOCOLATE DIGESTIVE BISCUIT",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "ab7e01fd-6f59-496c-8626-cab8899bdedb",
-    "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
-    "price": 3125,
-    "stockQuantity": 10
+    "productId": "41718dc1-effb-4972-a43b-b73d70852178",
+    "name": "TRIX COCOA POPS   25g",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "4a66607f-9622-43e4-ab17-b614e089b18d",
+    "name": "TRIX COCOA POPS  40g",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "d1819c6a-16f0-428d-adee-22a8799a360f",
+    "name": "TRIX CORN FLAKES  52g",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "3283ae77-b74e-418b-8a59-90a2cb04d674",
+    "name": "TROPICAL SUN ALMOND NUT 100G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "d66b9e3d-ac5f-47c5-85f7-ca08d24ca86a",
+    "name": "TRS ALMOND NUT 100G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "5198e0b4-95ed-49e1-ba6a-bdd0c62d0764",
+    "name": "TRS ALMOND NUT 375G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "15327497-db33-45f3-a014-fd65e44452a2",
+    "name": "TUNA STEAKS IN BRINE TROPICAL SUN 160G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "61a4cb2e-c72d-43e0-b48c-d799e24fdfdd",
+    "name": "TWO APPLES FLAVOUR ORKIDA",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "978137da-2139-4795-a206-294ede9a2d87",
+    "name": "UNSWEETENED ALMOND KIRLAND 946ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "88b19009-6b18-4e5e-ade1-88d3f0309c9b",
+    "name": "UNSWEETENED ALMOND VANILLA KIRKLAND 946ML",
+    "price": 35000,
+    "stockQuantity": 13
   },
   {
     "productId": "ab2c231e-2a8b-44d0-8ad2-5c9150a9e1f8",
@@ -726,14 +2256,14 @@
     "stockQuantity": 9
   },
   {
-    "productId": "6e83ccf8-fdd8-4e2c-afb5-885aee010b68",
-    "name": "VCOOL COLA",
+    "productId": "fc3fb1ed-b32d-448c-8d07-596e2df4d0ec",
+    "name": "VCOOL COLA 500ML",
     "price": 3725,
     "stockQuantity": 71
   },
   {
-    "productId": "91a8a809-cd65-46a1-80c9-1d71f2e9e42d",
-    "name": "VCOOL ORANGE",
+    "productId": "1b61b8e9-3ec0-4d53-bd30-16534b9245cc",
+    "name": "VCOOL ORANGE 500ML",
     "price": 3725,
     "stockQuantity": 78
   },
@@ -744,10 +2274,22 @@
     "stockQuantity": 99
   },
   {
-    "productId": "80c6d6d0-93f3-45fc-8042-01763b077253",
-    "name": "VJOY CHOCOLATE 1L",
+    "productId": "16736f62-df02-4fe9-92ef-404b58d61e5a",
+    "name": "VIGOR ENERGY DRINK  500ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "7db1eea9-b848-45a4-8750-a90b29ca7b85",
+    "name": "VIJU VJOY CHOCOLATE  1L",
     "price": 18250,
     "stockQuantity": 52
+  },
+  {
+    "productId": "ed5fda33-7e83-4293-b33a-73e25bb8ba1b",
+    "name": "VIJU VSMARTIC WHEAT 1L",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "63f7122d-0705-4b0c-8583-b7137e265ed7",
@@ -756,16 +2298,34 @@
     "stockQuantity": 49
   },
   {
-    "productId": "ea5955a8-3a28-40de-bcd6-559f303dcc42",
-    "name": "WESSON CANOLA OIL",
-    "price": 100000,
-    "stockQuantity": 1
+    "productId": "41c5d273-317f-4634-b994-7b849c19ee71",
+    "name": "WATERMELON BUBBLE GUM 3000 PUFFS NERD",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
-    "productId": "728adab6-d27c-4581-abbe-020500ed1b36",
-    "name": "WHEAT 500ML",
+    "productId": "ca402f29-0c1c-466f-90ae-531d4ae31c60",
+    "name": "WHEAT VIJU 320ML",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "b2a2cbb8-43f8-49ee-842b-4784e6edcf65",
+    "name": "WHEAT VIJU 500ML",
     "price": 10625,
     "stockQuantity": 33
+  },
+  {
+    "productId": "0ee91c90-c161-4d40-9bff-2deeeade89de",
+    "name": "WHITE PRAWN CRACKERS JUST 227G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "70e5bbbd-3906-4e2f-8abf-2ace90113677",
+    "name": "WHITE SWEET WINE GRAND MOSCATO 750ML",
+    "price": 0,
+    "stockQuantity": 0
   },
   {
     "productId": "3005fbce-1252-4cdd-98cd-ed93aed5ed26",
@@ -780,39 +2340,39 @@
     "stockQuantity": 128
   },
   {
+    "productId": "7a7b38f2-0fdf-4552-b555-8bdedf181438",
+    "name": "WOWSTICKS CORN SNACK BANANA FLAVOUR  60g",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
+    "productId": "8696ade5-a4ee-4ad7-8724-b1e0758e2738",
+    "name": "YEAST INSTANT DRY STK ROYAL 125G",
+    "price": 0,
+    "stockQuantity": 0
+  },
+  {
     "productId": "f9e03988-1057-48b9-8dfc-2587421d553f",
     "name": "YEAST INSTANT DRY STK ROYAL 500G",
     "price": 75000,
     "stockQuantity": 2
   },
   {
-    "productId": "09f31cde-1702-43ca-a5f7-4612cf31f775",
-    "name": "YUGO YOGURT APPLE 3300ML",
-    "price": 5687.5,
-    "stockQuantity": 92
-  },
-  {
-    "productId": "61f43d26-51f5-4bc5-8236-965734ef67dc",
-    "name": "YUGO YOGURT APPLE 500ML",
-    "price": 7625,
-    "stockQuantity": 48
+    "productId": "daabc29c-fa53-49df-bbf3-712d85f1621d",
+    "name": "YOGHURT PLAIN SWEET VIJU 500ml",
+    "price": 6875,
+    "stockQuantity": 56
   },
   {
     "productId": "99c11544-73cc-4932-bca2-0399b866717b",
     "name": "YUGO YOGURT BANANA 3300ML",
     "price": 5687.5,
-    "stockQuantity": 55
-  },
-  {
-    "productId": "4110a50e-b506-4825-b53a-05c57fd0c214",
-    "name": "YUGO YOGURT BANANA 500ML",
-    "price": 7625,
-    "stockQuantity": 54
+    "stockQuantity": 92
   },
   {
     "productId": "4febb399-6f1b-4eef-92f6-4534965c54f4",
     "name": "YUGO YOGURT MIXED 500ML",
-    "price": 7625,
-    "stockQuantity": 15
+    "price": 0,
+    "stockQuantity": 54
   }
 ]

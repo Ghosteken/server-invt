@@ -294,5 +294,77 @@
     "message": "Processed manual invoice for Alice; updated 0 product(s).",
     "timestamp": "2025-11-06T23:41:42.706Z",
     "actorUserId": "tester"
+  },
+  {
+    "id": "1762539538345-zihsqh",
+    "type": "product",
+    "message": "Imported 448 products from Excel (processed 512)",
+    "timestamp": "2025-11-07T18:18:58.345Z"
+  },
+  {
+    "id": "1762541302558-p09mfi",
+    "type": "product",
+    "message": "Imported 0 products from Excel (processed 512)",
+    "timestamp": "2025-11-07T18:48:22.558Z"
+  },
+  {
+    "id": "1762541391128-k6lww1",
+    "type": "product",
+    "message": "Imported 0 products from Excel (processed 512)",
+    "timestamp": "2025-11-07T18:49:51.128Z"
+  },
+  {
+    "id": "1762541502463-dfmw13",
+    "type": "product",
+    "message": "Imported 14 products from Excel (processed 512)",
+    "timestamp": "2025-11-07T18:51:42.463Z"
+  },
+  {
+    "id": "1762541569847-zff7sw",
+    "type": "product",
+    "message": "Imported 8 products from Excel (processed 512)",
+    "timestamp": "2025-11-07T18:52:49.847Z"
+  },
+  {
+    "id": "1762541617566-adxuh9",
+    "type": "product",
+    "message": "Imported 9 products from Excel (processed 512)",
+    "timestamp": "2025-11-07T18:53:37.566Z"
+  },
+  {
+    "id": "1762541678065-xqfsxk",
+    "type": "product",
+    "message": "Imported 7 products from Excel (processed 512)",
+    "timestamp": "2025-11-07T18:54:38.065Z"
+  },
+  {
+    "id": "1762541723109-5qyd7r",
+    "type": "product",
+    "message": "Imported 6 products from Excel (processed 512)",
+    "timestamp": "2025-11-07T18:55:23.109Z"
+  },
+  {
+    "id": "1762542745991-7dd9ce",
+    "type": "product",
+    "message": "Imported 7 products from Excel (processed 512)",
+    "timestamp": "2025-11-07T19:12:25.991Z"
+  },
+  {
+    "id": "1762542795227-gfhega",
+    "type": "product",
+    "message": "Imported 6 products from Excel (processed 512)",
+    "timestamp": "2025-11-07T19:13:15.227Z"
+  },
+  {
+    "id": "1762543852950-6n46bj",
+    "type": "product",
+    "message": "Imported 5 products from Excel (processed 512)",
+    "timestamp": "2025-11-07T19:30:52.950Z"
+  },
+  {
+    "id": "1762544546242-xl7lta",
+    "type": "product",
+    "message": "Imported 4 products from Excel (processed 512)",
+    "timestamp": "2025-11-07T19:42:26.242Z"
   }
 ]

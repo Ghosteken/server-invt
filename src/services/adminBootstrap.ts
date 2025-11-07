@@ -1,11 +1,12 @@
-import prisma from "../db/prisma";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
 
 // Ensure an admin user exists and matches configured credentials.
 // Call this on server startup to keep admin in sync with environment.
 export async function ensureAdminUser() {
-// Use shared Prisma client
+  // Use a local Prisma client to avoid disconnecting the shared global client
+  const prisma = new PrismaClient();
   try {
     const configuredEmail = process.env.ADMIN_EMAIL;
     const configuredPassword = process.env.ADMIN_PASSWORD;

@@ -112,7 +112,7 @@ export const updateProduct = async (
 ): Promise<void> => {
   try {
     const { productId } = req.params;
-    const { name, price, purchasePrice, stockQuantity, expiryDate, category, description, packSize } = req.body;
+    const { name, price, purchasePrice, stockQuantity, expiryDate, category, description, packSize, barcode } = req.body;
 
     const existing = await prisma.products.findUnique({ where: { productId } });
     if (!existing) {
@@ -140,6 +140,7 @@ export const updateProduct = async (
     if (category !== undefined) data.category = category ?? null;
     if (description !== undefined) data.description = description ?? null;
     if (packSize !== undefined) data.packSize = packSize ?? null;
+    if (barcode !== undefined) data.barcode = barcode ?? null;
 
     const updated = await prisma.products.update({ where: { productId }, data });
     try {
@@ -197,6 +198,7 @@ export const exportProductsExcel = async (
       ProductId: p.productId,
       SKU: p.productId, // use ProductId as SKU for export (no separate sku field)
       ProductDescription: p.name,
+      Barcode: p.barcode ?? "",
       PackSize: p.packSize ?? "",
       Category: p.category ?? "",
       PurchasePrice: p.purchasePrice ?? "",
@@ -210,6 +212,7 @@ export const exportProductsExcel = async (
       "ProductId",
       "SKU",
       "ProductDescription",
+      "Barcode",
       "PackSize",
       "Category",
       "PurchasePrice",
@@ -465,7 +468,7 @@ export const importProducts = async (
     };
 
     let currentCategory: string | null = null;
-    const productsToInsert = rows
+    let productsToInsert = rows
       .map((row) => {
         const keys = Object.keys(row);
         const kv: Record<string, any> = {};
@@ -477,9 +480,11 @@ export const importProducts = async (
         }
 
         const productId = kv["productid"] ?? kv["id"] ?? kv["sku"] ?? randomUUID();
+        const barcodeRaw = kv["barcode"] ?? kv["bar code"] ?? kv["ean"] ?? kv["upc"] ?? kv["bar-code"] ?? null;
         // Support description-driven files; if name missing but description present, use description as name and also store description
-        const description = kv["product description"] ?? kv["description"] ?? null;
-        const name = kv["name"] ?? description;
+        const description = kv["product description"] ?? kv["productdescription"] ?? kv["description"] ?? null;
+        // Accept common headers: "Name", "Product", "Product Name", and also "ProductDescription" from our own export
+        const name = kv["name"] ?? kv["product"] ?? kv["product name"] ?? kv["product description"] ?? kv["productdescription"] ?? description;
         // Support multiple price header variants
         const priceRaw = kv["price"] ?? kv["unit price"] ?? kv["selling price"] ?? kv["sales price"] ?? kv["amount"];
         // Optional purchase price (cost) variants
@@ -538,6 +543,7 @@ export const importProducts = async (
           category: (category ? String(category) : (currentCategory ? String(currentCategory) : null)),
           description: description ? String(description) : null,
           packSize: packSize ? String(packSize) : null,
+          barcode: barcodeRaw ? String(barcodeRaw).trim() : null,
         } as {
           productId: string;
           name: string;
@@ -548,6 +554,7 @@ export const importProducts = async (
           category: string | null;
           description: string | null;
           packSize: string | null;
+          barcode: string | null;
         };
       })
       .filter(Boolean) as Array<{
@@ -560,23 +567,84 @@ export const importProducts = async (
         category: string | null;
         description: string | null;
         packSize: string | null;
+        barcode: string | null;
       }>;
 
     if (!productsToInsert.length) {
-      res.status(400).json({ message: "No valid product rows found in the sheet." });
-      return;
+      // Fallback parser: handle files laid out strictly as positional columns without headers
+      // Expected order: [Barcode, Category, Product, Pack Size]
+      try {
+        const matrix = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null }) as any[][];
+        const dataRows = Array.isArray(matrix) ? matrix.filter(r => Array.isArray(r) && r.length >= 3) : [];
+        // If the first row contains header-like values, skip it
+        const looksLikeHeader = dataRows.length && (
+          /barcode/i.test(String(dataRows[0][0] ?? '')) ||
+          /category/i.test(String(dataRows[0][1] ?? '')) ||
+          /product/i.test(String(dataRows[0][2] ?? ''))
+        );
+        const startIdx = looksLikeHeader ? 1 : 0;
+        const fallbackItems = [] as Array<{
+          productId: string;
+          name: string;
+          price: number;
+          purchasePrice: number | null;
+          stockQuantity: number;
+          expiryDate: Date | null;
+          category: string | null;
+          description: string | null;
+          packSize: string | null;
+          barcode: string | null;
+        }>;
+        for (let i = startIdx; i < dataRows.length; i++) {
+          const r = dataRows[i];
+          const barcodeCell = r[0];
+          const categoryCell = r[1];
+          const productCell = r[2];
+          const packSizeCell = r[3];
+          if (!productCell) continue;
+          fallbackItems.push({
+            productId: randomUUID(),
+            name: String(productCell),
+            price: 0,
+            purchasePrice: null,
+            stockQuantity: 0,
+            expiryDate: null,
+            category: categoryCell ? String(categoryCell) : null,
+            description: null,
+            packSize: packSizeCell ? String(packSizeCell) : null,
+            barcode: barcodeCell ? String(barcodeCell).trim() : null,
+          });
+        }
+        productsToInsert = fallbackItems;
+      } catch (fallbackErr) {
+        console.warn("Fallback parser failed:", fallbackErr);
+      }
+
+      if (!productsToInsert.length) {
+        res.status(400).json({ message: "No valid product rows found in the sheet." });
+        return;
+      }
     }
 
     // Deduplicate by name + packSize: update existing rows; create new for unknown pairs
     const normalizeText = (s: string | null | undefined) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
     const names = Array.from(new Set(productsToInsert.map(p => p.name)));
+    const barcodes = Array.from(new Set(productsToInsert.map(p => p.barcode).filter((b): b is string => !!b)));
     const existingCandidates = await prisma.products.findMany({
       where: { name: { in: names } },
     });
+    const existingByBarcode = barcodes.length
+      ? await prisma.products.findMany({ where: { barcode: { in: barcodes } } })
+      : [];
     const keyOf = (p: { name: string; packSize: string | null }) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`;
     const existingMap = new Map<string, any>();
     for (const p of existingCandidates) {
       existingMap.set(keyOf({ name: p.name, packSize: (p as any).packSize ?? null }), p);
+    }
+    const barcodeMap = new Map<string, any>();
+    for (const p of existingByBarcode) {
+      const bc = (p as any).barcode;
+      if (bc) barcodeMap.set(String(bc).trim(), p);
     }
 
     let insertedCount = 0;
@@ -590,6 +658,7 @@ export const importProducts = async (
       category: string | null;
       description: string | null;
       packSize: string | null;
+      barcode: string | null;
     }> = [];
 
     // Parse optional selective update fields from multipart form (CSV or JSON array)
@@ -614,6 +683,7 @@ export const importProducts = async (
           "category",
           "description",
           "packsize",
+          "barcode",
         ]);
         const selected = arr
           .map(normalizeField)
@@ -625,9 +695,62 @@ export const importProducts = async (
       }
     }
 
+    // Precompute existing categories for similarity matching for new items
+    const existingCategoriesRaw = await prisma.products.findMany({ select: { category: true }, where: { category: { not: null } } });
+    const existingCategories = Array.from(new Set(existingCategoriesRaw.map(r => String(r.category))));
+    const stripPlural = (t: string) => t.replace(/s\b/g, "");
+    const normalizeToken = (t: string) => {
+      let x = t.toLowerCase();
+      if (x === "drinks") x = "drink";
+      if (x === "bitters") x = "bitter";
+      if (x === "liquer") x = "liqueur";
+      if (x === "liquor") x = "liqueur";
+      // generic plural strip
+      if (x.endsWith("s")) x = x.slice(0, -1);
+      return x;
+    };
+    const tokenize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean).map(normalizeToken);
+    const jaccard = (a: string, b: string): number => {
+      const ta = tokenize(a);
+      const tb = tokenize(b);
+      if (!ta.length || !tb.length) return 0;
+      const setA = new Set(ta);
+      const setB = new Set(tb);
+      let inter = 0;
+      for (const t of setA) if (setB.has(t)) inter += 1;
+      const union = setA.size + setB.size - inter;
+      return inter / Math.max(1, union);
+    };
+    const bestCategoryForValue = (value: string): string | null => {
+      let best: { cat: string; score: number } | null = null;
+      for (const cat of existingCategories) {
+        const s = jaccard(value, cat);
+        if (!best || s > best.score) best = { cat, score: s };
+      }
+      return best && best.score >= 0.4 ? best.cat : null; // require minimal similarity
+    };
+    const bestCategoryForName = (name: string): string | null => bestCategoryForValue(name);
+
+    const fuzzyFindExisting = async (item: { name: string; packSize: string | null }) => {
+      const toks = tokenize(item.name);
+      const ors = toks.slice(0, 3).map(tok => ({ name: { contains: tok, mode: "insensitive" as const } }));
+      if (!ors.length) return null;
+      const candidates = await prisma.products.findMany({ where: { OR: ors }, take: 25 });
+      let best: any = null;
+      let bestScore = 0;
+      for (const p of candidates) {
+        const s = jaccard(item.name, p.name) + (normalizeText(item.packSize) === normalizeText((p as any).packSize ?? null) ? 0.15 : 0);
+        if (s > bestScore) { best = p; bestScore = s; }
+      }
+      return bestScore >= 0.6 ? best : null;
+    };
+
     for (const item of productsToInsert) {
       const key = keyOf({ name: item.name, packSize: item.packSize });
-      const existing = existingMap.get(key);
+      let existing = (item.barcode ? barcodeMap.get(String(item.barcode).trim()) : undefined) || existingMap.get(key);
+      if (!existing) {
+        existing = await fuzzyFindExisting({ name: item.name, packSize: item.packSize });
+      }
       if (existing) {
         const dataUpdate: any = {};
         const should = (field: string) => !updateFieldsSet || updateFieldsSet.has(field);
@@ -639,6 +762,7 @@ export const importProducts = async (
         if (should("category")) dataUpdate.category = (existing.category ?? item.category ?? null);
         if (should("description")) dataUpdate.description = item.description ?? existing.description ?? null;
         if (should("packsize")) dataUpdate.packSize = item.packSize ?? existing.packSize ?? null;
+        if (should("barcode")) dataUpdate.barcode = item.barcode ?? existing.barcode ?? null;
         await prisma.products.update({ where: { productId: existing.productId }, data: dataUpdate });
         try {
           const changed: string[] = [];
@@ -655,9 +779,17 @@ export const importProducts = async (
         }
         mergedItemsForJson.push({ ...item, productId: existing.productId });
       } else {
-        await prisma.products.create({ data: item });
+        // For new items, map provided category to closest existing category; otherwise infer from name
+        const newItemData = { ...item } as any;
+        if (newItemData.category) {
+          const mapped = bestCategoryForValue(String(newItemData.category));
+          newItemData.category = mapped ?? newItemData.category;
+        } else {
+          newItemData.category = bestCategoryForName(item.name);
+        }
+        await prisma.products.create({ data: newItemData });
         try {
-          recordFieldUpdates(item.productId, ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize"].filter((f) => (item as any)[f] !== undefined), "import");
+          recordFieldUpdates(item.productId, ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize", "barcode"].filter((f) => (item as any)[f] !== undefined), "import");
         } catch (logErr) {
           console.warn("Failed to log field updates on import create:", logErr);
         }
@@ -669,15 +801,25 @@ export const importProducts = async (
     // After processing import rows, collapse any existing duplicates in DB for the same name+packSize
     try {
       const candidatesForDedupe = await prisma.products.findMany({ where: { name: { in: names } } });
-      const groups = new Map<string, typeof candidatesForDedupe>();
-      for (const p of candidatesForDedupe) {
-        const k = keyOf({ name: p.name, packSize: (p as any).packSize ?? null });
-        const arr = (groups.get(k) as any[]) ?? [];
-        arr.push(p);
-        groups.set(k, arr as any);
+      // Cluster by fuzzy name similarity and identical packSize
+      type Prod = typeof candidatesForDedupe[number] & { packSize?: string | null };
+      const clusters: Prod[][] = [];
+      const samePack = (a: Prod, b: Prod) => normalizeText((a as any).packSize ?? null) === normalizeText((b as any).packSize ?? null);
+      const SIM_THRESHOLD = 0.6;
+      for (const p of candidatesForDedupe as Prod[]) {
+        let placed = false;
+        for (const cluster of clusters) {
+          // If any member is sufficiently similar and pack size matches, place into cluster
+          if (cluster.some(m => samePack(m, p) && jaccard(m.name, p.name) >= SIM_THRESHOLD)) {
+            cluster.push(p);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) clusters.push([p]);
       }
       let dedupedCount = 0;
-      for (const [k, arr] of groups.entries()) {
+      for (const arr of clusters) {
         if (arr.length <= 1) continue;
         // Prefer categorized row as canonical
         arr.sort((a, b) => {
@@ -688,11 +830,15 @@ export const importProducts = async (
           const ae = (a as any).expiryDate ? 1 : 0;
           const be = (b as any).expiryDate ? 1 : 0;
           if (ae !== be) return be - ae;
+          // Prefer having barcode
+          const ab = (a as any).barcode ? 1 : 0;
+          const bb = (b as any).barcode ? 1 : 0;
+          if (ab !== bb) return bb - ab;
           // Otherwise stable
           return 0;
         });
         const canonical = arr[0];
-        // Avoid doubled quantities: keep the highest stock across duplicates
+        // Merge quantities: sum stock across duplicates
         let mergedStock = canonical.stockQuantity ?? 0;
         let mergedCategory = canonical.category ?? null;
         let mergedPrice = canonical.price;
@@ -700,17 +846,19 @@ export const importProducts = async (
         let mergedExpiry = (canonical as any).expiryDate ?? null;
         let mergedDesc = (canonical as any).description ?? null;
         let mergedPack = (canonical as any).packSize ?? null;
+        let mergedBarcode = (canonical as any).barcode ?? null;
 
         for (let i = 1; i < arr.length; i++) {
           const dup = arr[i] as any;
           const dupStock = typeof dup.stockQuantity === "number" ? dup.stockQuantity : 0;
-          mergedStock = Math.max(mergedStock, dupStock);
+          mergedStock = (mergedStock || 0) + (dupStock || 0);
           if (!mergedCategory && dup.category) mergedCategory = dup.category;
           if (typeof dup.price === "number") mergedPrice = dup.price;
           if (dup.purchasePrice != null) mergedPurchase = dup.purchasePrice;
           if (!mergedExpiry && dup.expiryDate) mergedExpiry = dup.expiryDate as Date;
           if (!mergedDesc && dup.description) mergedDesc = dup.description;
           if (!mergedPack && dup.packSize) mergedPack = dup.packSize;
+          if (!mergedBarcode && dup.barcode) mergedBarcode = String(dup.barcode).trim();
         }
 
         await prisma.products.update({
@@ -723,11 +871,134 @@ export const importProducts = async (
             expiryDate: mergedExpiry,
             description: mergedDesc,
             packSize: mergedPack,
+            barcode: mergedBarcode ?? null,
           },
         });
         for (let i = 1; i < arr.length; i++) {
           await prisma.products.delete({ where: { productId: arr[i].productId } });
           dedupedCount += 1;
+        }
+      }
+
+      // Global dedupe across the entire products table to catch legacy duplicates
+      const allProducts = await prisma.products.findMany();
+      type AnyProd = typeof allProducts[number] & { packSize?: string | null, barcode?: string | null };
+      const globalClusters: AnyProd[][] = [];
+      for (const p of allProducts as AnyProd[]) {
+        let placed = false;
+        for (const cluster of globalClusters) {
+          if (cluster.some(m => samePack(m as any, p as any) && jaccard((m as any).name, (p as any).name) >= SIM_THRESHOLD)) {
+            cluster.push(p);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) globalClusters.push([p]);
+      }
+      // Prepare category list for mapping
+      const catRows = await prisma.products.findMany({ where: { category: { not: null } }, select: { category: true } });
+      const categoriesList = Array.from(new Set(catRows.map(r => (r.category as string))));
+      const mapCategory = (val: string | null) => {
+        if (!val) return null;
+        // 1) Split on common separators like '/', '-', '&', ',' and pick the strongest segment
+        // Split by '/', ',', '&', or '-' (hyphen). Place '-' at the end of the class to avoid range.
+        const rawSegments = val.split(/[\/,&-]+/).map(s => s.trim()).filter(Boolean);
+        const singularize = (s: string) => {
+          const parts = s.split(/\s+/);
+          if (parts.length) {
+            const last = parts[parts.length - 1];
+            if (/^[A-Za-z]+s$/i.test(last)) parts[parts.length - 1] = last.slice(0, -1);
+            s = parts.join(" ");
+          }
+          return s;
+        };
+        const segments = rawSegments.length ? rawSegments.map(singularize) : [singularize(val)];
+
+        // 2) If a segment exactly exists in categoriesList (case-insensitive), prefer that
+        const findExact = (s: string) => {
+          const lower = s.toLowerCase();
+          for (const c of categoriesList) {
+            if (c.toLowerCase() === lower) return c;
+          }
+          return null;
+        };
+        for (const seg of segments) {
+          const exact = findExact(seg);
+          if (exact) return exact;
+        }
+
+        // 3) Otherwise, rank by similarity and prefer the shortest best match
+        const ranked = categoriesList
+          .map(c => ({ c, s: Math.max(...segments.map(seg => jaccard(seg, c))) }))
+          .sort((a, b) => {
+            if (a.s !== b.s) return b.s - a.s;
+            return a.c.length - b.c.length;
+          });
+        const top = ranked[0];
+        if (!top || top.s < 0.4) {
+          // 4) If we didn't find a good match, default to the first segment
+          return segments[0];
+        }
+        return top.c;
+      };
+
+      for (const arr of globalClusters) {
+        if (arr.length <= 1) continue;
+        arr.sort((a, b) => {
+          const ac = (a as any).category ? 1 : 0;
+          const bc = (b as any).category ? 1 : 0;
+          if (ac !== bc) return bc - ac;
+          const ab = (a as any).barcode ? 1 : 0;
+          const bb = (b as any).barcode ? 1 : 0;
+          if (ab !== bb) return bb - ab;
+          return 0;
+        });
+        const canonical = arr[0] as AnyProd;
+        let mergedStock = canonical.stockQuantity ?? 0;
+        let mergedCategory = (canonical as any).category ?? null;
+        let mergedPrice = (canonical as any).price;
+        let mergedPurchase = (canonical as any).purchasePrice ?? null;
+        let mergedExpiry = (canonical as any).expiryDate ?? null;
+        let mergedDesc = (canonical as any).description ?? null;
+        let mergedPack = (canonical as any).packSize ?? null;
+        let mergedBarcode = (canonical as any).barcode ?? null;
+        for (let i = 1; i < arr.length; i++) {
+          const dup = arr[i] as any;
+          const dupStock = typeof dup.stockQuantity === "number" ? dup.stockQuantity : 0;
+          mergedStock = (mergedStock || 0) + (dupStock || 0);
+          if (!mergedCategory && dup.category) mergedCategory = dup.category;
+          if (typeof dup.price === "number") mergedPrice = dup.price;
+          if (dup.purchasePrice != null) mergedPurchase = dup.purchasePrice;
+          if (!mergedExpiry && dup.expiryDate) mergedExpiry = dup.expiryDate as Date;
+          if (!mergedDesc && dup.description) mergedDesc = dup.description;
+          if (!mergedPack && dup.packSize) mergedPack = dup.packSize;
+          if (!mergedBarcode && dup.barcode) mergedBarcode = String(dup.barcode).trim();
+        }
+        await prisma.products.update({
+          where: { productId: canonical.productId },
+          data: {
+            stockQuantity: Math.max(0, Math.floor(mergedStock)),
+            category: mapCategory(mergedCategory),
+            price: mergedPrice,
+            purchasePrice: mergedPurchase,
+            expiryDate: mergedExpiry,
+            description: mergedDesc,
+            packSize: mergedPack,
+            barcode: mergedBarcode ?? null,
+          },
+        });
+        for (let i = 1; i < arr.length; i++) {
+          await prisma.products.delete({ where: { productId: arr[i].productId } });
+          dedupedCount += 1;
+        }
+      }
+
+      // Normalize categories for all products, even when not in a duplicate cluster
+      for (const p of allProducts as AnyProd[]) {
+        const current = (p as any).category ?? null;
+        const normalized = mapCategory(current);
+        if (normalized && normalized !== current) {
+          await prisma.products.update({ where: { productId: (p as any).productId }, data: { category: normalized } });
         }
       }
       if (dedupedCount > 0) {
@@ -767,6 +1038,7 @@ export const importProducts = async (
           category: item.category ?? undefined,
           description: item.description ?? undefined,
           packSize: item.packSize ?? undefined,
+          barcode: item.barcode ?? undefined,
         });
       }
       const merged = Array.from(map.values());
@@ -774,6 +1046,11 @@ export const importProducts = async (
     } catch (persistErr) {
       console.warn("Failed to persist imported products to JSON:", persistErr);
     }
+
+    // Clear product search cache so UI sees fresh results immediately
+    try {
+      PRODUCT_SEARCH_CACHE.clear();
+    } catch {}
 
     appendNotification({
       type: "product",
@@ -1319,18 +1596,104 @@ export const getImportSample = async (
   res: Response
 ): Promise<void> => {
   try {
-    // Serve the canonical sample file that defines the expected format
-    const samplePath = path.join(__dirname, "../../assets/full-products.xlsx");
-    if (!fs.existsSync(samplePath)) {
-      res.status(404).json({ message: "Sample file not found at server/assets/full-products.xlsx" });
-      return;
+    // Build a sample Excel by combining current DB products with any missing
+    // items from the server/assets/barcode-products.xlsx file.
+    const products = await prisma.products.findMany({ orderBy: { name: "asc" } });
+
+    const norm = (s: string | null | undefined) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+    const keyOf = (name: string, packSize: string | null | undefined) => `${norm(name)}|${norm(packSize ?? null)}`;
+
+    const rows: any[] = products.map((p) => ({
+      ProductId: p.productId,
+      SKU: p.productId,
+      ProductDescription: p.name,
+      Barcode: (p as any).barcode ?? "",
+      PackSize: (p as any).packSize ?? "",
+      Category: p.category ?? "",
+      PurchasePrice: p.purchasePrice ?? "",
+      SalesPrice: p.price ?? "",
+      Quantity: p.stockQuantity ?? 0,
+      ExpiryDate: p.expiryDate ? new Date(p.expiryDate).toLocaleDateString() : "",
+      Description: (p as any).description ?? "",
+    }));
+
+    const seen = new Set<string>(products.map((p) => keyOf(p.name, (p as any).packSize ?? null)));
+
+    const samplePath = path.join(__dirname, "../../assets/barcode-products.xlsx");
+    if (fs.existsSync(samplePath)) {
+      const workbook = XLSX.read(fs.readFileSync(samplePath), { type: "buffer" });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const incoming: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, { defval: null });
+      const normalizeKey = (k: string) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+
+      const existingCategoriesRaw = await prisma.products.findMany({ select: { category: true }, where: { category: { not: null } } });
+      const existingCategories = Array.from(new Set(existingCategoriesRaw.map((r) => String(r.category))));
+      const similarity = (a: string, b: string): number => {
+        const ta = a.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+        const tb = b.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+        if (!ta.length || !tb.length) return 0;
+        const setA = new Set(ta);
+        let score = 0;
+        for (const t of tb) if (setA.has(t)) score += 1;
+        return score / Math.max(ta.length, tb.length);
+      };
+      const bestCategoryForName = (name: string): string | null => {
+        let best: { cat: string; score: number } | null = null;
+        for (const cat of existingCategories) {
+          const s = similarity(name, cat);
+          if (!best || s > best.score) best = { cat, score: s };
+        }
+        return best && best.score > 0 ? best.cat : null;
+      };
+
+      for (const row of incoming) {
+        const kv: Record<string, any> = {};
+        for (const k of Object.keys(row)) kv[normalizeKey(k)] = row[k];
+        const name = kv["product"] ?? kv["product name"] ?? kv["product description"] ?? kv["productdescription"] ?? kv["name"] ?? null;
+        const packSize = kv["pack size"] ?? kv["packsize"] ?? kv["size"] ?? null;
+        const barcode = kv["barcode"] ?? kv["bar code"] ?? kv["ean"] ?? kv["upc"] ?? null;
+        const category = kv["category"] ?? kv["product category"] ?? null;
+        if (!name) continue;
+        const k = keyOf(String(name), packSize ? String(packSize) : null);
+        if (seen.has(k)) continue;
+        rows.push({
+          ProductId: "",
+          SKU: "",
+          ProductDescription: String(name),
+          Barcode: barcode ? String(barcode).trim() : "",
+          PackSize: packSize ? String(packSize) : "",
+          Category: category ? String(category) : (bestCategoryForName(String(name)) ?? ""),
+          PurchasePrice: "",
+          SalesPrice: "",
+          Quantity: "",
+          ExpiryDate: "",
+          Description: "",
+        });
+      }
     }
-    const buffer = fs.readFileSync(samplePath);
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows, { header: [
+      "ProductId",
+      "SKU",
+      "ProductDescription",
+      "Barcode",
+      "PackSize",
+      "Category",
+      "PurchasePrice",
+      "SalesPrice",
+      "Quantity",
+      "ExpiryDate",
+      "Description",
+    ]});
+    XLSX.utils.book_append_sheet(wb, ws, "Products");
+    const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
-    res.setHeader("Content-Disposition", "attachment; filename=full-products.xlsx");
+    res.setHeader("Content-Disposition", "attachment; filename=barcode-products-updated.xlsx");
     res.status(200).send(buffer);
   } catch (err) {
     console.error("getImportSample error:", err);
@@ -1344,21 +1707,53 @@ export const getPcsSample = async (
   res: Response
 ): Promise<void> => {
   try {
-    const samplePath = path.join(__dirname, "../../assets/PCS.xlsx");
-    if (!fs.existsSync(samplePath)) {
-      res.status(404).json({ message: "PCS sample file not found at server/assets/PCS.xlsx" });
-      return;
-    }
-    const buffer = fs.readFileSync(samplePath);
+    // Dynamically generate PCS sample using current DB products and PCS inventory
+    const pcs = readPcsInventory();
+    const products = await prisma.products.findMany({});
+    const byName = new Map(products.map((p) => [String(p.name).toLowerCase(), p] as const));
+
+    const rows = pcs.map((e) => {
+      const match = byName.get(String(e.name).toLowerCase());
+      return {
+        ProductId: match?.productId ?? "",
+        ProductDescription: e.name,
+        Barcode: (match as any)?.barcode ?? "",
+        PackSize: e.packSize ?? (match as any)?.packSize ?? "",
+        Category: match?.category ?? "",
+        PCSQuantity: e.quantity ?? 0,
+        PurchasePrice: match?.purchasePrice ?? "",
+        SalesPrice: match?.price ?? "",
+        ExpiryDate: match?.expiryDate ? new Date(match.expiryDate).toLocaleDateString() : "",
+        Description: (match as any)?.description ?? "",
+      };
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows, {
+      header: [
+        "ProductId",
+        "ProductDescription",
+        "Barcode",
+        "PackSize",
+        "Category",
+        "PCSQuantity",
+        "PurchasePrice",
+        "SalesPrice",
+        "ExpiryDate",
+        "Description",
+      ],
+    });
+    XLSX.utils.book_append_sheet(wb, ws, "PCS");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
     res.setHeader(
       "Content-Type",
       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     );
-    res.setHeader("Content-Disposition", "attachment; filename=PCS.xlsx");
-    res.status(200).send(buffer);
+    res.setHeader("Content-Disposition", "attachment; filename=PCS-sample.xlsx");
+    res.status(200).send(buf);
   } catch (err) {
     console.error("getPcsSample error:", err);
-    res.status(500).json({ message: "Failed to serve PCS sample file" });
+    res.status(500).json({ message: "Failed to generate PCS sample file" });
   }
 };
 
@@ -1376,24 +1771,28 @@ export const exportPcsExcel = async (
       return {
         ProductId: match?.productId ?? "",
         ProductDescription: e.name,
+        Barcode: (match as any)?.barcode ?? "",
         PackSize: e.packSize ?? match?.packSize ?? "",
         Category: match?.category ?? "",
         PCSQuantity: e.quantity ?? 0,
         PurchasePrice: match?.purchasePrice ?? "",
         SalesPrice: match?.price ?? "",
         ExpiryDate: match?.expiryDate ? new Date(match.expiryDate).toLocaleDateString() : "",
+        Description: (match as any)?.description ?? "",
       };
     });
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows, { header: [
       "ProductId",
       "ProductDescription",
+      "Barcode",
       "PackSize",
       "Category",
       "PCSQuantity",
       "PurchasePrice",
       "SalesPrice",
       "ExpiryDate",
+      "Description",
     ]});
     XLSX.utils.book_append_sheet(wb, ws, "PCS");
     const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });

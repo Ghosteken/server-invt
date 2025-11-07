@@ -35,6 +35,8 @@ model Products {
   category      String?
   description   String?
   packSize      String?
+  // Optional product barcode/EAN/UPC
+  barcode       String?
   // Optional purchase price (cost) from supplier/import sheet
   purchasePrice Float?
   Sales         Sales[]
@@ -44,6 +46,7 @@ model Products {
   @@index([name])
   @@index([category])
   @@index([packSize])
+  @@index([barcode])
 }
 
 model Sales {
