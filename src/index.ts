@@ -21,6 +21,8 @@ import { ensureAdminUser } from "./services/adminBootstrap";
 import settingsRoutes from "./routes/settingsRoutes";
 import purchasesRoutes from "./routes/purchasesRoutes";
 import invoiceRoutes from "./routes/invoiceRoutes";
+import salesAgentRoutes from "./routes/salesAgentRoutes";
+import locationRoutes from "./routes/locationRoutes";
 
 /* CONFIGURATIONS */
 dotenv.config();
@@ -66,12 +68,15 @@ app.use("/settings", settingsRoutes); // http://localhost:8000/settings
 app.use("/store-sales", storeSalesRoutes); // http://localhost:8000/store-sales
 app.use("/invoices", invoiceRoutes); // http://localhost:8000/invoices
 app.use("/purchases", purchasesRoutes); // http://localhost:8000/purchases
+app.use("/sales-agents", salesAgentRoutes); // http://localhost:8000/sales-agents
+app.use("/locations", locationRoutes); // http://localhost:8000/locations
 
 /* SERVER */
 const port = Number(process.env.PORT) || 3001;
 const host = process.env.HOST || "0.0.0.0";
 
 import os from "os";
+import { ensureDefaults } from "./services/bootstrapService";
 
 try {
   const server = app.listen(port, host, () => {
@@ -84,6 +89,8 @@ try {
         console.log(`  ${name} - ${addr.address} (${addr.family})${addr.internal ? ' internal' : ''}`);
       });
     });
+    // Bootstrap defaults for first-run UX
+    ensureDefaults().catch((err) => console.warn("Bootstrap ensureDefaults failed:", err));
   });
 
   // On unexpected errors, log and exit

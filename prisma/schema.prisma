@@ -152,6 +152,9 @@ model Invoices {
   date              DateTime        @default(now())
   location          String // open market, distribution, amagzy global, amagzy global ventures
   salesAgent        String
+  // Optional references to normalized entities
+  locationId        String?
+  salesAgentId      String?
   vatPercent        Float           @default(7.5)
   discountPercent   Float           @default(0)
   paymentTermType   PaymentTermType @default(immediate)
@@ -167,12 +170,17 @@ model Invoices {
   items    InvoiceItems[]
   payments Payments[]
 
+  salesAgentRef SalesAgents? @relation(fields: [salesAgentId], references: [id])
+  locationRef   Locations?   @relation(fields: [locationId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([customerId])
   @@index([date])
   @@index([status])
+  @@index([salesAgentId])
+  @@index([locationId])
 }
 
 model InvoiceItems {
@@ -203,4 +211,25 @@ model Payments {
 
   @@index([invoiceId])
   @@index([customerId])
+}
+
+// Normalized entities for sales agents and invoice locations
+model SalesAgents {
+  id        String    @id
+  name      String
+  mobile    String?
+  email     String?
+  createdAt DateTime  @default(now())
+  invoices  Invoices[]
+
+  @@index([name])
+}
+
+model Locations {
+  id        String    @id
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  invoices  Invoices[]
+
+  @@index([name])
 }

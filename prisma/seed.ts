@@ -2,6 +2,7 @@ import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import fs from "node:fs";
 import path from "node:path";
+import { randomUUID } from "node:crypto";
 import bcrypt from "bcryptjs";
 const prisma = new PrismaClient();
 
@@ -34,6 +35,9 @@ async function main() {
   // To force seeding products, set SEED_PRODUCTS=true in environment.
   const seedProducts = (process.env.SEED_PRODUCTS || "").toLowerCase() === "true";
   const createOrder = [
+    // Seed normalized entities so dropdowns have values
+    "locations.json",
+    "salesAgents.json",
     // Ensure products exist before any FKs reference them
     seedProducts ? "products.json" : undefined,
     "sales.json",
@@ -144,6 +148,17 @@ async function main() {
         // Guard foreign keys for sales/purchases; optionally allow dev-only stubs
         const allowStubs = !isProduction && (process.env.SEED_ALLOW_STUBS || "").toLowerCase() === "true";
         const lowerModel = clientModelName.toLowerCase();
+        // Ensure IDs for normalized entities if not provided
+        if (lowerModel === "locations") {
+          if (!data.id) data.id = randomUUID();
+          if (typeof data.name === "string") data.name = data.name.trim();
+        }
+        if (lowerModel === "salesagents") {
+          if (!data.id) data.id = randomUUID();
+          if (typeof data.name === "string") data.name = data.name.trim();
+          if (data.mobile === undefined) data.mobile = null;
+          if (data.email === undefined) data.email = null;
+        }
         if ((lowerModel === "sales" || lowerModel === "purchases") && data.productId) {
           const pid = String(data.productId);
           const exists = await prisma.products.findUnique({ where: { productId: pid } });

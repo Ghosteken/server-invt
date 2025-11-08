@@ -10,6 +10,8 @@ type CreateInvoiceBody = {
   date?: string;
   location: string;
   salesAgent: string;
+  locationId?: string;
+  salesAgentId?: string;
   vatPercent?: number;
   discountPercent?: number;
   paymentTermType: "immediate" | "due_date";
@@ -56,7 +58,7 @@ async function maybeNotifyDueSoon(inv: { invoiceId: string; customerId: string; 
 export const createInvoice = async (req: Request, res: Response): Promise<void> => {
   try {
     const body: CreateInvoiceBody = req.body || {};
-    const { customerId, customerName, date, location, salesAgent, vatPercent = 7.5, discountPercent = 0, paymentTermType, dueDate, notes, items } = body;
+    const { customerId, customerName, date, location, salesAgent, locationId, salesAgentId, vatPercent = 7.5, discountPercent = 0, paymentTermType, dueDate, notes, items } = body;
     if (!location || !salesAgent || !Array.isArray(items) || items.length === 0) {
       res.status(400).json({ message: "Missing required fields" });
       return;
@@ -105,13 +107,26 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
 
     const totals = computeTotals(hydrated, vatPercent, discountPercent);
     const invoiceId = randomUUID();
+    // Resolve normalized names if IDs provided
+    let resolvedLocation = location;
+    let resolvedSalesAgent = salesAgent;
+    if (locationId) {
+      const loc = await prisma.locations.findUnique({ where: { id: locationId } });
+      resolvedLocation = loc?.name || location;
+    }
+    if (salesAgentId) {
+      const agent = await prisma.salesAgents.findUnique({ where: { id: salesAgentId } });
+      resolvedSalesAgent = agent?.name || salesAgent;
+    }
     const created = await prisma.invoices.create({
       data: {
         invoiceId,
         customerId: resolvedCustomerId,
         date: date ? new Date(date) : new Date(),
-        location,
-        salesAgent,
+        location: resolvedLocation,
+        salesAgent: resolvedSalesAgent,
+        locationId: locationId || null,
+        salesAgentId: salesAgentId || null,
         vatPercent,
         discountPercent,
         paymentTermType: paymentTermType === "due_date" ? "due_date" : "immediate",
@@ -188,7 +203,19 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
 export const getInvoices = async (req: Request, res: Response): Promise<void> => {
   try {
     const search = (req.query.search || "").toString().trim().toLowerCase();
-    const invoices = await prisma.invoices.findMany({ include: { items: true, payments: true }, orderBy: { date: "desc" } });
+    const agentId = (req.query.agentId || "").toString().trim();
+    const from = req.query.from ? new Date(String(req.query.from)) : undefined;
+    const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+    const where: any = {};
+    if (agentId) {
+      where.OR = [ { salesAgentId: agentId } ];
+    }
+    if (from || to) {
+      where.date = {};
+      if (from) where.date.gte = from;
+      if (to) where.date.lte = to;
+    }
+    const invoices = await prisma.invoices.findMany({ where, include: { items: true, payments: true }, orderBy: { date: "desc" } });
     for (const inv of invoices) {
       await maybeNotifyDueSoon(inv as any, req.user?.userId);
     }
@@ -274,11 +301,29 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
     })) : existing.items;
 
     const totals = computeTotals(updatedItems.map((i) => ({ quantity: i.quantity, unitPrice: i.unitPrice })), vatPercent, discountPercent);
+    // Resolve normalized display names if IDs provided
+    let nextLocation = body.location ?? existing.location;
+    let nextSalesAgent = body.salesAgent ?? existing.salesAgent;
+    let nextLocationId = body.locationId ?? existing.locationId ?? null;
+    let nextSalesAgentId = body.salesAgentId ?? existing.salesAgentId ?? null;
+    if (body.locationId) {
+      const loc = await prisma.locations.findUnique({ where: { id: body.locationId } });
+      nextLocation = loc?.name || nextLocation;
+      nextLocationId = body.locationId;
+    }
+    if (body.salesAgentId) {
+      const agent = await prisma.salesAgents.findUnique({ where: { id: body.salesAgentId } });
+      nextSalesAgent = agent?.name || nextSalesAgent;
+      nextSalesAgentId = body.salesAgentId;
+    }
+
     const updated = await prisma.invoices.update({
       where: { invoiceId: id },
       data: {
-        location: body.location ?? existing.location,
-        salesAgent: body.salesAgent ?? existing.salesAgent,
+        location: nextLocation,
+        salesAgent: nextSalesAgent,
+        locationId: nextLocationId,
+        salesAgentId: nextSalesAgentId,
         // Allow updating the invoice date if provided
         date: body.date ? new Date(body.date) : existing.date,
         vatPercent,
