@@ -32,10 +32,10 @@ export const getCustomers = async (req: Request, res: Response): Promise<void> =
     const productIds = Array.from(new Set(purchases.map(p => p.productId)));
     const products = await prisma.products.findMany({ where: { productId: { in: productIds } }, select: { productId: true, name: true } });
     const nameById = new Map(products.map(p => [p.productId, p.name] as const));
-    const byCustomer = new Map<string, Array<{ productId: string; productName: string; quantity: number; totalCost: number }>>();
+    const byCustomer = new Map<string, Array<{ id: string; productId: string; productName: string; quantity: number; totalCost: number }>>();
     for (const p of purchases) {
       const list = byCustomer.get(p.customerId) || [];
-      list.push({ productId: p.productId, productName: nameById.get(p.productId) || p.productId, quantity: p.quantity, totalCost: p.totalCost });
+      list.push({ id: p.id, productId: p.productId, productName: nameById.get(p.productId) || p.productId, quantity: p.quantity, totalCost: p.totalCost });
       byCustomer.set(p.customerId, list);
     }
 
@@ -55,6 +55,23 @@ export const getCustomers = async (req: Request, res: Response): Promise<void> =
   } catch (error) {
     console.error("getCustomers error:", error);
     res.status(500).json({ message: "Error retrieving customers" });
+  }
+};
+
+// DELETE /customers/purchases/:id - delete a specific customer purchase (customer sale)
+export const deleteCustomerPurchase = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.customerPurchases.findUnique({ where: { id } });
+    if (!existing) {
+      res.status(404).json({ message: "Customer purchase not found" });
+      return;
+    }
+    await prisma.customerPurchases.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (error) {
+    console.error("deleteCustomerPurchase error:", error);
+    res.status(500).json({ message: "Failed to delete customer purchase" });
   }
 };
 

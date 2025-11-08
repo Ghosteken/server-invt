@@ -397,3 +397,53 @@ export const addPayment = async (req: Request, res: Response): Promise<void> => 
     res.status(500).json({ message: "Failed to add payment" });
   }
 };
+
+// DELETE /invoices/:id - delete an invoice and reconcile inventory & related records
+export const deleteInvoice = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const inv = await prisma.invoices.findUnique({ where: { invoiceId: id }, include: { items: true, payments: true } });
+    if (!inv) {
+      res.status(404).json({ message: "Invoice not found" });
+      return;
+    }
+
+    // Revert inventory adjustments and remove customer purchase records linked by timestamp & productId
+    for (const it of inv.items) {
+      const qty = Math.max(0, Number(it.quantity) || 0);
+      if (it.unit === "ctn" && it.productId) {
+        const p = await prisma.products.findUnique({ where: { productId: it.productId } });
+        if (p) {
+          const newQty = Math.max(0, Number(p.stockQuantity) + qty);
+          await prisma.products.update({ where: { productId: it.productId }, data: { stockQuantity: newQty } });
+        }
+      } else if (it.unit === "pcs") {
+        const nameForPcs = String(it.name || "").trim();
+        if (nameForPcs) {
+          await adjustPcsQuantity({ name: nameForPcs, delta: qty });
+        }
+      }
+
+      // Remove any recorded customer purchases for this invoice item (matching customer, date, product)
+      await prisma.customerPurchases.deleteMany({
+        where: {
+          customerId: inv.customerId,
+          timestamp: inv.date,
+          productId: it.productId ?? undefined,
+        },
+      });
+    }
+
+    // Remove dependent records first to satisfy FK constraints
+    await prisma.payments.deleteMany({ where: { invoiceId: id } });
+    await prisma.invoiceItems.deleteMany({ where: { invoiceId: id } });
+
+    await prisma.invoices.delete({ where: { invoiceId: id } });
+    appendNotification({ type: "invoice", message: `Invoice deleted: ${id}`, actorUserId: req.user?.userId });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("deleteInvoice error:", err);
+    const msg = err instanceof Error ? err.message : "Failed to delete invoice";
+    res.status(500).json({ message: msg });
+  }
+};
