@@ -1,6 +1,7 @@
 import { Router } from "express";
 import prisma from "../db/prisma";
 import { readFlags, writeFlags } from "../services/featureFlagsService";
+import { readInvoiceLayout, writeInvoiceLayout } from "../services/invoiceLayoutService";
 
 const router = Router();
 // Use shared Prisma client
@@ -46,6 +47,26 @@ router.put("/features/by-email", async (req, res) => {
     res.json({ userId: user.userId, features });
   } catch (err) {
     res.status(500).json({ message: "Failed to set features" });
+  }
+});
+
+// Invoice layout settings (global)
+router.get("/invoice-layout", async (_req, res) => {
+  try {
+    const layout = readInvoiceLayout();
+    res.json(layout);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to read invoice layout" });
+  }
+});
+
+router.put("/invoice-layout", async (req, res) => {
+  try {
+    const layout = req.body || {};
+    writeInvoiceLayout(layout);
+    res.json(readInvoiceLayout());
+  } catch (err) {
+    res.status(500).json({ message: "Failed to save invoice layout" });
   }
 });
 
