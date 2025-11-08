@@ -4,13 +4,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ensureAdminUser = ensureAdminUser;
-const prisma_1 = __importDefault(require("../db/prisma"));
+const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const node_crypto_1 = require("node:crypto");
 // Ensure an admin user exists and matches configured credentials.
 // Call this on server startup to keep admin in sync with environment.
 async function ensureAdminUser() {
-    // Use shared Prisma client
+    // Use a local Prisma client to avoid disconnecting the shared global client
+    const prisma = new client_1.PrismaClient();
     try {
         const configuredEmail = process.env.ADMIN_EMAIL;
         const configuredPassword = process.env.ADMIN_PASSWORD;
@@ -20,10 +21,10 @@ async function ensureAdminUser() {
         }
         const adminEmail = configuredEmail.toLowerCase().trim();
         const adminPassword = configuredPassword;
-        const existing = await prisma_1.default.users.findFirst({ where: { email: adminEmail } });
+        const existing = await prisma.users.findFirst({ where: { email: adminEmail } });
         const hashedPassword = bcryptjs_1.default.hashSync(String(adminPassword), 10);
         if (!existing) {
-            await prisma_1.default.users.create({
+            await prisma.users.create({
                 data: {
                     userId: (0, node_crypto_1.randomUUID)(),
                     name: "Admin User",
@@ -37,7 +38,7 @@ async function ensureAdminUser() {
         else {
             const passwordMatches = bcryptjs_1.default.compareSync(String(adminPassword), existing.password);
             if (existing.role !== "admin" || !passwordMatches) {
-                await prisma_1.default.users.update({
+                await prisma.users.update({
                     where: { userId: existing.userId },
                     data: { role: "admin", password: hashedPassword },
                 });
@@ -52,6 +53,6 @@ async function ensureAdminUser() {
         console.error("adminBootstrap: failed ensuring admin user", e);
     }
     finally {
-        await prisma_1.default.$disconnect();
+        await prisma.$disconnect();
     }
 }

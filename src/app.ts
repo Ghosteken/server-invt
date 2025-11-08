@@ -17,6 +17,7 @@ import customerRoutes from "./routes/customerRoutes";
 import reportRoutes from "./routes/reportRoutes";
 import storeSalesRoutes from "./routes/storeSalesRoutes";
 import purchasesRoutes from "./routes/purchasesRoutes";
+import invoiceRoutes from "./routes/invoiceRoutes";
 
 export function createApp() {
   dotenv.config();
@@ -61,6 +62,7 @@ export function createApp() {
   app.use("/settings", require("./routes/settingsRoutes").default);
   app.use("/store-sales", storeSalesRoutes);
   app.use("/purchases", purchasesRoutes);
+  app.use("/invoices", invoiceRoutes);
 
   return app;
 }

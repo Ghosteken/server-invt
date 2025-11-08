@@ -1,0 +1,382 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+exports.addPayment = exports.updateInvoice = exports.getInvoiceById = exports.getInvoices = exports.createInvoice = void 0;
+const crypto_1 = require("crypto");
+const prisma_1 = __importDefault(require("../db/prisma"));
+const notificationService_1 = require("../services/notificationService");
+const pcsInventoryService_1 = require("../services/pcsInventoryService");
+function computeTotals(items, vatPercent, discountPercent) {
+    const totalWithoutVAT = items.reduce((acc, it) => acc + it.quantity * it.unitPrice, 0);
+    const discountAmount = discountPercent > 0 ? (totalWithoutVAT * discountPercent) / 100 : 0;
+    const base = Math.max(0, totalWithoutVAT - discountAmount);
+    const vatAmount = vatPercent > 0 ? (base * vatPercent) / 100 : 0;
+    const totalWithVAT = base + vatAmount;
+    return { totalWithoutVAT, vatAmount, totalWithVAT };
+}
+function statusFromPayments(totalWithVAT, paymentsSum) {
+    if (paymentsSum <= 0)
+        return "unpaid";
+    if (paymentsSum >= totalWithVAT)
+        return "paid";
+    return "partial";
+}
+function daysUntil(date) {
+    const now = new Date();
+    const ms = date.getTime() - now.getTime();
+    return Math.ceil(ms / (1000 * 60 * 60 * 24));
+}
+async function maybeNotifyDueSoon(inv, actorUserId) {
+    if (!inv.dueDate)
+        return;
+    if (inv.status === "paid")
+        return;
+    const days = daysUntil(inv.dueDate);
+    if (days === 5 && !inv.dueSoonNotifiedAt) {
+        (0, notificationService_1.appendNotification)({
+            type: "invoice",
+            message: `Invoice ${inv.invoiceId} for customer ${inv.customerId} has 5 days remaining to complete payment`,
+            actorUserId,
+        });
+        await prisma_1.default.invoices.update({ where: { invoiceId: inv.invoiceId }, data: { dueSoonNotifiedAt: new Date() } });
+    }
+}
+const createInvoice = async (req, res) => {
+    try {
+        const body = req.body || {};
+        const { customerId, customerName, date, location, salesAgent, vatPercent = 7.5, discountPercent = 0, paymentTermType, dueDate, notes, items } = body;
+        if (!location || !salesAgent || !Array.isArray(items) || items.length === 0) {
+            res.status(400).json({ message: "Missing required fields" });
+            return;
+        }
+        // Resolve customer
+        let resolvedCustomerId = customerId || "";
+        if (!resolvedCustomerId) {
+            const normalizedName = (customerName || "").trim();
+            if (!normalizedName) {
+                res.status(400).json({ message: "customerName or customerId is required" });
+                return;
+            }
+            const existing = await prisma_1.default.customers.findFirst({ where: { name: normalizedName } });
+            if (existing) {
+                resolvedCustomerId = existing.customerId;
+            }
+            else {
+                const created = await prisma_1.default.customers.create({ data: { customerId: (0, crypto_1.randomUUID)(), name: normalizedName } });
+                resolvedCustomerId = created.customerId;
+            }
+        }
+        // Hydrate items with default prices if missing
+        const hydrated = await Promise.all(items.map(async (it) => {
+            let unitPrice = typeof it.unitPrice === "number" ? it.unitPrice : undefined;
+            let displayName = it.name;
+            if (it.productId) {
+                const p = await prisma_1.default.products.findUnique({ where: { productId: it.productId } });
+                if (p) {
+                    displayName = displayName || p.name;
+                    if (unitPrice === undefined) {
+                        if (it.unit === "pcs") {
+                            const pack = Number((p.packSize || "").replace(/\D+/g, "")) || 1;
+                            unitPrice = p.price / Math.max(pack, 1);
+                        }
+                        else {
+                            unitPrice = p.price;
+                        }
+                    }
+                }
+            }
+            unitPrice = unitPrice ?? 0;
+            const quantity = Math.max(1, Number(it.quantity) || 1);
+            return { productId: it.productId, name: displayName, unit: it.unit, quantity, unitPrice, subtotal: quantity * unitPrice };
+        }));
+        const totals = computeTotals(hydrated, vatPercent, discountPercent);
+        const invoiceId = (0, crypto_1.randomUUID)();
+        const created = await prisma_1.default.invoices.create({
+            data: {
+                invoiceId,
+                customerId: resolvedCustomerId,
+                date: date ? new Date(date) : new Date(),
+                location,
+                salesAgent,
+                vatPercent,
+                discountPercent,
+                paymentTermType: paymentTermType === "due_date" ? "due_date" : "immediate",
+                dueDate: dueDate ? new Date(dueDate) : null,
+                status: "unpaid",
+                totalWithoutVAT: totals.totalWithoutVAT,
+                vatAmount: totals.vatAmount,
+                totalWithVAT: totals.totalWithVAT,
+                notes: notes || null,
+                items: { create: hydrated.map((h) => ({ id: (0, crypto_1.randomUUID)(), productId: h.productId || null, name: h.name, unit: h.unit, quantity: h.quantity, unitPrice: h.unitPrice, subtotal: h.subtotal })) },
+            },
+            include: { items: true, payments: true },
+        });
+        // After creating invoice, deduct stock and record purchases for each item
+        for (const h of hydrated) {
+            const qty = Math.max(0, Number(h.quantity) || 0);
+            const unitPrice = Number(h.unitPrice || 0);
+            const totalCost = unitPrice * qty;
+            if (h.unit === "pcs") {
+                const nameForPcs = (h.name || "").trim();
+                if (nameForPcs) {
+                    // Adjust PCS inventory maintained in JSON store
+                    (0, pcsInventoryService_1.adjustPcsQuantity)({ name: nameForPcs, delta: -qty });
+                }
+                // Record purchase if linked to a product
+                if (h.productId) {
+                    await prisma_1.default.customerPurchases.create({
+                        data: {
+                            id: (0, crypto_1.randomUUID)(),
+                            customerId: resolvedCustomerId,
+                            productId: h.productId,
+                            timestamp: created.date,
+                            quantity: qty,
+                            unitPrice,
+                            totalCost,
+                        },
+                    });
+                }
+            }
+            else {
+                // Carton unit: deduct from product stock (clamped at 0) and record purchase
+                if (h.productId) {
+                    const p = await prisma_1.default.products.findUnique({ where: { productId: h.productId } });
+                    if (p) {
+                        const newQty = Math.max(0, Number(p.stockQuantity) - qty);
+                        await prisma_1.default.products.update({ where: { productId: h.productId }, data: { stockQuantity: newQty } });
+                        await prisma_1.default.customerPurchases.create({
+                            data: {
+                                id: (0, crypto_1.randomUUID)(),
+                                customerId: resolvedCustomerId,
+                                productId: h.productId,
+                                timestamp: created.date,
+                                quantity: qty,
+                                unitPrice,
+                                totalCost,
+                            },
+                        });
+                    }
+                }
+            }
+        }
+        (0, notificationService_1.appendNotification)({ type: "invoice", message: `Invoice created: ${created.invoiceId} (${created.location})`, actorUserId: req.user?.userId });
+        await maybeNotifyDueSoon(created, req.user?.userId);
+        res.status(201).json(created);
+    }
+    catch (err) {
+        console.error("createInvoice error:", err);
+        res.status(500).json({ message: "Failed to create invoice" });
+    }
+};
+exports.createInvoice = createInvoice;
+const getInvoices = async (req, res) => {
+    try {
+        const search = (req.query.search || "").toString().trim().toLowerCase();
+        const invoices = await prisma_1.default.invoices.findMany({ include: { items: true, payments: true }, orderBy: { date: "desc" } });
+        for (const inv of invoices) {
+            await maybeNotifyDueSoon(inv, req.user?.userId);
+        }
+        const customers = await prisma_1.default.customers.findMany({ where: { customerId: { in: Array.from(new Set(invoices.map((i) => i.customerId))) } } });
+        const customerMap = new Map(customers.map((c) => [c.customerId, c.name]));
+        const list = invoices
+            .map((inv) => {
+            const paymentsSum = inv.payments.reduce((acc, p) => acc + p.amount, 0);
+            const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
+            return { ...inv, status, customerName: customerMap.get(inv.customerId) };
+        })
+            .filter((inv) => {
+            if (!search)
+                return true;
+            return (inv.invoiceId.toLowerCase().includes(search) ||
+                (inv.customerName || "").toLowerCase().includes(search) ||
+                inv.location.toLowerCase().includes(search));
+        });
+        res.json({ invoices: list });
+    }
+    catch (err) {
+        console.error("getInvoices error:", err);
+        res.status(500).json({ message: "Failed to load invoices" });
+    }
+};
+exports.getInvoices = getInvoices;
+const getInvoiceById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const inv = await prisma_1.default.invoices.findUnique({ where: { invoiceId: id }, include: { items: true, payments: true } });
+        if (!inv) {
+            res.status(404).json({ message: "Invoice not found" });
+            return;
+        }
+        const paymentsSum = inv.payments.reduce((acc, p) => acc + p.amount, 0);
+        const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
+        res.json({ ...inv, status });
+    }
+    catch (err) {
+        console.error("getInvoiceById error:", err);
+        res.status(500).json({ message: "Failed to load invoice" });
+    }
+};
+exports.getInvoiceById = getInvoiceById;
+const updateInvoice = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const body = req.body || {};
+        const existing = await prisma_1.default.invoices.findUnique({ where: { invoiceId: id }, include: { items: true, payments: true } });
+        if (!existing) {
+            res.status(404).json({ message: "Invoice not found" });
+            return;
+        }
+        const vatPercent = typeof body.vatPercent === "number" ? body.vatPercent : existing.vatPercent;
+        const discountPercent = typeof body.discountPercent === "number" ? body.discountPercent : existing.discountPercent;
+        const updatedItems = body.items ? await Promise.all(body.items.map(async (it) => {
+            let unitPrice = typeof it.unitPrice === "number" ? it.unitPrice : undefined;
+            let displayName = it.name;
+            if (it.productId) {
+                const p = await prisma_1.default.products.findUnique({ where: { productId: it.productId } });
+                if (p) {
+                    displayName = displayName || p.name;
+                    if (unitPrice === undefined) {
+                        if (it.unit === "pcs") {
+                            const pack = Number((p.packSize || "").replace(/\D+/g, "")) || 1;
+                            unitPrice = p.price / Math.max(pack, 1);
+                        }
+                        else {
+                            unitPrice = p.price;
+                        }
+                    }
+                }
+            }
+            unitPrice = unitPrice ?? 0;
+            const quantity = Math.max(1, Number(it.quantity) || 1);
+            return { id: (0, crypto_1.randomUUID)(), productId: it.productId || null, name: displayName, unit: it.unit, quantity, unitPrice, subtotal: quantity * unitPrice };
+        })) : existing.items;
+        const totals = computeTotals(updatedItems.map((i) => ({ quantity: i.quantity, unitPrice: i.unitPrice })), vatPercent, discountPercent);
+        const updated = await prisma_1.default.invoices.update({
+            where: { invoiceId: id },
+            data: {
+                location: body.location ?? existing.location,
+                salesAgent: body.salesAgent ?? existing.salesAgent,
+                vatPercent,
+                discountPercent,
+                paymentTermType: body.paymentTermType ? (body.paymentTermType === "due_date" ? "due_date" : "immediate") : existing.paymentTermType,
+                dueDate: body.dueDate ? new Date(body.dueDate) : existing.dueDate,
+                notes: body.notes ?? existing.notes,
+                totalWithoutVAT: totals.totalWithoutVAT,
+                vatAmount: totals.vatAmount,
+                totalWithVAT: totals.totalWithVAT,
+                items: body.items ? {
+                    deleteMany: { invoiceId: id },
+                    create: updatedItems.map((h) => ({ id: h.id, productId: h.productId || null, name: h.name, unit: h.unit, quantity: h.quantity, unitPrice: h.unitPrice, subtotal: h.subtotal })),
+                } : undefined,
+            },
+            include: { items: true, payments: true },
+        });
+        // Reconcile inventory changes based on item diffs (carton stock and PCS inventory)
+        const prevMap = new Map();
+        for (const it of existing.items) {
+            if (it.unit === "ctn" && it.productId) {
+                prevMap.set(`ctn:${it.productId}`, { qty: (prevMap.get(`ctn:${it.productId}`)?.qty || 0) + Number(it.quantity || 0) });
+            }
+            else if (it.unit === "pcs") {
+                const keyName = String(it.name || "").trim();
+                if (keyName)
+                    prevMap.set(`pcs:${keyName.toLowerCase()}`, { qty: (prevMap.get(`pcs:${keyName.toLowerCase()}`)?.qty || 0) + Number(it.quantity || 0) });
+            }
+        }
+        const nextMap = new Map();
+        for (const it of updated.items) {
+            if (it.unit === "ctn" && it.productId) {
+                const k = `ctn:${it.productId}`;
+                const prev = nextMap.get(k);
+                nextMap.set(k, { qty: (prev?.qty || 0) + Number(it.quantity || 0), unitPrice: it.unitPrice, productId: it.productId || undefined });
+            }
+            else if (it.unit === "pcs") {
+                const keyName = String(it.name || "").trim().toLowerCase();
+                if (!keyName)
+                    continue;
+                const k = `pcs:${keyName}`;
+                const prev = nextMap.get(k);
+                nextMap.set(k, { qty: (prev?.qty || 0) + Number(it.quantity || 0), unitPrice: it.unitPrice, name: it.name });
+            }
+        }
+        const keys = new Set([...prevMap.keys(), ...nextMap.keys()]);
+        let changedCount = 0;
+        for (const k of keys) {
+            const prevQty = prevMap.get(k)?.qty || 0;
+            const nextQty = nextMap.get(k)?.qty || 0;
+            const delta = nextQty - prevQty;
+            if (!delta)
+                continue;
+            changedCount += 1;
+            if (k.startsWith("ctn:")) {
+                const productId = k.slice(4);
+                const p = await prisma_1.default.products.findUnique({ where: { productId } });
+                if (p) {
+                    const newQty = Math.max(0, Number(p.stockQuantity) - delta); // delta>0 deduct; delta<0 add back
+                    await prisma_1.default.products.update({ where: { productId }, data: { stockQuantity: newQty } });
+                    // Record additional purchases only when quantity increases
+                    if (delta > 0) {
+                        const unitPrice = Number(nextMap.get(k)?.unitPrice || p.price);
+                        await prisma_1.default.customerPurchases.create({ data: {
+                                id: (0, crypto_1.randomUUID)(),
+                                customerId: updated.customerId,
+                                productId,
+                                timestamp: updated.date,
+                                quantity: delta,
+                                unitPrice,
+                                totalCost: unitPrice * delta,
+                            } });
+                    }
+                }
+            }
+            else if (k.startsWith("pcs:")) {
+                const name = k.slice(4);
+                (0, pcsInventoryService_1.adjustPcsQuantity)({ name, delta: -delta });
+            }
+        }
+        if (changedCount > 0) {
+            (0, notificationService_1.appendNotification)({ type: "inventory", message: `Reconciled inventory for invoice ${id}; ${changedCount} item group(s) adjusted.`, actorUserId: req.user?.userId });
+        }
+        await maybeNotifyDueSoon(updated, req.user?.userId);
+        res.json(updated);
+    }
+    catch (err) {
+        console.error("updateInvoice error:", err);
+        res.status(500).json({ message: "Failed to update invoice" });
+    }
+};
+exports.updateInvoice = updateInvoice;
+const addPayment = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const body = req.body || {};
+        const inv = await prisma_1.default.invoices.findUnique({ where: { invoiceId: id }, include: { payments: true } });
+        if (!inv) {
+            res.status(404).json({ message: "Invoice not found" });
+            return;
+        }
+        const payment = await prisma_1.default.payments.create({
+            data: {
+                id: (0, crypto_1.randomUUID)(),
+                invoiceId: id,
+                customerId: body.customerId || inv.customerId,
+                date: body.date ? new Date(body.date) : new Date(),
+                amount: Number(body.amount) || 0,
+                bankName: body.bankName,
+                bankAccount: body.bankAccount,
+            },
+        });
+        const paymentsSum = (inv.payments || []).reduce((acc, p) => acc + p.amount, 0) + payment.amount;
+        const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
+        const updatedInv = await prisma_1.default.invoices.update({ where: { invoiceId: id }, data: { status } });
+        (0, notificationService_1.appendNotification)({ type: "invoice", message: `Payment added for invoice ${id}: ₦${payment.amount.toFixed(2)} (${payment.bankName})`, actorUserId: req.user?.userId });
+        res.status(201).json({ payment, invoice: updatedInv });
+    }
+    catch (err) {
+        console.error("addPayment error:", err);
+        res.status(500).json({ message: "Failed to add payment" });
+    }
+};
+exports.addPayment = addPayment;

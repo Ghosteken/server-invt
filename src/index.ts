@@ -20,6 +20,7 @@ import storeSalesRoutes from "./routes/storeSalesRoutes";
 import { ensureAdminUser } from "./services/adminBootstrap";
 import settingsRoutes from "./routes/settingsRoutes";
 import purchasesRoutes from "./routes/purchasesRoutes";
+import invoiceRoutes from "./routes/invoiceRoutes";
 
 /* CONFIGURATIONS */
 dotenv.config();
@@ -63,6 +64,7 @@ app.use("/customers", customerRoutes); // http://localhost:8000/customers
 app.use("/reports", reportRoutes); // http://localhost:8000/reports
 app.use("/settings", settingsRoutes); // http://localhost:8000/settings
 app.use("/store-sales", storeSalesRoutes); // http://localhost:8000/store-sales
+app.use("/invoices", invoiceRoutes); // http://localhost:8000/invoices
 app.use("/purchases", purchasesRoutes); // http://localhost:8000/purchases
 
 /* SERVER */

@@ -26,13 +26,16 @@ async function deleteAllData(orderedFileNames: string[]) {
 
 async function main() {
   const dataDirectory = path.join(__dirname, "seedData");
+  const isProduction = (process.env.NODE_ENV || "").toLowerCase() === "production";
+  const isDestructive = (process.env.SEED_DESTRUCTIVE || "").toLowerCase() === "true";
 
   // Create order: parents before children
   // By default, DO NOT reseed Products to avoid overwriting imported or live data.
   // To force seeding products, set SEED_PRODUCTS=true in environment.
   const seedProducts = (process.env.SEED_PRODUCTS || "").toLowerCase() === "true";
   const createOrder = [
-    // seedProducts ? "products.json" : undefined,
+    // Ensure products exist before any FKs reference them
+    seedProducts ? "products.json" : undefined,
     "sales.json",
     "purchases.json",
     "salesSummary.json",
@@ -45,10 +48,56 @@ async function main() {
   // Delete order: children before parents (reverse of create)
   const deleteOrder = [...createOrder].reverse();
 
-  await deleteAllData(deleteOrder);
+  // Only perform destructive deletes if explicitly allowed
+  if (isDestructive) {
+    await deleteAllData(deleteOrder);
+  } else {
+    console.log("Seed is non-destructive: skipping deleteMany on existing tables");
+  }
+
+  // If we have imported products, upsert them FIRST to satisfy FK constraints in sales/purchases
+  if (seedProducts) {
+    try {
+      const importedPath = path.join(dataDirectory, "importedProducts.json");
+      if (fs.existsSync(importedPath)) {
+        const imported = JSON.parse(fs.readFileSync(importedPath, "utf-8"));
+        for (const item of imported) {
+          try {
+            await prisma.products.upsert({
+              where: { productId: String(item.productId) },
+              update: {
+                name: String(item.name),
+                price: Number(item.price),
+                stockQuantity: Number(item.stockQuantity ?? 0),
+                expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined,
+              },
+              create: {
+                productId: String(item.productId),
+                name: String(item.name),
+                price: Number(item.price),
+                stockQuantity: Number(item.stockQuantity ?? 0),
+                expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined,
+              },
+            });
+          } catch (e) {
+            console.warn("Seed upsert imported product failed:", e);
+          }
+        }
+        console.log("Pre-seeded importedProducts.json into Products table");
+      } else {
+        console.log("No importedProducts.json present; skipping pre-seed for products");
+      }
+    } catch (e) {
+      console.warn("Failed pre-seeding imported products:", e);
+    }
+  }
 
   for (const fileName of createOrder) {
     const filePath = path.join(dataDirectory, fileName);
+    if (!fs.existsSync(filePath)) {
+      console.warn(`Seed file missing, skipping: ${fileName}`);
+      continue;
+    }
     const jsonData = JSON.parse(fs.readFileSync(filePath, "utf-8"));
     const clientModelName = path.basename(fileName, path.extname(fileName));
     const model: any = (prisma as any)[clientModelName];
@@ -69,25 +118,58 @@ async function main() {
         if (!data.role) data.role = "user";
       }
 
-      await model.create({ data });
+      // Use upsert for products to avoid duplicates and ensure FK readiness
+      if (clientModelName.toLowerCase() === "products") {
+        await prisma.products.upsert({
+          where: { productId: String(data.productId) },
+          update: {
+            name: String(data.name),
+            price: Number(data.price),
+            stockQuantity: Number(data.stockQuantity ?? 0),
+          },
+          create: {
+            productId: String(data.productId),
+            name: String(data.name),
+            price: Number(data.price),
+            stockQuantity: Number(data.stockQuantity ?? 0),
+          },
+        });
+      } else {
+        // Guard foreign keys for sales/purchases; optionally allow dev-only stubs
+        const allowStubs = !isProduction && (process.env.SEED_ALLOW_STUBS || "").toLowerCase() === "true";
+        const lowerModel = clientModelName.toLowerCase();
+        if ((lowerModel === "sales" || lowerModel === "purchases") && data.productId) {
+          const pid = String(data.productId);
+          const exists = await prisma.products.findUnique({ where: { productId: pid } });
+          if (!exists) {
+            if (allowStubs) {
+              const name = String(data.name || `Unknown Product ${pid}`);
+              const price = Number(data.unitPrice ?? 0) || 0;
+              try {
+                await prisma.products.upsert({
+                  where: { productId: pid },
+                  update: { name, price, stockQuantity: 0 },
+                  create: { productId: pid, name, price, stockQuantity: 0 },
+                });
+                console.warn("[seed] Created stub product for missing", lowerModel, "productId:", pid);
+              } catch (e) {
+                console.warn("[seed] Failed to create stub product for", lowerModel, "productId", pid, e);
+              }
+            } else {
+              console.warn(`Skipping ${lowerModel} with missing productId ${pid} (SEED_ALLOW_STUBS=false)`);
+              continue;
+            }
+          }
+        }
+        await model.create({ data });
+      }
     }
     console.log(`Seeded ${clientModelName} with data from ${fileName}`);
   }
 
-  // Optionally seed products if SEED_PRODUCTS=true
+  // If SEED_PRODUCTS=true, products.json has already been seeded via createOrder.
+  // Still optionally merge any importedProducts.json into DB if present.
   if (seedProducts) {
-    const productsFilePath = path.join(dataDirectory, "products.json");
-    if (fs.existsSync(productsFilePath)) {
-      const jsonData = JSON.parse(fs.readFileSync(productsFilePath, "utf-8"));
-      // Clear existing products ONLY when explicitly seeding products
-      await prisma.products.deleteMany({});
-      for (const raw of jsonData) {
-        const data: any = { ...raw };
-        await prisma.products.create({ data });
-      }
-      console.log("Seeded products from products.json (SEED_PRODUCTS=true)");
-    }
-    // Also merge any importedProducts.json into DB if present
     const importedPath = path.join(dataDirectory, "importedProducts.json");
     if (fs.existsSync(importedPath)) {
       const imported = JSON.parse(fs.readFileSync(importedPath, "utf-8"));

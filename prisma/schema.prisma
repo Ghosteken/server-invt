@@ -16,32 +16,33 @@ datasource db {
 }
 
 model Users {
-  userId   String @id
-  name     String
-  email    String @unique
-  password String
-  role     String @default("user") // "admin" or "user"
+  userId    String  @id
+  name      String
+  email     String  @unique
+  password  String
+  role      String  @default("user") // "admin" or "user"
   isBlocked Boolean @default(false)
 }
 
 model Products {
-  productId     String      @id
-  name          String
-  price         Float
-  rating        Float?
-  stockQuantity Int
-  expiryDate    DateTime?
+  productId         String              @id
+  name              String
+  price             Float
+  rating            Float?
+  stockQuantity     Int
+  expiryDate        DateTime?
   // New descriptive fields for richer inventory details
-  category      String?
-  description   String?
-  packSize      String?
+  category          String?
+  description       String?
+  packSize          String?
   // Optional product barcode/EAN/UPC
-  barcode       String?
+  barcode           String?
   // Optional purchase price (cost) from supplier/import sheet
-  purchasePrice Float?
-  Sales         Sales[]
-  Purchases     Purchases[]
+  purchasePrice     Float?
+  Sales             Sales[]
+  Purchases         Purchases[]
   CustomerPurchases CustomerPurchases[]
+  InvoiceItems      InvoiceItems[]
 
   @@index([name])
   @@index([category])
@@ -108,25 +109,98 @@ model ExpenseByCategory {
 
 // New models to track invoice deductions and customers
 model Customers {
-  customerId String   @id
+  customerId String              @id
   name       String
   mobile     String?
   address    String?
   city       String?
   state      String?
   country    String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime            @default(now())
   purchases  CustomerPurchases[]
+  invoices   Invoices[]
+  payments   Payments[]
 }
 
 model CustomerPurchases {
-  id         String   @id
+  id         String    @id
   customerId String
   productId  String
-  timestamp  DateTime @default(now())
+  timestamp  DateTime  @default(now())
   quantity   Int
   unitPrice  Float
   totalCost  Float
   customer   Customers @relation(fields: [customerId], references: [customerId])
   product    Products  @relation(fields: [productId], references: [productId])
+}
+
+// New invoice and payment models
+enum InvoiceStatus {
+  unpaid
+  partial
+  paid
+}
+
+enum PaymentTermType {
+  immediate
+  due_date
+}
+
+model Invoices {
+  invoiceId         String          @id
+  customerId        String
+  date              DateTime        @default(now())
+  location          String // open market, distribution, amagzy global, amagzy global ventures
+  salesAgent        String
+  vatPercent        Float           @default(7.5)
+  discountPercent   Float           @default(0)
+  paymentTermType   PaymentTermType @default(immediate)
+  dueDate           DateTime?
+  status            InvoiceStatus   @default(unpaid)
+  totalWithoutVAT   Float           @default(0)
+  vatAmount         Float           @default(0)
+  totalWithVAT      Float           @default(0)
+  notes             String?
+  dueSoonNotifiedAt DateTime?
+
+  customer Customers      @relation(fields: [customerId], references: [customerId])
+  items    InvoiceItems[]
+  payments Payments[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([date])
+  @@index([status])
+}
+
+model InvoiceItems {
+  id        String  @id
+  invoiceId String
+  productId String?
+  name      String
+  unit      String // "ctn" or "pcs"
+  quantity  Int
+  unitPrice Float
+  subtotal  Float
+
+  invoice Invoices  @relation(fields: [invoiceId], references: [invoiceId])
+  product Products? @relation(fields: [productId], references: [productId])
+}
+
+model Payments {
+  id          String   @id
+  invoiceId   String
+  customerId  String
+  date        DateTime @default(now())
+  amount      Float
+  bankName    String
+  bankAccount String
+
+  invoice  Invoices  @relation(fields: [invoiceId], references: [invoiceId])
+  customer Customers @relation(fields: [customerId], references: [customerId])
+
+  @@index([invoiceId])
+  @@index([customerId])
 }
