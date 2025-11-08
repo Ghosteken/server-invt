@@ -1,0 +1,1487 @@
+[
+  {
+    "name": "JUSTRITE",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "JUSTRITE KEMTA",
+    "mobile": "+23409076845299",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE OWO",
+    "mobile": "+234890",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE WAREHOUSE IKEJA",
+    "mobile": "+23411",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE AKOWONJO",
+    "mobile": "+23417",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE IBAFO",
+    "mobile": "+23416",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE OBANTOKO",
+    "mobile": "+23415",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE OTA",
+    "mobile": "+23414",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE OSUN",
+    "mobile": "+23413",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE OJODU",
+    "mobile": "+23412",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE ISOLO",
+    "mobile": "+23410",
+    "netBalanceDue": 1191487
+  },
+  {
+    "name": "JUSTRITE IKORODU",
+    "mobile": "+2349",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE IJU-ISHAGA",
+    "mobile": "+2348",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE GOWON",
+    "mobile": "+2347",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE DOPEMU",
+    "mobile": "+2346",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE BARIGA",
+    "mobile": "+2345",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE AYOBO",
+    "mobile": "+2344",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE ALAKUKO",
+    "mobile": "+2343",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE ABULE-EGBA",
+    "mobile": "+2342",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JUSTRITE ABEOKUTA",
+    "mobile": "+2341",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "PRINCE",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "PRINCE EBANO",
+    "mobile": "+23400",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "PRINCE EBEANO WAREHOUSE",
+    "mobile": "+2343456",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "Prince Ebeano Chevron Drive",
+    "mobile": "+234091",
+    "netBalanceDue": 861000
+  },
+  {
+    "name": "PRINCE EBEANO IKEJA",
+    "mobile": "+234600",
+    "netBalanceDue": 562800
+  },
+  {
+    "name": "PRINCE EBEANO AGWUNGI",
+    "mobile": "+234570",
+    "netBalanceDue": 31200
+  },
+  {
+    "name": "PRINCE EBEANO LEKKI",
+    "mobile": "+234360",
+    "netBalanceDue": 1736400
+  },
+  {
+    "name": "PRINCE EBEANO ONIRU",
+    "mobile": "+234280",
+    "netBalanceDue": 1527600
+  },
+  {
+    "name": "PRINCE EBEANO AGUNGI LEKKI",
+    "mobile": "+234260",
+    "netBalanceDue": 469100
+  },
+  {
+    "name": "PRINCE EBEANO DORHALTY",
+    "mobile": "+234220",
+    "netBalanceDue": 1545150
+  },
+  {
+    "name": "SPAR",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "SPAR MARKET, PORT HARCOURT",
+    "mobile": "+23408188249651",
+    "netBalanceDue": 3910205
+  },
+  {
+    "name": "SPAR MARKET, ENUGU",
+    "mobile": "+23408089959926",
+    "netBalanceDue": 3804317.5
+  },
+  {
+    "name": "SPAR MARKET, CALABAR",
+    "mobile": "+23407056773806",
+    "netBalanceDue": 3804317.5
+  },
+  {
+    "name": "SPAR MARKET, WUSE",
+    "mobile": "+23407032779225",
+    "netBalanceDue": 2975385
+  },
+  {
+    "name": "SPAR MARKET, LIFECAMP",
+    "mobile": "+23408112490593",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "SPAR MARKET, CEDDI PLAZA",
+    "mobile": "+234264",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "SPAR MARKET, ILUPEJU MUSHIN",
+    "mobile": "+23407034946092",
+    "netBalanceDue": 5413991.34
+  },
+  {
+    "name": "SPAR MARKET ISOLO WAREHOUSE",
+    "mobile": "+23407069132814",
+    "netBalanceDue": 13543484.2
+  },
+  {
+    "name": "SPAR MARKET, VICTORIA ISLAND",
+    "mobile": "+23408032737052",
+    "netBalanceDue": 5615132.9
+  },
+  {
+    "name": "SPAR MARKET, OPEBI IKEJA",
+    "mobile": "+23408064953004",
+    "netBalanceDue": 4891614.5
+  },
+  {
+    "name": "SPAR MARKET LEKKI",
+    "mobile": "+23409150593911",
+    "netBalanceDue": 5248466.3
+  },
+  {
+    "name": "JENDOL SUPERSTORE",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "JENDOL SUPERSTORE AJAH, LAGOS STATE",
+    "mobile": "+23408182859644",
+    "netBalanceDue": 2604225
+  },
+  {
+    "name": "JENDOL SUPERSTORE OJUORE OTTA",
+    "mobile": "+23476",
+    "netBalanceDue": 715200
+  },
+  {
+    "name": "JENDOL SUPERSTORE IKORODU 2",
+    "mobile": "+23491",
+    "netBalanceDue": 417600
+  },
+  {
+    "name": "JENDOL SUPERSTORES IKORODU",
+    "mobile": "+23490",
+    "netBalanceDue": 1044000
+  },
+  {
+    "name": "JENDOL SUPERSTORE OGUDU",
+    "mobile": "+23456",
+    "netBalanceDue": 175200
+  },
+  {
+    "name": "JENDOL SUPERSTORE MAKOKO",
+    "mobile": "+23418",
+    "netBalanceDue": 69600
+  },
+  {
+    "name": "SUPERSAVER",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "SUPERSAVER LEKKI",
+    "mobile": "+2347780",
+    "netBalanceDue": 313200
+  },
+  {
+    "name": "SUPERSAVER FEMI OKUNNU LEKKI",
+    "mobile": "+2345087",
+    "netBalanceDue": 78000
+  },
+  {
+    "name": "SUPERSAVER IKOSI",
+    "mobile": "+23408056223744",
+    "netBalanceDue": 478200
+  },
+  {
+    "name": "SUPERSAVER SHANGISHA",
+    "mobile": "+2341176",
+    "netBalanceDue": 51000
+  },
+  {
+    "name": "SUPERSAVER MAGODO",
+    "mobile": "+234400",
+    "netBalanceDue": 104400
+  },
+  {
+    "name": "SUPERSAVER KETU",
+    "mobile": "+234390",
+    "netBalanceDue": 39600
+  },
+  {
+    "name": "SUPERSAVER ALAPERE",
+    "mobile": "+234370",
+    "netBalanceDue": 334800
+  },
+  {
+    "name": "SUPERSAVER AGO PALACE",
+    "mobile": "+234270",
+    "netBalanceDue": 188400
+  },
+  {
+    "name": "SUPERSAVER AJAO ESTATE",
+    "mobile": "+234200",
+    "netBalanceDue": 429600
+  },
+  {
+    "name": "BLENCO",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "BLENCO EGBEDA",
+    "mobile": "+2344553",
+    "netBalanceDue": 907200
+  },
+  {
+    "name": "BLENCO EPUTU",
+    "mobile": "+234556",
+    "netBalanceDue": 995600
+  },
+  {
+    "name": "BLENCO LEKKI",
+    "mobile": "+234980",
+    "netBalanceDue": 917600
+  },
+  {
+    "name": "BLENCO SANGOTEDO",
+    "mobile": "+23408058539466",
+    "netBalanceDue": 3920233.26
+  },
+  {
+    "name": "BLENCO ADO ROAD",
+    "mobile": "+234160",
+    "netBalanceDue": 267000
+  },
+  {
+    "name": "SHOPRITE",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "SHOPRITE BENIN",
+    "mobile": "+234300211",
+    "netBalanceDue": 19560372
+  },
+  {
+    "name": "SHOPRITE GALAXY MALL",
+    "mobile": "+23481234",
+    "netBalanceDue": 11185940
+  },
+  {
+    "name": "SHOPRITE CIRCLE MALL LEKKI",
+    "mobile": "+2346480",
+    "netBalanceDue": 15826930
+  },
+  {
+    "name": "Shoprite Abia",
+    "mobile": "+234999",
+    "netBalanceDue": 11222010
+  },
+  {
+    "name": "GLOBUS",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "GLOBUS CHEVY VEIW",
+    "mobile": "+234263",
+    "netBalanceDue": 151800
+  },
+  {
+    "name": "Globus Chevron Drive",
+    "mobile": "+23496",
+    "netBalanceDue": 38400
+  },
+  {
+    "name": "Globus Ikota Complex",
+    "mobile": "+23494",
+    "netBalanceDue": 255600
+  },
+  {
+    "name": "GLOBUS AMUWO FESTAC",
+    "mobile": "+234760",
+    "netBalanceDue": 148500
+  },
+  {
+    "name": "PRINCE SUPERMARKET",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "PRINCE SUPERMARKET FESTAC",
+    "mobile": "+2341188",
+    "netBalanceDue": 4200
+  },
+  {
+    "name": "DE PRINCE SUPERMARKET MAGODO",
+    "mobile": "+2341130",
+    "netBalanceDue": 227500
+  },
+  {
+    "name": "DE PRINCE SUPERMARKET GBAGADA",
+    "mobile": "+23407032817676",
+    "netBalanceDue": 231600
+  },
+  {
+    "name": "AMAGZY",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "AMAGZY GLOBAL VIC LIMIED",
+    "mobile": "+23409034169695",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "AMAGZY GLOBAL VENTURES",
+    "mobile": "+23409033504652",
+    "netBalanceDue": 44835
+  },
+  {
+    "name": "GRAND",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "GRANDELL SUPERMARKET LAGOS STATE",
+    "mobile": "+234080",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "GRAND SQUARE VI",
+    "mobile": "+234500",
+    "netBalanceDue": 132000
+  },
+  {
+    "name": "GRAND SQUARE IKEJA",
+    "mobile": "+234420",
+    "netBalanceDue": 268200
+  },
+  {
+    "name": "HUTOOS SUPERMARKET",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "HUTOOS SUPERMARKET IJU",
+    "mobile": "+234678",
+    "netBalanceDue": 78000
+  },
+  {
+    "name": "HUTOOS SUPERMARKET OGBA",
+    "mobile": "+234259",
+    "netBalanceDue": 445300
+  },
+  {
+    "name": "HUTOOS SUPERMARKET ABULE EGBA",
+    "mobile": "+234258",
+    "netBalanceDue": 86400
+  },
+  {
+    "name": "HYPERCITY",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "HYPERCITY RETAIL LMITED IKOKU",
+    "mobile": "+23407014660647",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "HYPERCITY RETAIL LIMITED NEW GRA",
+    "mobile": "+23408030952633",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "HYPERCITY RETAIL LIMITED OGUNABALI",
+    "mobile": "+23408039409027",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JENDOL SUPERMARKET",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "JENDOL SUPERMARKET ISOLO",
+    "mobile": "+2340098",
+    "netBalanceDue": 248400
+  },
+  {
+    "name": "JENDOL SUPERMARKET EGBEDA",
+    "mobile": "+2346789",
+    "netBalanceDue": 453600
+  },
+  {
+    "name": "JENDOL SUPERMARKET ISHERI",
+    "mobile": "+2346543",
+    "netBalanceDue": 556800
+  },
+  {
+    "name": "MANO",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "MANO TECH LIMITED VICTORIA ISLAND",
+    "mobile": "+234106104",
+    "netBalanceDue": 967599.98
+  },
+  {
+    "name": "Mano Ikeja",
+    "mobile": "+23408086441567",
+    "netBalanceDue": 2124828.88
+  },
+  {
+    "name": "Mano Tech Limited",
+    "mobile": "+2345950",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "MEGA",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "MEGA PLAZA VI",
+    "mobile": "+2342110",
+    "netBalanceDue": 514800
+  },
+  {
+    "name": "MEGAMART CHEVRON",
+    "mobile": "+234990",
+    "netBalanceDue": 113600
+  },
+  {
+    "name": "TEMPLE",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "TEMPLE HILL SANGOTEDO",
+    "mobile": "+234680",
+    "netBalanceDue": 742840
+  },
+  {
+    "name": "TEMPLE HILL MAGODO",
+    "mobile": "+234440",
+    "netBalanceDue": 152600
+  },
+  {
+    "name": "TEMPLE HILL FESTAC",
+    "mobile": "+234210",
+    "netBalanceDue": 168000
+  },
+  {
+    "name": "BLENCO SUPERMARKET",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "BLENCO SUPERMARKET ABULE-EGBA",
+    "mobile": "+234233",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "BLENCO SUPERMARKET ILASAN LEKKI",
+    "mobile": "+2347654",
+    "netBalanceDue": 570343.56
+  },
+  {
+    "name": "CITY SUPERMARKET",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "DELIGHT CITY SUPERMARKET",
+    "mobile": "+23407013116705",
+    "netBalanceDue": 483750
+  },
+  {
+    "name": "GLAMOUR SUPERMARKET",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "GLAMOUR SUPERMARKET LEKKI",
+    "mobile": "+2348765",
+    "netBalanceDue": 48600
+  },
+  {
+    "name": "GLAMOUR SUPERMARKET ABIJO",
+    "mobile": "+2341170",
+    "netBalanceDue": 116400
+  },
+  {
+    "name": "GLOBUS SUPERMARKET",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "GLOBUS SUPERMARKET WAREHOUSE",
+    "mobile": "+234:O7038939522,07062799896,08164633255",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "GLOBUS SUPERMARKET AGO PALACE",
+    "mobile": "+234250",
+    "netBalanceDue": 191200
+  },
+  {
+    "name": "HEALTHRITE",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "HEALTHRITE TEJUOSHO",
+    "mobile": "+2340987",
+    "netBalanceDue": 177600
+  },
+  {
+    "name": "HEALTHRITE PHARMACY SUPERMART SURULERE",
+    "mobile": "+234550",
+    "netBalanceDue": 492500
+  },
+  {
+    "name": "HOSTS SUPERMARKET",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "HOSTS SUPERMARKET, OKOTA BRANCH",
+    "mobile": "+23408026253724",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "LIZZY STORE",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "RASHY LIZZY STORE, AJAH MARKET",
+    "mobile": "+23409072177668",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "OZZY STORE",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "OZZY STORE BIG FEMI OKUNNU RD",
+    "mobile": "+2341112",
+    "netBalanceDue": 358800
+  },
+  {
+    "name": "Ozzy Store Small",
+    "mobile": "+23498",
+    "netBalanceDue": 130800
+  },
+  {
+    "name": "QMB",
+    "mobile": "+23489",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "QMB SUPERMARKET",
+    "mobile": "+23409134131736",
+    "netBalanceDue": 444097.64
+  },
+  {
+    "name": "RYTE",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "RYTE PRICE SUPERMARKET",
+    "mobile": "+23489742",
+    "netBalanceDue": 442785
+  },
+  {
+    "name": "SAHAD",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "SAHAD STORES LTD 2",
+    "mobile": "+23408064010882",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "SHOPPERS",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "SHOPPERS DELIGHT SURULERE",
+    "mobile": "+234810",
+    "netBalanceDue": 19800
+  },
+  {
+    "name": "SHOPPERS DELIGHT VI",
+    "mobile": "+234460",
+    "netBalanceDue": 31200
+  },
+  {
+    "name": "TWINS",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "TWINS FAJA SUPERMARKET IJEGUN 2",
+    "mobile": "+23407012980898",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "UBA",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "UBA PHARMACY & SUPERMARKET ELEGANZA",
+    "mobile": "+23408068154817",
+    "netBalanceDue": 581000
+  },
+  {
+    "name": "UBA Awoyaya",
+    "mobile": "+234141",
+    "netBalanceDue": 709600
+  },
+  {
+    "name": "WINNIE",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "WINNIE SUPERMAKET OGUDU",
+    "mobile": "+2342220",
+    "netBalanceDue": 648000
+  },
+  {
+    "name": "WINNIE PAYLESS OJUDU LAGOS",
+    "mobile": "+234170",
+    "netBalanceDue": 446400
+  },
+  {
+    "name": "JENDOL",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "JENDOL ABULE-EGBA",
+    "mobile": "+23419",
+    "netBalanceDue": 549600
+  },
+  {
+    "name": "CUSTOMERS",
+    "mobile": null,
+    "netBalanceDue": null
+  },
+  {
+    "name": "SYNERGY PACKAGING AND BEVERAGE LIMITED",
+    "mobile": "+23407067956393",
+    "netBalanceDue": 124875
+  },
+  {
+    "name": "cherubim",
+    "mobile": "+2345678999908",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "MUMMY FAVOUR, JAKANDE",
+    "mobile": "234",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "nan",
+    "mobile": "Total:",
+    "netBalanceDue": 651689571.98
+  },
+  {
+    "name": "PJ GLOBAL MART",
+    "mobile": "+23408066855240",
+    "netBalanceDue": 190
+  },
+  {
+    "name": "AROLA SUNLE MAJIK",
+    "mobile": "+23408033188775",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "CHINAL LIMITED - MR DONALD",
+    "mobile": "+23408127642936",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "MRS ADAOBI,AJAH",
+    "mobile": "+23408033256141",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "MR MOHAMMED DUDU,BERGER AJAH",
+    "mobile": "+2340811888277",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "HISTRIPES STORE SANGOTEDO",
+    "mobile": "+23408030477247",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "DIVINE CARE STORE THOMAS ESTATE AJAH",
+    "mobile": "+23408133152342",
+    "netBalanceDue": 101200
+  },
+  {
+    "name": "OLA MUMMY,LAGOS ISLAND",
+    "mobile": "+23408107654966",
+    "netBalanceDue": 9600
+  },
+  {
+    "name": "DARE VENTURE, LAGOS ISLAND",
+    "mobile": "+23408137484654",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "REMI SUPERMARKET",
+    "mobile": "+23408102748481",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "2K SUPERMARKET & PHARMACY",
+    "mobile": "2349128116866",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "MEDIX-PLUS PHARMACY & SUPERSTORE",
+    "mobile": "2349055451634",
+    "netBalanceDue": 270309
+  },
+  {
+    "name": "MUMMY FAVOUR BERGER AJAH",
+    "mobile": "23407035729510",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "CARE LIVES SUPERMARKET,",
+    "mobile": "+23408122924659",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "BONCET PHARMACY & STORE",
+    "mobile": "+23408135923863",
+    "netBalanceDue": 950
+  },
+  {
+    "name": "SIMI VENTURE, AJAH LAGOS STATE",
+    "mobile": "+23408132108555",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "MRS EZE, BERGER JUNCTION AJAH, LAGOS STATE",
+    "mobile": "+23408036006491",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "MADAM VIVIAN BERGER, AJAH LAGOS STATE",
+    "mobile": "+23409068986122",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "LASTPRIZE SUPERMARKET, AMALA JUNCTION FAGBA LAGOS STATE",
+    "mobile": "+23408161150251",
+    "netBalanceDue": 240480
+  },
+  {
+    "name": "MR OLALEKAN CMS MARKET, LAGOS STATE",
+    "mobile": "+23407065337792",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "IYA RITA, BERGER JUNCTION AJAH",
+    "mobile": "+23409161213771",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "MRS GRACE BASSEY",
+    "mobile": "+23407055600739",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "MR TAOFEEQ CMS, LAGOS STATE",
+    "mobile": "+23408027984893",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "SAMBETHEL SUPERMARKET OGBA, LAGOS STATE",
+    "mobile": "+23408034748382",
+    "netBalanceDue": 353469.99
+  },
+  {
+    "name": "TOBA SUPERMARKET SHOMULU, LAGOS STATE",
+    "mobile": "+23408064414224",
+    "netBalanceDue": 76800
+  },
+  {
+    "name": "MR LEKAN",
+    "mobile": "+23408030840560",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "OZZY SUPERSTORE, OGOMBO ROAD AJAH LAGOS STATE",
+    "mobile": "+23407032368525",
+    "netBalanceDue": 43800
+  },
+  {
+    "name": "THE GREAT LIGHT STORES, BABA ADISA",
+    "mobile": "+23407069002375",
+    "netBalanceDue": 16361.25
+  },
+  {
+    "name": "VIJU INDUSTRIES NIGERIA LIMITED",
+    "mobile": "+23408105235353",
+    "netBalanceDue": 22560000
+  },
+  {
+    "name": "MUMMY VICTOR AJAH MARKET",
+    "mobile": "+23434",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "MUMMY LOVE STORE AJAH MARKET",
+    "mobile": "+23409",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "ARBA STORE",
+    "mobile": "+2340961",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "TONIA STORE AJAH",
+    "mobile": "+23409016790401",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "GRACIA PLANTA COMPANY",
+    "mobile": "+2340912",
+    "netBalanceDue": 703125
+  },
+  {
+    "name": "MR SAMUEL IDIMOJU",
+    "mobile": "+23407089969595",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "JOS WINE STORE AJAH MARKET",
+    "mobile": "+2340981",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "TRIPO PHARMACY AGO PALACE WAY",
+    "mobile": "+2340304",
+    "netBalanceDue": 98100
+  },
+  {
+    "name": "MOSTAN SUPERSTORES GBAGADA",
+    "mobile": "+234119",
+    "netBalanceDue": 137700
+  },
+  {
+    "name": "FAI MART SUPERMARKET LAKWE",
+    "mobile": "+2347689",
+    "netBalanceDue": 43800
+  },
+  {
+    "name": "CHI BEST BABA ADISA BUSSTOP LAGOS",
+    "mobile": "+23408164156327",
+    "netBalanceDue": 118250
+  },
+  {
+    "name": "SKYMALL SKYMART",
+    "mobile": "+23409099349740",
+    "netBalanceDue": 242400
+  },
+  {
+    "name": "SHOP & GAIN STORE CONTAINER AWOYAYA",
+    "mobile": "+23407033686890",
+    "netBalanceDue": 129600
+  },
+  {
+    "name": "MUNA SUPERMARKET SANGOTEDO , LAGOS",
+    "mobile": "+234688",
+    "netBalanceDue": 70200
+  },
+  {
+    "name": "GBENGA STORE IGBO-EFON",
+    "mobile": "+2349088",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "BUGIS SUPERMARKET AMUWO FESTAC",
+    "mobile": "+23470186",
+    "netBalanceDue": 78600
+  },
+  {
+    "name": "MR CHINEDU ORI ILE",
+    "mobile": "+2349000",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "GROCERIES 2 GO SUPERMARKET",
+    "mobile": "+23407032504898",
+    "netBalanceDue": 223500
+  },
+  {
+    "name": "ALAEZE STORE AJAH MARKET",
+    "mobile": "+23408037613898",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "VIGO SUPERMARKET OLOKUNLA",
+    "mobile": "+23408029070556",
+    "netBalanceDue": 314145
+  },
+  {
+    "name": "XCLUSIVE SUPERMARKET OLOKUNLA",
+    "mobile": "+23407068301449",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "YAKUBU STORE, AJAH MARKET",
+    "mobile": "+23408144631663",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "BUKOLA STORE, AJAH MARKET",
+    "mobile": "+23408076842851",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "FISCOMART BOGEJI",
+    "mobile": "+23407067290264",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "ALHAJA 2",
+    "mobile": "+23409115157077",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "ALHAJA 1",
+    "mobile": "+23408021210813",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "AVI MARINE SERVICES",
+    "mobile": "+23423",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "SAMPLE PRODUCTS",
+    "mobile": "+23408068001090",
+    "netBalanceDue": 137206.39
+  },
+  {
+    "name": "TOMMAZ ENTERPRISE( OPEN MARKET)",
+    "mobile": "+23408032147314",
+    "netBalanceDue": 35000
+  },
+  {
+    "name": "WAREHOUSE BENIN",
+    "mobile": "+23408033726824",
+    "netBalanceDue": 12176105
+  },
+  {
+    "name": "Glorious",
+    "mobile": "+234677899999",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "foodie",
+    "mobile": "+23495i8069659809",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "FIGO SUPERMARKET OLONKONLA SANGOTEDO",
+    "mobile": "+234789",
+    "netBalanceDue": 27600
+  },
+  {
+    "name": "TRUSTED SUPERMARKET BABADISA",
+    "mobile": "+234333",
+    "netBalanceDue": 204000
+  },
+  {
+    "name": "EMRITE SUPERMARKET OLUKONLA SANGOTEDO",
+    "mobile": "+234256",
+    "netBalanceDue": 27600
+  },
+  {
+    "name": "NOVELLE SUPERMARKET FESTAC",
+    "mobile": "+2348900",
+    "netBalanceDue": 27600
+  },
+  {
+    "name": "6 TO 9 SUPERMARKET GBAGADA",
+    "mobile": "+23456700",
+    "netBalanceDue": 65400
+  },
+  {
+    "name": "FOX BROOK",
+    "mobile": "+234123",
+    "netBalanceDue": 207000
+  },
+  {
+    "name": "BUY MORE SUPERMARKET IKEJA, LAGOS STATE",
+    "mobile": "+23407030103840",
+    "netBalanceDue": 193200
+  },
+  {
+    "name": "EL FOODS SUPERMAARKET",
+    "mobile": "+23408066753340",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "BAKE AND COOK SUPERMARKET",
+    "mobile": "+23407068840677",
+    "netBalanceDue": 301526.75
+  },
+  {
+    "name": "BLUEDAY INDUSTRIES LIMITED",
+    "mobile": "+23408066440376",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "BEST 4 LESS",
+    "mobile": "+234292",
+    "netBalanceDue": 16200
+  },
+  {
+    "name": "DE AREENA SUPERMARKET SURULERE",
+    "mobile": "+234276",
+    "netBalanceDue": 46800
+  },
+  {
+    "name": "EMIRATE SUPERMARKET SANGOTEDO",
+    "mobile": "+234273",
+    "netBalanceDue": 7800
+  },
+  {
+    "name": "SEDA BUK STORE MAGODO",
+    "mobile": "+234125764",
+    "netBalanceDue": 5900
+  },
+  {
+    "name": "HEALTH RITE OMOLE",
+    "mobile": "+234125534",
+    "netBalanceDue": 2255700
+  },
+  {
+    "name": "ONE STOP SUPERMARKET",
+    "mobile": "+23407042094567, 07068840677",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "NEXT CASH & CARRY",
+    "mobile": "+23408035167943",
+    "netBalanceDue": 792812.5
+  },
+  {
+    "name": "AMBER DRINKS LIMITED",
+    "mobile": "+23407026064456.",
+    "netBalanceDue": 6800000
+  },
+  {
+    "name": "HUTOO SUPERMARKET AGEGE",
+    "mobile": "+2345643",
+    "netBalanceDue": 62700
+  },
+  {
+    "name": "TQV SUPERMARKET ADO RD",
+    "mobile": "+23483210",
+    "netBalanceDue": 395400
+  },
+  {
+    "name": "LOVELY MART ADO RD",
+    "mobile": "+2344320",
+    "netBalanceDue": 172850
+  },
+  {
+    "name": "TEEZ MART ABIJOR",
+    "mobile": "+2348910",
+    "netBalanceDue": 415600
+  },
+  {
+    "name": "EMA SUPERMARKET LEKKI",
+    "mobile": "+23489076",
+    "netBalanceDue": 12000
+  },
+  {
+    "name": "OZZYY VILLAGE MARKET MOBIL ROAD",
+    "mobile": "+23478906",
+    "netBalanceDue": 282000
+  },
+  {
+    "name": "SIX TO NINE SUPERMARKET GBAGADA",
+    "mobile": "+234236",
+    "netBalanceDue": 122400
+  },
+  {
+    "name": "PHARM AFFAIRS SUPERMARKET OGUDU",
+    "mobile": "+234134",
+    "netBalanceDue": 222000
+  },
+  {
+    "name": "MCNICHOLS CONSOLIDATED PLC MOWE IBAFOR",
+    "mobile": "+23408052691851",
+    "netBalanceDue": 300000
+  },
+  {
+    "name": "K & P MART SURULERE",
+    "mobile": "+23408134616311",
+    "netBalanceDue": 2300650
+  },
+  {
+    "name": "SS GARDEN CITY MALL",
+    "mobile": "+23479380",
+    "netBalanceDue": 12344260
+  },
+  {
+    "name": "AHLEEYS CONNECT BUSINESS",
+    "mobile": "+23408082331171.",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "ROLCHERP TRUST LIMITED",
+    "mobile": "+2340000",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "AYO SUPERMARKET LESHA SURULERE",
+    "mobile": "+234194",
+    "netBalanceDue": 15600
+  },
+  {
+    "name": "VATICAN BELLS SURULERE",
+    "mobile": "+234193",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "LIFEBACK YABA",
+    "mobile": "+2341191",
+    "netBalanceDue": 31200
+  },
+  {
+    "name": "ABIGAIL SANGOTEDO",
+    "mobile": "+2341190",
+    "netBalanceDue": 115200
+  },
+  {
+    "name": "NOWELL FESTAC",
+    "mobile": "+2341189",
+    "netBalanceDue": 127200
+  },
+  {
+    "name": "BETTER MART ADO ROAD",
+    "mobile": "+2341174",
+    "netBalanceDue": 387000
+  },
+  {
+    "name": "CHITINA SUPERMARKET SURULERE",
+    "mobile": "+2342420",
+    "netBalanceDue": 322200
+  },
+  {
+    "name": "VERTICAL BELLS SURULERE",
+    "mobile": "+2342320",
+    "netBalanceDue": 43200
+  },
+  {
+    "name": "ADEBOWALE SUPERMARKET OJUELEGBA",
+    "mobile": "+2342230",
+    "netBalanceDue": 380400
+  },
+  {
+    "name": "TRIMART SUPERMARKET MARWA LEKKI 1",
+    "mobile": "+2342000",
+    "netBalanceDue": 350200
+  },
+  {
+    "name": "JF SUPERMARKET SANGOTEDO",
+    "mobile": "+2341180",
+    "netBalanceDue": 19800
+  },
+  {
+    "name": "TARGET SUPERMARKET SANGOTEDO",
+    "mobile": "+2341160",
+    "netBalanceDue": 306200
+  },
+  {
+    "name": "LIFEBADE PHARMACY YABA",
+    "mobile": "+2341150",
+    "netBalanceDue": 411600
+  },
+  {
+    "name": "MALLMART YABA",
+    "mobile": "+2341140",
+    "netBalanceDue": 358600
+  },
+  {
+    "name": "Benpat Epe",
+    "mobile": "+234103",
+    "netBalanceDue": 160800
+  },
+  {
+    "name": "Frenchoice Eleko Junction",
+    "mobile": "+234102",
+    "netBalanceDue": 652200
+  },
+  {
+    "name": "MATTORIS SUPERMARKET FRIEND COLONY LEKKI",
+    "mobile": "+2341110",
+    "netBalanceDue": 15600
+  },
+  {
+    "name": "DANNY SUPERMARKET AGUNGI",
+    "mobile": "+2341000",
+    "netBalanceDue": 99600
+  },
+  {
+    "name": "Asa Supermarket Eputu",
+    "mobile": "+234101",
+    "netBalanceDue": 16200
+  },
+  {
+    "name": "Edge Mart",
+    "mobile": "+23499",
+    "netBalanceDue": 157400
+  },
+  {
+    "name": "VTL Store Agungi",
+    "mobile": "+23497",
+    "netBalanceDue": 145800
+  },
+  {
+    "name": "Ironi Supermarket Ikota Complex",
+    "mobile": "+23495",
+    "netBalanceDue": 26800
+  },
+  {
+    "name": "Adeleke Store",
+    "mobile": "+23493",
+    "netBalanceDue": 67200
+  },
+  {
+    "name": "Unique J. Mart",
+    "mobile": "+23492",
+    "netBalanceDue": 182400
+  },
+  {
+    "name": "FGC SUPERMARKET CELESTIAL WAY OGUDU LAGOS",
+    "mobile": "+234970",
+    "netBalanceDue": 37700
+  },
+  {
+    "name": "MAXIAMBI SUPERMARKET LAKUWE",
+    "mobile": "+234920",
+    "netBalanceDue": 26400
+  },
+  {
+    "name": "MONE STONE ELEKO",
+    "mobile": "+234900",
+    "netBalanceDue": 46800
+  },
+  {
+    "name": "REV COLLECTIONS",
+    "mobile": "+234870",
+    "netBalanceDue": 111000
+  },
+  {
+    "name": "AVRO SUPERMARKET SURULERE IJESHA ROAD",
+    "mobile": "+234860",
+    "netBalanceDue": 157800
+  },
+  {
+    "name": "ARENA SUPERMARKET SURULERE",
+    "mobile": "+234830",
+    "netBalanceDue": 274200
+  },
+  {
+    "name": "EGO SUPERMARKET SURULERE",
+    "mobile": "+234800",
+    "netBalanceDue": 260000
+  },
+  {
+    "name": "LEADMART SUPERMARKET FESTAC",
+    "mobile": "+234780",
+    "netBalanceDue": 203400
+  },
+  {
+    "name": "PENNYMART AGO PALACE WAY OSOLO",
+    "mobile": "+234750",
+    "netBalanceDue": 125600
+  },
+  {
+    "name": "ABLE SUPERMARKET AGO PALACE WAY  ISOLO",
+    "mobile": "+234720",
+    "netBalanceDue": 268600
+  },
+  {
+    "name": "PHYMART SUPERMARKET ADO LANGBASA",
+    "mobile": "+234700",
+    "netBalanceDue": 94200
+  },
+  {
+    "name": "MONIMAK PHARMACY & SUPERMARKET LANGOL;A",
+    "mobile": "+234690",
+    "netBalanceDue": 15800
+  },
+  {
+    "name": "MADAM OSSY",
+    "mobile": "+234670",
+    "netBalanceDue": 100800
+  },
+  {
+    "name": "HOME AFFAIRS SUPERMARKET OGUDU",
+    "mobile": "+234650",
+    "netBalanceDue": 31200
+  },
+  {
+    "name": "HOME AFFAIRS GBAGADA",
+    "mobile": "+234620",
+    "netBalanceDue": 32400
+  },
+  {
+    "name": "MULTEKER SUPERMARKET",
+    "mobile": "+234470",
+    "netBalanceDue": 18700
+  },
+  {
+    "name": "RITE PRICE",
+    "mobile": "+234330",
+    "netBalanceDue": 176400
+  },
+  {
+    "name": "SHOP PERFECT ILUPEJU",
+    "mobile": "+234310",
+    "netBalanceDue": 713300
+  },
+  {
+    "name": "IDEAL SUPERMARKET",
+    "mobile": "+234300",
+    "netBalanceDue": 807000
+  },
+  {
+    "name": "MONSTAN SUPERMARKET GBAGUDA",
+    "mobile": "+234190",
+    "netBalanceDue": 279600
+  },
+  {
+    "name": "BUY MORE IKEJA",
+    "mobile": "+234150",
+    "netBalanceDue": 134400
+  },
+  {
+    "name": "CITY BEST THOMAS ESTATE",
+    "mobile": "+23408100424945",
+    "netBalanceDue": 201532.5
+  },
+  {
+    "name": "BL Supermarket Awoyaya",
+    "mobile": "+234140",
+    "netBalanceDue": 338900
+  },
+  {
+    "name": "Edith",
+    "mobile": "+234090",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "Just Rite Supermarket",
+    "mobile": "+234081",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "Atreos Retail Platform Limited",
+    "mobile": "+234888",
+    "netBalanceDue": 0
+  },
+  {
+    "name": "FRESHMART SUPERMARKET AGBOR, DELTA STATE.",
+    "mobile": "+23408039377111",
+    "netBalanceDue": 0
+  }
+]

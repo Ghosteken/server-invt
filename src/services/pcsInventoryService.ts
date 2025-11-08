@@ -79,6 +79,12 @@ export const upsertPcsEntries = (
   return merged;
 };
 
+// Force reloading PCS inventory from disk by clearing cache
+export const reloadPcsInventory = (): PcsEntry[] => {
+  pcsCache = null;
+  return readPcsInventory();
+};
+
 export const adjustPcsQuantity = ({ name, delta }: { name: string; delta: number }): void => {
   const existing = readPcsInventory();
   const key = name.toLowerCase();

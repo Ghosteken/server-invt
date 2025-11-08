@@ -86,6 +86,7 @@ export const importCustomers = async (req: Request, res: Response): Promise<void
     let updated = 0;
     let skippedExisting = 0;
     let skippedDuplicateInFile = 0;
+    const importedSnapshot: Array<{ name: string; mobile?: string | null; netBalanceDue?: number | null }> = [];
     const seenKeys = new Set<string>();
 
     for (const row of rows) {
@@ -97,6 +98,16 @@ export const importCustomers = async (req: Request, res: Response): Promise<void
       const city = kv["city"];
       const state = kv["state"];
       const country = kv["country"];
+      const netBalanceDueRaw = kv["net balance due"] ?? kv["balance"] ?? kv["net due"];
+      const netBalanceDue = (() => {
+        if (netBalanceDueRaw == null) return null;
+        if (typeof netBalanceDueRaw === "number" && Number.isFinite(netBalanceDueRaw)) return netBalanceDueRaw;
+        const s = String(netBalanceDueRaw);
+        const m = s.replace(/[,]/g, "").match(/-?\d+(?:\.\d+)?/);
+        if (!m) return null;
+        const n = Number(m[0]);
+        return Number.isFinite(n) ? n : null;
+      })();
       if (!name) continue;
 
       const normName = String(name).trim().toLowerCase();
@@ -132,6 +143,13 @@ export const importCustomers = async (req: Request, res: Response): Promise<void
         });
         created += 1;
       }
+
+      // Collect snapshot for seed JSON (DB does not store netBalanceDue)
+      importedSnapshot.push({
+        name: String(name).trim(),
+        mobile: mobile ? String(mobile).trim() : null,
+        netBalanceDue,
+      });
     }
 
     // Attempt to parse store/branch mapping from top rows (sample format)
@@ -163,6 +181,35 @@ export const importCustomers = async (req: Request, res: Response): Promise<void
       }
     } catch (e) {
       console.warn("Skipping store/branch parsing during importCustomers:", e);
+    }
+
+    // Persist imported customers to seed JSON for audit and optional future seeding
+    try {
+      const seedDir = path.join(__dirname, "../../prisma/seedData");
+      const outPath = path.join(seedDir, "importedCustomers.json");
+      if (!fs.existsSync(seedDir)) {
+        fs.mkdirSync(seedDir, { recursive: true });
+      }
+      let existing: any[] = [];
+      if (fs.existsSync(outPath)) {
+        try {
+          existing = JSON.parse(fs.readFileSync(outPath, "utf-8"));
+        } catch {
+          existing = [];
+        }
+      }
+      const map = new Map<string, any>();
+      for (const item of existing) {
+        if (item && item.name) map.set(String(item.name).toLowerCase(), item);
+      }
+      for (const item of importedSnapshot) {
+        const key = String(item.name).toLowerCase();
+        map.set(key, item);
+      }
+      const merged = Array.from(map.values());
+      fs.writeFileSync(outPath, JSON.stringify(merged, null, 2), "utf-8");
+    } catch (persistErr) {
+      console.warn("Failed to persist imported customers to JSON:", persistErr);
     }
 
     res.json({ created, updated, skippedExisting, skippedDuplicateInFile });

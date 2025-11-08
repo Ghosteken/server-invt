@@ -7,7 +7,7 @@ const PRODUCT_SEARCH_TTL_MS = 30_000; // 30s TTL
 import { appendNotification } from "../services/notificationService";
 import { syncProductsJsonFromDb, writeEmptyProductsJson, writeEmptyImportedProductsJson } from "../services/productSyncService";
 import { appendCustomerSales } from "../services/customerSalesService";
-import { readPcsInventory, upsertPcsEntries, adjustPcsQuantity } from "../services/pcsInventoryService";
+import { readPcsInventory, upsertPcsEntries, adjustPcsQuantity, reloadPcsInventory } from "../services/pcsInventoryService";
 import { recordFieldUpdates, getLastFieldUpdates } from "../services/productUpdateAuditService";
 import XLSX from "xlsx";
 import fs from "node:fs";
@@ -327,6 +327,17 @@ export const getPcsProducts = async (req: Request, res: Response): Promise<void>
   }
 };
 
+// Reload PCS inventory from disk (useful after external imports)
+export const reloadPcs = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const pcs = reloadPcsInventory();
+    res.json({ reloaded: pcs.length });
+  } catch (err) {
+    console.error("reloadPcs error:", err);
+    res.status(500).json({ message: "Failed to reload PCS inventory" });
+  }
+};
+
 export const importPcsProducts = async (req: Request, res: Response): Promise<void> => {
   try {
     const file = (req as any).file as Express.Multer.File | undefined;
@@ -353,10 +364,22 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       return Number.isFinite(n) ? n : null;
     };
     const incoming: { name: string; quantity: number; packSize?: string | null }[] = [];
+    const importedSnapshot: Array<{
+      productId?: string;
+      name: string;
+      barcode?: string;
+      packSize?: string | null;
+      category?: string;
+      pcsQuantity: number;
+      purchasePrice?: number | null;
+      salesPrice?: number | null;
+      expiryDate?: string | null;
+      description?: string | null;
+    }> = [];
     for (const row of rows) {
       const kv: Record<string, any> = {};
       for (const k of Object.keys(row)) kv[norm(k)] = row[k];
-      let name = kv["name"] ?? kv["product"] ?? kv["item"] ?? kv["product description"] ?? kv["description"];
+      let name = kv["product description"] ?? kv["name"] ?? kv["product"] ?? kv["item"] ?? kv["description"];
       // Fallback: first non-empty string cell as name
       if (!name) {
         const firstStrKey = Object.keys(kv).find((k) => typeof kv[k] === "string" && String(kv[k]).trim().length > 0);
@@ -365,7 +388,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       if (!name) continue;
 
       let qty = coerceNumber(
-        kv["pcs"] ?? kv["quantity"] ?? kv["qty"] ?? kv["pcs qty"] ?? kv["qty pcs"] ?? kv["pcs quantity"] ?? kv["quantity pcs"] ?? kv["pieces"] ?? kv["pcs count"] ?? kv["count pcs"]
+        kv["pcs quantity"] ?? kv["pcs"] ?? kv["quantity"] ?? kv["qty"] ?? kv["pcs qty"] ?? kv["qty pcs"] ?? kv["quantity pcs"] ?? kv["pieces"] ?? kv["pcs count"] ?? kv["count pcs"]
       );
       // Fallback: first numeric-like cell in the row
       if (qty == null) {
@@ -379,11 +402,58 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       }
       // If quantity is still missing, import the item with quantity 0
       if (qty == null) qty = 0;
-      const packSize = kv["pack size"] ?? kv["pack"] ?? null;
+      const packSize = kv["pack size"] ?? kv["pack"] ?? kv["packsize"] ?? null;
+      const productId = kv["productid"] ?? kv["sku"] ?? null;
+      const barcode = kv["barcode"] ?? null;
+      const category = kv["category"] ?? null;
+      const purchasePrice = coerceNumber(kv["purchaseprice"]);
+      const salesPrice = coerceNumber(kv["salesprice"]);
+      const expiryDate = kv["expirydate"] ? String(kv["expirydate"]).trim() : null;
+      const description = kv["description"] ? String(kv["description"]).trim() : null;
+
       incoming.push({ name: String(name).trim(), quantity: Math.max(0, Number(qty)), packSize: packSize ? String(packSize).trim() : null });
+      importedSnapshot.push({
+        productId: productId ? String(productId) : undefined,
+        name: String(name).trim(),
+        barcode: barcode ? String(barcode) : undefined,
+        packSize: packSize ? String(packSize).trim() : null,
+        category: category ? String(category) : undefined,
+        pcsQuantity: Math.max(0, Number(qty)),
+        purchasePrice: purchasePrice ?? null,
+        salesPrice: salesPrice ?? null,
+        expiryDate,
+        description,
+      });
     }
     const merged = upsertPcsEntries(incoming);
     appendNotification({ type: "product", message: `Imported ${incoming.length} PCS products`, actorUserId: req.user?.userId });
+    // Persist imported PCS snapshot to JSON
+    try {
+      const seedDir = path.join(__dirname, "../../prisma/seedData");
+      const outPath = path.join(seedDir, "importedPcs.json");
+      if (!fs.existsSync(seedDir)) fs.mkdirSync(seedDir, { recursive: true });
+      let existing: any[] = [];
+      if (fs.existsSync(outPath)) {
+        try {
+          existing = JSON.parse(fs.readFileSync(outPath, "utf-8"));
+        } catch {
+          existing = [];
+        }
+      }
+      const keyOf = (r: any) => `${String(r.name).toLowerCase()}|${String(r.packSize ?? "").toLowerCase()}`;
+      const map = new Map<string, any>();
+      for (const item of existing) {
+        if (item && item.name) map.set(keyOf(item), item);
+      }
+      for (const item of importedSnapshot) {
+        map.set(keyOf(item), item);
+      }
+      const mergedSnap = Array.from(map.values());
+      fs.writeFileSync(outPath, JSON.stringify(mergedSnap, null, 2), "utf-8");
+    } catch (persistErr) {
+      console.warn("Failed to persist imported PCS snapshot to JSON:", persistErr);
+    }
+
     res.json({ imported: incoming.length, total: merged.length });
   } catch (err) {
     console.error("importPcsProducts error:", err);
