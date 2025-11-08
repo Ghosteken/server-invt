@@ -10,6 +10,8 @@ export type SupplierPurchaseMeta = {
   paymentTerm?: string | null;
   date?: string | null; // ISO string
   dueDate?: string | null; // ISO string
+  // Track purchase unit (ctn or pcs) per entry to support inventory reversal on delete
+  unit?: string | null;
 };
 
 const META_PATH = path.join(__dirname, "../../prisma/seedData/supplierPurchases.json");
@@ -79,6 +81,7 @@ export function upsertSupplierMeta(entry: SupplierPurchaseMeta): void {
     paymentTerm: entry.paymentTerm ?? prev?.paymentTerm ?? null,
     date: entry.date ?? prev?.date ?? null,
     dueDate: entry.dueDate ?? prev?.dueDate ?? null,
+    unit: entry.unit ?? prev?.unit ?? null,
   };
   map.set(entry.purchaseId, next);
   writeSupplierMeta(Array.from(map.values()));

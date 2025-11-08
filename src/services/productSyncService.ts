@@ -33,7 +33,7 @@ export async function syncProductsJsonFromDb(prisma: PrismaClient) {
     ensureSeedDir();
     const products = await prisma.products.findMany({
       orderBy: { name: "asc" },
-      select: { productId: true, name: true, price: true, stockQuantity: true },
+      select: { productId: true, name: true, price: true, stockQuantity: true, category: true, packSize: true, barcode: true },
     });
     fs.writeFileSync(productsJsonPath, JSON.stringify(products, null, 2), "utf-8");
   } catch (e) {

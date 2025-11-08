@@ -70,6 +70,9 @@ async function main() {
                 price: Number(item.price),
                 stockQuantity: Number(item.stockQuantity ?? 0),
                 expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined,
+                category: item.category != null ? String(item.category) : null,
+                packSize: item.packSize != null ? String(item.packSize) : null,
+                barcode: item.barcode != null ? String(item.barcode) : null,
               },
               create: {
                 productId: String(item.productId),
@@ -77,6 +80,9 @@ async function main() {
                 price: Number(item.price),
                 stockQuantity: Number(item.stockQuantity ?? 0),
                 expiryDate: item.expiryDate ? new Date(item.expiryDate) : undefined,
+                category: item.category != null ? String(item.category) : null,
+                packSize: item.packSize != null ? String(item.packSize) : null,
+                barcode: item.barcode != null ? String(item.barcode) : null,
               },
             });
           } catch (e) {
@@ -181,12 +187,18 @@ async function main() {
               name: String(item.name),
               price: Number(item.price),
               stockQuantity: Number(item.stockQuantity),
+              category: item.category != null ? String(item.category) : null,
+              packSize: item.packSize != null ? String(item.packSize) : null,
+              barcode: item.barcode != null ? String(item.barcode) : null,
             },
             create: {
               productId: String(item.productId),
               name: String(item.name),
               price: Number(item.price),
               stockQuantity: Number(item.stockQuantity),
+              category: item.category != null ? String(item.category) : null,
+              packSize: item.packSize != null ? String(item.packSize) : null,
+              barcode: item.barcode != null ? String(item.barcode) : null,
             },
           });
         } catch (e) {

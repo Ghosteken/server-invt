@@ -4,6 +4,8 @@ import { readPcsInventory } from "../services/pcsInventoryService";
 import { withCache } from "../services/cache";
 
 // Use shared Prisma client
+// Only include products currently in inventory: Qty > 0
+const nonInventoryFilter: any = { stockQuantity: { gt: 0 } };
 
 export const getDashboardMetrics = async (
   req: Request,
@@ -21,11 +23,11 @@ export const getDashboardMetrics = async (
         ? envNum
         : 5;
 
-    const totalProducts = await withCache(`metrics:totalProducts`, 60, async () => prisma.products.count());
-    const lowStockCount = await withCache(`metrics:lowStock:${LOW_STOCK_THRESHOLD}`, 60, async () => prisma.products.count({ where: { stockQuantity: { lt: LOW_STOCK_THRESHOLD } } }));
+    const totalProducts = await withCache(`metrics:totalProducts`, 60, async () => prisma.products.count({ where: nonInventoryFilter }));
+    const lowStockCount = await withCache(`metrics:lowStock:${LOW_STOCK_THRESHOLD}`, 60, async () => prisma.products.count({ where: { stockQuantity: { lt: LOW_STOCK_THRESHOLD }, ...nonInventoryFilter } }));
 
     const inventoryValue = await withCache(`metrics:inventoryValue`, 60, async () => {
-      const productsBasic = await prisma.products.findMany({ select: { productId: true, name: true, price: true, stockQuantity: true } });
+      const productsBasic = await prisma.products.findMany({ where: nonInventoryFilter, select: { productId: true, name: true, price: true, stockQuantity: true } });
       return productsBasic.reduce((sum, p) => sum + (Number(p.price) * p.stockQuantity), 0);
     });
 
@@ -55,14 +57,14 @@ export const getDashboardMetrics = async (
     let popularProducts: Array<{ productId: string; name: string; price: number; stockQuantity: number; purchaseCount: number }> = [];
     if (popularGrouped.length) {
       const ids = popularGrouped.map((g) => g.productId);
-      const details = await prisma.products.findMany({ where: { productId: { in: ids } }, select: { productId: true, name: true, price: true, stockQuantity: true } });
+      const details = await prisma.products.findMany({ where: { productId: { in: ids }, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
       popularProducts = details.map((d) => ({
         ...d,
         price: Number(d.price),
         purchaseCount: popularGrouped.find((g) => g.productId === d.productId)?._count.productId || 0,
       }));
     } else {
-      const fallback = await prisma.products.findMany({ take: 5, orderBy: { stockQuantity: 'desc' }, select: { productId: true, name: true, price: true, stockQuantity: true } });
+      const fallback = await prisma.products.findMany({ where: nonInventoryFilter, take: 5, orderBy: { stockQuantity: 'desc' }, select: { productId: true, name: true, price: true, stockQuantity: true } });
       popularProducts = fallback.map((d) => ({ ...d, price: Number(d.price), purchaseCount: 0 }));
     }
 
@@ -107,6 +109,7 @@ export const getLowStockProducts = async (req: Request, res: Response): Promise<
         where: {
           stockQuantity: { lt: threshold },
           ...(search ? { name: { contains: search, mode: 'insensitive' as const } } : {}),
+          ...nonInventoryFilter,
         },
         select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true },
         ...(typeof limit === 'number' ? { take: limit } : {}),
@@ -130,7 +133,7 @@ export const getExpiringProducts = async (req: Request, res: Response): Promise<
     const cutoff = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
     const products = await prisma.products.findMany({
-      where: { expiryDate: { lte: cutoff } },
+      where: { expiryDate: { lte: cutoff }, ...nonInventoryFilter },
       select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true }
     });
     res.set("Cache-Control", "public, max-age=30");
@@ -156,7 +159,7 @@ export const getDeadStockProducts = async (req: Request, res: Response): Promise
     });
     const latestByProduct = new Map<string, Date | null>(grouped.map((g: any) => [g.productId, g._max.timestamp ? new Date(g._max.timestamp) : null]));
 
-    const allProducts = await prisma.products.findMany({ select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true } });
+    const allProducts = await prisma.products.findMany({ where: nonInventoryFilter, select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true } });
     const dead = allProducts.filter(p => {
       const last = latestByProduct.get(p.productId) || null;
       return !last || last < since;

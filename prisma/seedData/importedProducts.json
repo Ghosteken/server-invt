@@ -1,23 +1,5 @@
 [
   {
-    "productId": "4893d552-2295-4e29-b9de-5b625620dcad",
-    "name": "Sample Widget",
-    "price": 12.99,
-    "stockQuantity": 50
-  },
-  {
-    "productId": "9c76b20a-5587-4af1-b124-fd13a68b83f7",
-    "name": "Sample Gadget",
-    "price": 5.5,
-    "stockQuantity": 200
-  },
-  {
-    "productId": "5ea3229e-82ce-400d-a392-36e9d69dbd92",
-    "name": "Example Item",
-    "price": 99,
-    "stockQuantity": 10
-  },
-  {
     "productId": "2bec9503-edbc-4142-b687-ac3ce740c74b",
     "name": "HAZELNUT NUTELLA 160G",
     "price": 20000,

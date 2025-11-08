@@ -41,6 +41,24 @@ export const deletePurchase = async (req: Request, res: Response): Promise<void>
       res.status(404).json({ message: "Purchase not found" });
       return;
     }
+    // Reduce inventory based on stored unit meta (defaults to carton)
+    try {
+      const meta = getSupplierMetaFor(id);
+      const unit = (meta?.unit === "pcs" ? "pcs" : "ctn") as "ctn" | "pcs";
+      const p = await prisma.products.findUnique({ where: { productId: existing.productId } });
+      if (p) {
+        const qty = Math.max(0, Number(existing.quantity) || 0);
+        if (unit === "ctn") {
+          const newQty = Math.max(0, Number(p.stockQuantity) - qty);
+          await prisma.products.update({ where: { productId: existing.productId }, data: { stockQuantity: newQty } });
+        } else {
+          await adjustPcsQuantity({ name: p.name, delta: -qty });
+        }
+      }
+    } catch (e) {
+      // If adjustment fails, continue with delete; log for visibility
+      console.warn("Inventory adjustment on deletePurchase failed", e);
+    }
     await prisma.purchases.delete({ where: { purchaseId: id } });
     res.json({ success: true });
   } catch (err) {
@@ -110,6 +128,7 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
         paymentTerm: paymentTerm ?? null,
         date: date.toISOString(),
         dueDate: dueDate ?? null,
+        unit: it.unit,
       });
       created.push({ purchaseId, productId, quantity, unitCost, totalCost, timestamp: date });
     }

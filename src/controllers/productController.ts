@@ -353,6 +353,35 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       res.status(400).json({ message: "Uploaded sheet is empty." });
       return;
     }
+    // Parse optional selective update fields from multipart form (CSV or JSON array)
+    const rawUpdateFields = (req.body?.updateFields as string | undefined) ?? undefined;
+    let updateFieldsSet: Set<string> | null = null;
+    if (rawUpdateFields && typeof rawUpdateFields === "string") {
+      try {
+        const trimmed = rawUpdateFields.trim();
+        let arr: string[] = [];
+        if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+          arr = JSON.parse(trimmed);
+        } else {
+          arr = trimmed.split(/[,;\s]+/).filter(Boolean);
+        }
+        const allowed = new Set([
+          "name",
+          "packsize",
+          "category",
+          "price",
+          "purchaseprice",
+          "expirydate",
+          "barcode",
+          "description",
+          "pcsquantity",
+        ]);
+        const selected = arr.map((f) => f.toLowerCase()).filter((f) => allowed.has(f));
+        if (selected.length > 0) updateFieldsSet = new Set(selected);
+      } catch {
+        updateFieldsSet = null;
+      }
+    }
     const norm = (k: string) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
     const coerceNumber = (val: any): number | null => {
       if (val === null || val === undefined) return null;
@@ -425,8 +454,69 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
         description,
       });
     }
-    const merged = upsertPcsEntries(incoming);
-    appendNotification({ type: "product", message: `Imported ${incoming.length} PCS products`, actorUserId: req.user?.userId });
+    // Optionally update matching Product records for selected fields
+    try {
+      const should = (field: string) => !updateFieldsSet || updateFieldsSet.has(field);
+      const existingProducts = await prisma.products.findMany({});
+      const keyOf = (r: { name: string; packSize: string | null }) => `${String(r.name).toLowerCase()}|${String(r.packSize ?? "").toLowerCase()}`;
+      const existingByKey = new Map<string, any>();
+      const existingByBarcode = new Map<string, any>();
+      for (const p of existingProducts) {
+        existingByKey.set(keyOf({ name: p.name, packSize: (p as any).packSize ?? null }), p);
+        const bc = (p as any).barcode;
+        if (bc) existingByBarcode.set(String(bc).trim(), p);
+      }
+      for (const item of importedSnapshot) {
+        let target: any = null;
+        if (item.productId) {
+          target = await prisma.products.findUnique({ where: { productId: item.productId } });
+        }
+        if (!target && item.barcode) {
+          target = existingByBarcode.get(String(item.barcode).trim());
+        }
+        if (!target) {
+          target = existingByKey.get(keyOf({ name: item.name, packSize: (item.packSize ?? null) as any }));
+        }
+        if (!target) {
+          target = await prisma.products.findFirst({ where: { name: item.name } });
+        }
+        if (!target) continue;
+        const dataUpdate: any = {};
+        if (should("name") && item.name) dataUpdate.name = item.name;
+        if (should("price") && item.salesPrice != null) dataUpdate.price = Number(item.salesPrice);
+        if (should("purchaseprice") && item.purchasePrice != null) dataUpdate.purchasePrice = Number(item.purchasePrice);
+        if (should("expirydate")) dataUpdate.expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
+        if (should("category")) dataUpdate.category = (target.category ?? item.category ?? null);
+        if (should("description")) dataUpdate.description = item.description ?? target.description ?? null;
+        if (should("packsize")) dataUpdate.packSize = item.packSize ?? target.packSize ?? null;
+        if (should("barcode")) dataUpdate.barcode = item.barcode ?? target.barcode ?? null;
+        if (Object.keys(dataUpdate).length > 0) {
+          const existing = target;
+          const updated = await prisma.products.update({ where: { productId: target.productId }, data: dataUpdate });
+          try {
+            const changed: string[] = [];
+            for (const k of Object.keys(dataUpdate)) {
+              const oldVal = (existing as any)[k];
+              const newVal = (updated as any)[k];
+              const oldNorm = oldVal instanceof Date ? oldVal.getTime() : oldVal;
+              const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
+              if (oldNorm !== newNorm) changed.push(k);
+            }
+            if (changed.length) recordFieldUpdates(target.productId, changed, "import");
+          } catch (logErr) {
+            console.warn("Failed to log field updates on PCS import update:", logErr);
+          }
+        }
+      }
+    } catch (updateErr) {
+      console.warn("Selective product updates on PCS import failed:", updateErr);
+    }
+
+    // Only upsert PCS quantities when selected or when no selection provided
+    const doPcsUpsert = !updateFieldsSet || updateFieldsSet.has("pcsquantity");
+    const merged = doPcsUpsert ? upsertPcsEntries(incoming) : readPcsInventory();
+    const importedCount = doPcsUpsert ? incoming.length : 0;
+    appendNotification({ type: "product", message: `Imported ${importedCount} PCS products`, actorUserId: req.user?.userId });
     // Persist imported PCS snapshot to JSON
     try {
       const seedDir = path.join(__dirname, "../../prisma/seedData");
@@ -454,7 +544,9 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       console.warn("Failed to persist imported PCS snapshot to JSON:", persistErr);
     }
 
-    res.json({ imported: incoming.length, total: merged.length });
+    // Sync JSON snapshot with DB after potential product updates
+    try { await syncProductsJsonFromDb(prisma); } catch {}
+    res.json({ imported: importedCount, total: merged.length });
   } catch (err) {
     console.error("importPcsProducts error:", err);
     res.status(500).json({ message: "Failed to import PCS products" });
