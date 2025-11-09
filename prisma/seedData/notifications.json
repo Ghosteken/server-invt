@@ -52,5 +52,41 @@
     "type": "purchase",
     "message": "Deleted purchase 4f0ad9e7-a888-4e1e-acfe-d881567dd05d",
     "timestamp": "2025-11-09T01:02:01.377Z"
+  },
+  {
+    "id": "1762696047018-fm9n60",
+    "type": "invoice",
+    "message": "Invoice created: 324631c8-1ea6-42d1-91f9-cc52a2eeea53 (Distribution)",
+    "timestamp": "2025-11-09T13:47:27.018Z"
+  },
+  {
+    "id": "1762696187360-70wfdi",
+    "type": "invoice",
+    "message": "Invoice deleted: 324631c8-1ea6-42d1-91f9-cc52a2eeea53",
+    "timestamp": "2025-11-09T13:49:47.360Z"
+  },
+  {
+    "id": "1762696841560-g8vzl0",
+    "type": "invoice",
+    "message": "Invoice created: 375fcf87-2d6d-4f7f-832e-12e3f971c0b4 (Main Warehouse)",
+    "timestamp": "2025-11-09T14:00:41.560Z"
+  },
+  {
+    "id": "1762696894771-ts4596",
+    "type": "invoice",
+    "message": "Invoice deleted: 375fcf87-2d6d-4f7f-832e-12e3f971c0b4",
+    "timestamp": "2025-11-09T14:01:34.771Z"
+  },
+  {
+    "id": "1762696965313-d4askk",
+    "type": "invoice",
+    "message": "Invoice created: 1c25530c-fcd9-4603-88b5-1aaed625f319 (Main Warehouse)",
+    "timestamp": "2025-11-09T14:02:45.313Z"
+  },
+  {
+    "id": "1762697016082-wmu4de",
+    "type": "invoice",
+    "message": "Invoice deleted: 1c25530c-fcd9-4603-88b5-1aaed625f319",
+    "timestamp": "2025-11-09T14:03:36.082Z"
   }
 ]
