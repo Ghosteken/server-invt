@@ -25,7 +25,14 @@ export const getDashboardMetrics = async (
 
     // Total products currently in inventory (stockQuantity > 0)
     const totalProducts = await withCache(`metrics:totalProducts:inventory`, 60, async () => prisma.products.count({ where: nonInventoryFilter }));
-    const lowStockCount = await withCache(`metrics:lowStock:${LOW_STOCK_THRESHOLD}`, 60, async () => prisma.products.count({ where: { stockQuantity: { lte: LOW_STOCK_THRESHOLD }, ...nonInventoryFilter } }));
+    const lowStockCount = await withCache(
+      `metrics:lowStock:${LOW_STOCK_THRESHOLD}`,
+      60,
+      async () =>
+        prisma.products.count({
+          where: { stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
+        })
+    );
 
     const inventoryValue = await withCache(`metrics:inventoryValue`, 60, async () => {
       const productsBasic = await prisma.products.findMany({ where: nonInventoryFilter, select: { productId: true, name: true, price: true, stockQuantity: true } });
@@ -108,9 +115,8 @@ export const getLowStockProducts = async (req: Request, res: Response): Promise<
     const products = await withCache(`lowStock:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
       return prisma.products.findMany({
         where: {
-          stockQuantity: { lte: threshold },
+          stockQuantity: { gt: 0, lte: threshold },
           ...(search ? { name: { contains: search, mode: 'insensitive' as const } } : {}),
-          ...nonInventoryFilter,
         },
         select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true },
         ...(typeof limit === 'number' ? { take: limit } : {}),
@@ -223,6 +229,9 @@ export const getLowStockPcs = async (req: Request, res: Response): Promise<void>
     const low = await withCache(`lowPcs:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
       const pcs = readPcsInventory();
       const filtered = pcs
+        // Only items currently in inventory: quantity > 0
+        .filter((e) => (e.quantity || 0) > 0)
+        // Low-stock threshold: 1..threshold (inclusive)
         .filter((e) => (e.quantity || 0) <= threshold)
         .filter((e) => (search ? e.name.toLowerCase().includes(search) : true))
         .map((e) => ({
