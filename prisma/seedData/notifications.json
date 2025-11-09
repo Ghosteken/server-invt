@@ -22,5 +22,17 @@
     "type": "expense",
     "message": "Deleted expense 92664433-0aef-4a36-bc67-1e03afad6c5e",
     "timestamp": "2025-11-09T00:35:23.875Z"
+  },
+  {
+    "id": "1762648693902-vyzw8b",
+    "type": "purchase",
+    "message": "Purchased 1 ctn of 'A.LEGAL MACEDOINE MIXED VEGETABLES 400G' for ₦40,000",
+    "timestamp": "2025-11-09T00:38:13.902Z"
+  },
+  {
+    "id": "1762648708793-cerxzs",
+    "type": "purchase",
+    "message": "Deleted purchase 7e7e0cf2-7f08-43b1-8996-c9753f77d52d",
+    "timestamp": "2025-11-09T00:38:28.793Z"
   }
 ]
