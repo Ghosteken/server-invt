@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../db/prisma";
 import { randomUUID } from "crypto";
 import { adjustPcsQuantity } from "../services/pcsInventoryService";
+import { withCache } from "../services/cache";
 import { appendNotification } from "../services/notificationService";
 import { getSupplierMetaFor, upsertSupplierMeta, addSupplierPayment } from "../services/supplierPurchasesService";
 
@@ -11,6 +12,9 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
   try {
     // Optional date range filters: from/to (ISO date strings)
     const { from, to } = (req.query || {}) as { from?: string; to?: string };
+    // Pagination params: page (1-based) and limit (items per page)
+    const page = Math.max(1, Number((req.query as any)?.page) || 1);
+    const limit = Math.max(1, Math.min(200, Number((req.query as any)?.limit) || 20));
     const where: Record<string, unknown> = {};
     if (from || to) {
       where.timestamp = {
@@ -18,24 +22,28 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
         ...(to ? { lte: new Date(to) } : {}),
       };
     }
-    const purchases = await prisma.purchases.findMany({ where, orderBy: { timestamp: "desc" } });
-    const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
-    const products = await prisma.products.findMany({ where: { productId: { in: productIds } }, select: { productId: true, name: true } });
-    const productMap = new Map(products.map((p) => [p.productId, p.name] as const));
+    const cacheKey = `purchases:list:${from || "all"}:${to || "all"}:p=${page}:lim=${limit}`;
+    const { list, total } = await withCache(cacheKey, 30, async () => {
+      const totalCount = await prisma.purchases.count({ where });
+      const purchases = await prisma.purchases.findMany({ where, orderBy: { timestamp: "desc" }, skip: (page - 1) * limit, take: limit });
+      const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
+      const products = await prisma.products.findMany({ where: { productId: { in: productIds } }, select: { productId: true, name: true } });
+      const productMap = new Map(products.map((p) => [p.productId, p.name] as const));
+      const pageList = purchases.map((p) => ({
+        purchaseId: p.purchaseId,
+        productId: p.productId,
+        productName: productMap.get(p.productId) || undefined,
+        quantity: p.quantity,
+        unitCost: p.unitCost,
+        totalCost: p.totalCost,
+        timestamp: p.timestamp,
+        supplierName: getSupplierMetaFor(p.purchaseId)?.supplierName || undefined,
+        supplierMobile: getSupplierMetaFor(p.purchaseId)?.supplierMobile || undefined,
+      }));
+      return { list: pageList, total: totalCount };
+    });
 
-    const list = purchases.map((p) => ({
-      purchaseId: p.purchaseId,
-      productId: p.productId,
-      productName: productMap.get(p.productId) || undefined,
-      quantity: p.quantity,
-      unitCost: p.unitCost,
-      totalCost: p.totalCost,
-      timestamp: p.timestamp,
-      supplierName: getSupplierMetaFor(p.purchaseId)?.supplierName || undefined,
-      supplierMobile: getSupplierMetaFor(p.purchaseId)?.supplierMobile || undefined,
-    }));
-
-    res.json({ purchases: list });
+    res.json({ purchases: list, total });
   } catch (err) {
     console.error("getPurchases error:", err);
     res.status(500).json({ message: "Failed to load purchases" });

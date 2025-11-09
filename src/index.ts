@@ -136,7 +136,7 @@ process.on('SIGHUP', () => {
 // Keep-alive logger to show the process remains alive; logs every 10s
 setInterval(() => {
   console.log('keep-alive tick', new Date().toISOString());
-}, 1000);
+}, 10_000);
 
 // Ensure admin user exists and is configured properly at startup (only if env is set)
 if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
