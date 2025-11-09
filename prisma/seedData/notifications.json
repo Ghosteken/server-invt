@@ -34,5 +34,23 @@
     "type": "purchase",
     "message": "Deleted purchase 7e7e0cf2-7f08-43b1-8996-c9753f77d52d",
     "timestamp": "2025-11-09T00:38:28.793Z"
+  },
+  {
+    "id": "1762650105124-kvo0gn",
+    "type": "invoice",
+    "message": "Invoice deleted: e3c9a5b6-45ae-431e-8d22-8fe78c2fbce0",
+    "timestamp": "2025-11-09T01:01:45.124Z"
+  },
+  {
+    "id": "1762650109768-aysui8",
+    "type": "invoice",
+    "message": "Invoice deleted: 125e5e14-8591-47a0-a09f-069db5a74e91",
+    "timestamp": "2025-11-09T01:01:49.768Z"
+  },
+  {
+    "id": "1762650121377-rvt9iy",
+    "type": "purchase",
+    "message": "Deleted purchase 4f0ad9e7-a888-4e1e-acfe-d881567dd05d",
+    "timestamp": "2025-11-09T01:02:01.377Z"
   }
 ]
