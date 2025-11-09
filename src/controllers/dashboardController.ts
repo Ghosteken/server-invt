@@ -23,8 +23,8 @@ export const getDashboardMetrics = async (
         ? envNum
         : 5;
 
-    // Total catalog size (all products), not just those currently in stock
-    const totalProducts = await withCache(`metrics:totalProducts:all`, 60, async () => prisma.products.count());
+    // Total products currently in inventory (stockQuantity > 0)
+    const totalProducts = await withCache(`metrics:totalProducts:inventory`, 60, async () => prisma.products.count({ where: nonInventoryFilter }));
     const lowStockCount = await withCache(`metrics:lowStock:${LOW_STOCK_THRESHOLD}`, 60, async () => prisma.products.count({ where: { stockQuantity: { lte: LOW_STOCK_THRESHOLD }, ...nonInventoryFilter } }));
 
     const inventoryValue = await withCache(`metrics:inventoryValue`, 60, async () => {
