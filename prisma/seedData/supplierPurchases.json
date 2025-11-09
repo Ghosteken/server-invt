@@ -6,5 +6,14 @@
     "paymentTerm": "immediate",
     "date": "2025-11-08T00:00:00.000Z",
     "dueDate": null
+  },
+  {
+    "purchaseId": "7e7e0cf2-7f08-43b1-8996-c9753f77d52d",
+    "supplierName": "CASH SALES TRADING",
+    "supplierMobile": "+234200",
+    "paymentTerm": "immediate",
+    "date": "2025-11-08T00:00:00.000Z",
+    "dueDate": null,
+    "unit": "ctn"
   }
 ]

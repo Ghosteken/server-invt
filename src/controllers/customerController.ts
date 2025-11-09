@@ -75,6 +75,68 @@ export const deleteCustomerPurchase = async (req: Request, res: Response): Promi
   }
 };
 
+// POST /customers - create an individual customer
+export const createCustomer = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const {
+      name,
+      mobile,
+      address,
+      city,
+      state,
+      country,
+    } = req.body || {};
+
+    const trimmedName = String(name || "").trim();
+    if (!trimmedName) {
+      res.status(400).json({ message: "Name is required" });
+      return;
+    }
+
+    const normName = trimmedName.toLowerCase();
+    const normMobile = mobile ? String(mobile).trim() : "";
+
+    // Check duplicates by mobile or case-insensitive name
+    const existing = await prisma.customers.findFirst({
+      where: normMobile
+        ? { OR: [ { mobile: normMobile }, { name: { equals: normName, mode: "insensitive" } } ] }
+        : { name: { equals: normName, mode: "insensitive" } },
+    });
+
+    if (existing) {
+      res.status(409).json({ message: "Customer already exists" });
+      return;
+    }
+
+    const created = await prisma.customers.create({
+      data: {
+        customerId: randomUUID(),
+        name: trimmedName,
+        mobile: normMobile || null,
+        address: address ? String(address).trim() : null,
+        city: city ? String(city).trim() : null,
+        state: state ? String(state).trim() : null,
+        country: country ? String(country).trim() : null,
+      },
+    });
+
+    res.status(201).json({
+      customerId: created.customerId,
+      name: created.name,
+      mobile: created.mobile || undefined,
+      address: created.address || undefined,
+      city: created.city || undefined,
+      state: created.state || undefined,
+      country: created.country || undefined,
+      createdAt: created.createdAt,
+      purchases: [],
+    });
+  } catch (error) {
+    console.error("createCustomer error:", error);
+    res.status(500).json({ message: "Failed to create customer" });
+  }
+};
+
 export const purgeCustomerPurchases = async (req: Request, res: Response): Promise<void> => {
   try {
     const result = await prisma.customerPurchases.deleteMany({});

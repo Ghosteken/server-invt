@@ -17,6 +17,7 @@ import notificationRoutes from "./routes/notificationRoutes";
 import customerRoutes from "./routes/customerRoutes";
 import reportRoutes from "./routes/reportRoutes";
 import storeSalesRoutes from "./routes/storeSalesRoutes";
+import storesRoutes from "./routes/storesRoutes";
 import { ensureAdminUser } from "./services/adminBootstrap";
 import settingsRoutes from "./routes/settingsRoutes";
 import purchasesRoutes from "./routes/purchasesRoutes";
@@ -66,6 +67,7 @@ app.use("/customers", customerRoutes); // http://localhost:8000/customers
 app.use("/reports", reportRoutes); // http://localhost:8000/reports
 app.use("/settings", settingsRoutes); // http://localhost:8000/settings
 app.use("/store-sales", storeSalesRoutes); // http://localhost:8000/store-sales
+app.use("/stores", storesRoutes); // http://localhost:8000/stores
 app.use("/invoices", invoiceRoutes); // http://localhost:8000/invoices
 app.use("/purchases", purchasesRoutes); // http://localhost:8000/purchases
 app.use("/sales-agents", salesAgentRoutes); // http://localhost:8000/sales-agents

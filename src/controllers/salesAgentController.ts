@@ -6,10 +6,24 @@ export const getSalesAgents = async (req: Request, res: Response): Promise<void>
   try {
     const search = String(req.query.search || "").trim().toLowerCase();
     const agents = await prisma.salesAgents.findMany({ orderBy: { name: "asc" } });
-    const list = search
-      ? agents.filter((a) => a.name.toLowerCase().includes(search))
-      : agents;
-    res.json({ agents: list });
+    // Deduplicate by case-insensitive name and normalize display casing
+    const toTitle = (s: string) => s
+      .trim()
+      .split(/\s+/)
+      .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
+      .join(" ");
+    const byKey = new Map<string, { id: string; name: string; mobile?: string | null; email?: string | null }>();
+    for (const a of agents) {
+      const key = (a.name || "").trim().toLowerCase();
+      if (!key) continue;
+      if (!byKey.has(key)) {
+        byKey.set(key, { id: a.id, name: toTitle(a.name), mobile: a.mobile ?? null, email: a.email ?? null });
+      }
+    }
+    let unique = Array.from(byKey.values());
+    if (search) unique = unique.filter((a) => a.name.toLowerCase().includes(search));
+    unique.sort((a, b) => a.name.localeCompare(b.name));
+    res.json({ agents: unique });
   } catch (err) {
     console.error("getSalesAgents error:", err);
     res.status(500).json({ message: "Failed to load sales agents" });

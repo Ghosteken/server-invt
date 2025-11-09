@@ -4,5 +4,23 @@
     "type": "invoice",
     "message": "Invoice created: e3c9a5b6-45ae-431e-8d22-8fe78c2fbce0 (Amagzy Global)",
     "timestamp": "2025-11-08T17:12:38.395Z"
+  },
+  {
+    "id": "1762626673454-ujbq6k",
+    "type": "invoice",
+    "message": "Payment added for invoice e3c9a5b6-45ae-431e-8d22-8fe78c2fbce0: ₦5576.56 (Amagzy global vic limited(Zenith bank) FOR SUPPLIES)",
+    "timestamp": "2025-11-08T18:31:13.454Z"
+  },
+  {
+    "id": "1762637452139-01vvrr",
+    "type": "product",
+    "message": "Product updated: A.LEGAL MACEDOINE MIXED VEGETABLES 400G",
+    "timestamp": "2025-11-08T21:30:52.139Z"
+  },
+  {
+    "id": "1762648523875-48czcd",
+    "type": "expense",
+    "message": "Deleted expense 92664433-0aef-4a36-bc67-1e03afad6c5e",
+    "timestamp": "2025-11-09T00:35:23.875Z"
   }
 ]

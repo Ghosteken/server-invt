@@ -233,3 +233,28 @@ model Locations {
 
   @@index([name])
 }
+
+// Store and Branch models for multi-store management
+model Stores {
+  id        String     @id
+  name      String     @unique
+  createdAt DateTime   @default(now())
+  branches  Branches[]
+
+  @@index([name])
+}
+
+model Branches {
+  id        String   @id
+  storeId   String
+  name      String
+  city      String?
+  state     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  store     Stores   @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+  @@unique([storeId, name])
+}

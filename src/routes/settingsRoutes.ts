@@ -2,6 +2,7 @@ import { Router } from "express";
 import prisma from "../db/prisma";
 import { readFlags, writeFlags } from "../services/featureFlagsService";
 import { readInvoiceLayout, writeInvoiceLayout } from "../services/invoiceLayoutService";
+import { readFinancialLayout, writeFinancialLayout } from "../services/financialLayoutService";
 
 const router = Router();
 // Use shared Prisma client
@@ -67,6 +68,26 @@ router.put("/invoice-layout", async (req, res) => {
     res.json(readInvoiceLayout());
   } catch (err) {
     res.status(500).json({ message: "Failed to save invoice layout" });
+  }
+});
+
+// Financial report layout settings (global)
+router.get("/financial-layout", async (_req, res) => {
+  try {
+    const layout = readFinancialLayout();
+    res.json(layout);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to read financial layout" });
+  }
+});
+
+router.put("/financial-layout", async (req, res) => {
+  try {
+    const layout = req.body || {};
+    writeFinancialLayout(layout);
+    res.json(readFinancialLayout());
+  } catch (err) {
+    res.status(500).json({ message: "Failed to save financial layout" });
   }
 });
 

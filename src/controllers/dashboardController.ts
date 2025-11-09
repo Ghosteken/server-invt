@@ -23,8 +23,9 @@ export const getDashboardMetrics = async (
         ? envNum
         : 5;
 
-    const totalProducts = await withCache(`metrics:totalProducts`, 60, async () => prisma.products.count({ where: nonInventoryFilter }));
-    const lowStockCount = await withCache(`metrics:lowStock:${LOW_STOCK_THRESHOLD}`, 60, async () => prisma.products.count({ where: { stockQuantity: { lt: LOW_STOCK_THRESHOLD }, ...nonInventoryFilter } }));
+    // Total catalog size (all products), not just those currently in stock
+    const totalProducts = await withCache(`metrics:totalProducts:all`, 60, async () => prisma.products.count());
+    const lowStockCount = await withCache(`metrics:lowStock:${LOW_STOCK_THRESHOLD}`, 60, async () => prisma.products.count({ where: { stockQuantity: { lte: LOW_STOCK_THRESHOLD }, ...nonInventoryFilter } }));
 
     const inventoryValue = await withCache(`metrics:inventoryValue`, 60, async () => {
       const productsBasic = await prisma.products.findMany({ where: nonInventoryFilter, select: { productId: true, name: true, price: true, stockQuantity: true } });
@@ -107,7 +108,7 @@ export const getLowStockProducts = async (req: Request, res: Response): Promise<
     const products = await withCache(`lowStock:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
       return prisma.products.findMany({
         where: {
-          stockQuantity: { lt: threshold },
+          stockQuantity: { lte: threshold },
           ...(search ? { name: { contains: search, mode: 'insensitive' as const } } : {}),
           ...nonInventoryFilter,
         },
@@ -222,7 +223,7 @@ export const getLowStockPcs = async (req: Request, res: Response): Promise<void>
     const low = await withCache(`lowPcs:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
       const pcs = readPcsInventory();
       const filtered = pcs
-        .filter((e) => (e.quantity || 0) < threshold)
+        .filter((e) => (e.quantity || 0) <= threshold)
         .filter((e) => (search ? e.name.toLowerCase().includes(search) : true))
         .map((e) => ({
           name: e.name,

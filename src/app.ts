@@ -16,6 +16,7 @@ import notificationRoutes from "./routes/notificationRoutes";
 import customerRoutes from "./routes/customerRoutes";
 import reportRoutes from "./routes/reportRoutes";
 import storeSalesRoutes from "./routes/storeSalesRoutes";
+import storesRoutes from "./routes/storesRoutes";
 import purchasesRoutes from "./routes/purchasesRoutes";
 import invoiceRoutes from "./routes/invoiceRoutes";
 import salesAgentRoutes from "./routes/salesAgentRoutes";
@@ -63,6 +64,7 @@ export function createApp() {
   app.use("/reports", reportRoutes);
   app.use("/settings", require("./routes/settingsRoutes").default);
   app.use("/store-sales", storeSalesRoutes);
+  app.use("/stores", storesRoutes);
   app.use("/purchases", purchasesRoutes);
   app.use("/invoices", invoiceRoutes);
   app.use("/sales-agents", salesAgentRoutes);

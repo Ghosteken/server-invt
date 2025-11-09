@@ -4,6 +4,8 @@ import * as XLSX from "xlsx";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "crypto";
+import { appendExpense, readExpenses, readExpenseCategories, updateExpense, deleteExpense } from "../services/expensesService";
+import { appendNotification } from "../services/notificationService";
 
 // Use shared Prisma client
 
@@ -29,6 +31,117 @@ export const getExpensesByCategory = async (
     res.json(expenseByCategorySummary);
   } catch (error) {
     res.status(500).json({ message: "Error retrieving expenses by category" });
+  }
+};
+
+/**
+ * List individual expenses (JSON-backed store) with optional filters.
+ * Query params: category, from, to.
+ */
+export const listExpenses = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const category = String(req.query.category || "").trim().toLowerCase();
+    const from = req.query.from ? new Date(String(req.query.from)) : undefined;
+    const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+    const all = readExpenses();
+    const filtered = all.filter((e) => {
+      if (category && e.category.toLowerCase() !== category) return false;
+      const d = new Date(e.date);
+      if (from && d < from) return false;
+      if (to && d > to) return false;
+      return true;
+    });
+    res.json({ expenses: filtered });
+  } catch (err) {
+    res.status(500).json({ message: "Error retrieving expenses" });
+  }
+};
+
+/**
+ * Create an expense entry (stored in JSON-backed store).
+ * Body: { category: string; name: string; amount: number; date?: string }
+ */
+export const createExpense = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const body = req.body || {};
+    const category = String(body.category || "").trim();
+    const name = String(body.name || "").trim();
+    const amount = Number(body.amount) || 0;
+    // Ensure date is always a string to satisfy type requirements
+    // If not provided, default to today's date (YYYY-MM-DD)
+    const date = body.date ? String(body.date) : new Date().toISOString().slice(0, 10);
+    if (!category || !name || !amount) {
+      res.status(400).json({ message: "category, name, and amount are required" });
+      return;
+    }
+    const saved = appendExpense({ category, name, amount, date });
+    // Notify: expense created
+    appendNotification({ type: "expense", message: `Created expense '${name}' (${category}) ₦${amount.toLocaleString("en")}` });
+    res.status(201).json({ expense: saved });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to create expense" });
+  }
+};
+
+/**
+ * Update an expense entry (JSON-backed store).
+ * Params: id
+ * Body: { category?: string; name?: string; amount?: number; date?: string }
+ */
+export const updateExpenseController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = String(req.params.id || "").trim();
+    if (!id) {
+      res.status(400).json({ message: "Missing expense id" });
+      return;
+    }
+    const changes = req.body || {};
+    const updated = updateExpense(id, changes);
+    if (!updated) {
+      res.status(404).json({ message: "Expense not found" });
+      return;
+    }
+    // Notify: expense updated
+    appendNotification({ type: "expense", message: `Updated expense '${updated.name}' (${updated.category}) to ₦${Number(updated.amount || 0).toLocaleString("en")}` });
+    res.json({ expense: updated });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update expense" });
+  }
+};
+
+/**
+ * Delete an expense entry (JSON-backed store).
+ * Params: id
+ */
+export const deleteExpenseController = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const id = String(req.params.id || "").trim();
+    if (!id) {
+      res.status(400).json({ message: "Missing expense id" });
+      return;
+    }
+    const ok = deleteExpense(id);
+    if (!ok) {
+      res.status(404).json({ message: "Expense not found" });
+      return;
+    }
+    // Notify: expense deleted
+    appendNotification({ type: "expense", message: `Deleted expense ${id}` });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete expense" });
+  }
+};
+
+/**
+ * Get expense categories from seed JSON.
+ */
+export const getExpenseCategories = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const cats = readExpenseCategories();
+    res.json({ categories: cats.map((c) => c.name) });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to load expense categories" });
   }
 };
 

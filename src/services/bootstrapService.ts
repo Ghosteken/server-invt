@@ -31,9 +31,26 @@ export async function ensureDefaults(): Promise<void> {
           { from: "amagzy global ventures", to: "Amagzy Global Ventures" },
         ];
         for (const fix of CAP_FIXES) {
-          const loc = await prisma.locations.findFirst({ where: { name: fix.from } });
-          if (loc) {
-            await prisma.locations.update({ where: { id: loc.id }, data: { name: fix.to } });
+          const fromLoc = await prisma.locations.findFirst({ where: { name: fix.from } });
+          if (!fromLoc) continue;
+
+          // If target already exists, migrate references and delete the duplicate to avoid unique constraint violations
+          const toLoc = await prisma.locations.findFirst({ where: { name: fix.to } });
+          if (toLoc) {
+            // Repoint invoices to canonical location id and name
+            const migrated = await prisma.invoices.updateMany({
+              where: { locationId: fromLoc.id },
+              data: { locationId: toLoc.id, location: fix.to },
+            });
+            // Also fix free-text invoices that used the lowercase name without a locationId
+            await prisma.invoices.updateMany({
+              where: { location: fix.from, locationId: null },
+              data: { location: fix.to },
+            });
+            await prisma.locations.delete({ where: { id: fromLoc.id } });
+            console.log(`[bootstrap] Merged duplicate location: ${fix.from} -> ${fix.to} (migrated ${migrated.count} invoices)`);
+          } else {
+            await prisma.locations.update({ where: { id: fromLoc.id }, data: { name: fix.to } });
             console.log(`[bootstrap] Normalized location name: ${fix.from} -> ${fix.to}`);
           }
         }

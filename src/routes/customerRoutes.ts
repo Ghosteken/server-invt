@@ -1,10 +1,11 @@
 import { Router } from "express";
 import multer from "multer";
-import { getCustomers, importCustomers, exportCustomersExcel, importCustomersSample, deleteCustomerPurchase } from "../controllers/customerController";
+import { getCustomers, importCustomers, exportCustomersExcel, importCustomersSample, deleteCustomerPurchase, createCustomer } from "../controllers/customerController";
 
 const router = Router();
 
 router.get("/", getCustomers);
+router.post("/", createCustomer);
 const upload = multer({ storage: multer.memoryStorage() });
 router.post("/import", upload.single("file"), importCustomers);
 router.post("/import/sample", importCustomersSample);

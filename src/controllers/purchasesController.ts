@@ -2,13 +2,23 @@ import { Request, Response } from "express";
 import prisma from "../db/prisma";
 import { randomUUID } from "crypto";
 import { adjustPcsQuantity } from "../services/pcsInventoryService";
+import { appendNotification } from "../services/notificationService";
 import { getSupplierMetaFor, upsertSupplierMeta, addSupplierPayment } from "../services/supplierPurchasesService";
 
 // GET /purchases - list all customer purchases with joined names
 // GET /purchases - list all procurement purchases (supplier-side)
-export const getPurchases = async (_req: Request, res: Response): Promise<void> => {
+export const getPurchases = async (req: Request, res: Response): Promise<void> => {
   try {
-    const purchases = await prisma.purchases.findMany({ orderBy: { timestamp: "desc" } });
+    // Optional date range filters: from/to (ISO date strings)
+    const { from, to } = (req.query || {}) as { from?: string; to?: string };
+    const where: Record<string, unknown> = {};
+    if (from || to) {
+      where.timestamp = {
+        ...(from ? { gte: new Date(from) } : {}),
+        ...(to ? { lte: new Date(to) } : {}),
+      };
+    }
+    const purchases = await prisma.purchases.findMany({ where, orderBy: { timestamp: "desc" } });
     const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
     const products = await prisma.products.findMany({ where: { productId: { in: productIds } }, select: { productId: true, name: true } });
     const productMap = new Map(products.map((p) => [p.productId, p.name] as const));
@@ -60,6 +70,8 @@ export const deletePurchase = async (req: Request, res: Response): Promise<void>
       console.warn("Inventory adjustment on deletePurchase failed", e);
     }
     await prisma.purchases.delete({ where: { purchaseId: id } });
+    // Notify: purchase deleted
+    appendNotification({ type: "purchase", message: `Deleted purchase ${id}` });
     res.json({ success: true });
   } catch (err) {
     console.error("deletePurchase error:", err);
@@ -131,6 +143,8 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
         unit: it.unit,
       });
       created.push({ purchaseId, productId, quantity, unitCost, totalCost, timestamp: date });
+      // Notify: purchase item created
+      appendNotification({ type: "purchase", message: `Purchased ${quantity} ${it.unit} of '${p.name}' for ₦${totalCost.toLocaleString("en")}` });
     }
 
     res.json({ success: true, purchases: created });
@@ -179,6 +193,8 @@ export const addPurchasePayment = async (req: Request, res: Response): Promise<v
       notes,
     });
     res.status(201).json({ payment });
+    // Notify: supplier payment added
+    appendNotification({ type: "purchase", message: `Added supplier payment ₦${amount.toLocaleString("en")} to purchase ${id} (${bankName})` });
   } catch (err) {
     console.error("addPurchasePayment error:", err);
     const msg = err instanceof Error ? err.message : "Failed to add payment";
@@ -202,10 +218,106 @@ export const updatePurchaseMeta = async (req: Request, res: Response): Promise<v
     const dueDate = body.dueDate !== undefined ? (body.dueDate ? String(body.dueDate) : null) : undefined;
     upsertSupplierMeta({ purchaseId: id, supplierName, supplierMobile, paymentTerm, dueDate });
     const meta = getSupplierMetaFor(id);
+    // Notify: purchase meta updated
+    appendNotification({ type: "purchase", message: `Updated purchase ${id} meta: supplier=${meta?.supplierName || "-"}, term=${meta?.paymentTerm || "-"}` });
     res.json({ meta });
   } catch (err) {
     console.error("updatePurchaseMeta error:", err);
     const msg = err instanceof Error ? err.message : "Failed to update purchase meta";
+    res.status(500).json({ message: msg });
+  }
+};
+
+// PUT /purchases/:id - update core purchase entry (product, quantity, unitCost, timestamp)
+export const updatePurchase = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.purchases.findUnique({ where: { purchaseId: id } });
+    if (!existing) {
+      res.status(404).json({ message: "Purchase not found" });
+      return;
+    }
+
+    const body = req.body || {};
+    const nextDate: Date | undefined = body.date ? new Date(String(body.date)) : undefined;
+    const nextProductId: string | undefined = body.productId ? String(body.productId) : undefined;
+    const nextQuantity: number | undefined = body.quantity !== undefined ? Math.max(0, Number(body.quantity) || 0) : undefined;
+    const nextUnitCost: number | undefined = body.unitCost !== undefined ? Math.max(0, Number(body.unitCost) || 0) : undefined;
+    const nextUnit: "ctn" | "pcs" | undefined = body.unit === "pcs" ? "pcs" : (body.unit === "ctn" ? "ctn" : undefined);
+    const nextExpiryDate: string | undefined = body.expiryDate ? String(body.expiryDate) : undefined;
+
+    // Determine old unit from meta (defaults to 'ctn' for backwards compat)
+    const meta = getSupplierMetaFor(id);
+    const oldUnit: "ctn" | "pcs" = (meta?.unit === "pcs" ? "pcs" : "ctn");
+
+    // Fetch product records for inventory adjustments
+    const oldProduct = await prisma.products.findUnique({ where: { productId: existing.productId } });
+    if (!oldProduct) {
+      res.status(404).json({ message: `Product not found: ${existing.productId}` });
+      return;
+    }
+
+    const newProductId = nextProductId || existing.productId;
+    const newProduct = await prisma.products.findUnique({ where: { productId: newProductId } });
+    if (!newProduct) {
+      res.status(404).json({ message: `Product not found: ${newProductId}` });
+      return;
+    }
+
+    const oldQty = Math.max(0, Number(existing.quantity) || 0);
+    const newQty = nextQuantity !== undefined ? Math.max(0, Number(nextQuantity) || 0) : oldQty;
+    const effectiveOldUnit = oldUnit;
+    const effectiveNewUnit: "ctn" | "pcs" = nextUnit || effectiveOldUnit;
+
+    // Reverse old inventory effect on old product
+    try {
+      if (effectiveOldUnit === "ctn") {
+        const revertQty = Math.max(0, Number(oldProduct.stockQuantity) - oldQty);
+        await prisma.products.update({ where: { productId: oldProduct.productId }, data: { stockQuantity: revertQty } });
+      } else {
+        await adjustPcsQuantity({ name: oldProduct.name, delta: -oldQty });
+      }
+    } catch (invErr) {
+      console.warn("Inventory reversal failed on updatePurchase", invErr);
+    }
+
+    // Apply new inventory effect on new product
+    try {
+      if (effectiveNewUnit === "ctn") {
+        const applyQty = Math.max(0, Number(newProduct.stockQuantity) + newQty);
+        await prisma.products.update({ where: { productId: newProduct.productId }, data: { stockQuantity: applyQty, expiryDate: nextExpiryDate ? new Date(nextExpiryDate) : newProduct.expiryDate } });
+      } else {
+        await adjustPcsQuantity({ name: newProduct.name, delta: newQty });
+        if (nextExpiryDate) {
+          await prisma.products.update({ where: { productId: newProduct.productId }, data: { expiryDate: new Date(nextExpiryDate) } });
+        }
+      }
+    } catch (invErr) {
+      console.warn("Inventory application failed on updatePurchase", invErr);
+    }
+
+    // Persist updated purchase entry
+    const updated = await prisma.purchases.update({
+      where: { purchaseId: id },
+      data: {
+        productId: newProductId,
+        timestamp: nextDate || existing.timestamp,
+        quantity: newQty,
+        unitCost: nextUnitCost !== undefined ? nextUnitCost : existing.unitCost,
+        totalCost: (nextUnitCost !== undefined ? nextUnitCost : existing.unitCost) * newQty,
+      },
+    });
+
+    // Update meta fields if provided (unit and date)
+    upsertSupplierMeta({ purchaseId: id, unit: nextUnit ?? undefined, date: nextDate ? nextDate.toISOString() : undefined });
+
+    // Notify
+    appendNotification({ type: "purchase", message: `Updated purchase ${id}: ${newQty} ${effectiveNewUnit} of '${newProduct.name}'` });
+
+    res.json({ purchase: updated });
+  } catch (err) {
+    console.error("updatePurchase error:", err);
+    const msg = err instanceof Error ? err.message : "Failed to update purchase";
     res.status(500).json({ message: msg });
   }
 };

@@ -55,6 +55,14 @@ async function main() {
   // Only perform destructive deletes if explicitly allowed
   if (isDestructive) {
     await deleteAllData(deleteOrder);
+    // Also clear Stores/Branches as they are seeded outside of createOrder
+    try {
+      await prisma.branches.deleteMany({});
+      await prisma.stores.deleteMany({});
+      console.log("Cleared data from branches and stores (destructive mode)");
+    } catch (e) {
+      console.warn("Failed clearing branches/stores in destructive mode:", e);
+    }
   } else {
     console.log("Seed is non-destructive: skipping deleteMany on existing tables");
   }
@@ -108,7 +116,18 @@ async function main() {
       console.warn(`Seed file missing, skipping: ${fileName}`);
       continue;
     }
-    const jsonData = JSON.parse(fs.readFileSync(filePath, "utf-8"));
+    let jsonData: any[] = [];
+    try {
+      const rawText = fs.readFileSync(filePath, "utf-8");
+      jsonData = JSON.parse(rawText);
+      if (!Array.isArray(jsonData)) {
+        console.warn(`Seed file ${fileName} is not an array; skipping`);
+        continue;
+      }
+    } catch (e) {
+      console.warn(`Failed to parse ${fileName}; skipping`, e);
+      continue;
+    }
     const clientModelName = path.basename(fileName, path.extname(fileName));
     const model: any = (prisma as any)[clientModelName];
 
@@ -150,14 +169,30 @@ async function main() {
         const lowerModel = clientModelName.toLowerCase();
         // Ensure IDs for normalized entities if not provided
         if (lowerModel === "locations") {
-          if (!data.id) data.id = randomUUID();
           if (typeof data.name === "string") data.name = data.name.trim();
+          const name = String(data.name);
+          await prisma.locations.upsert({
+            where: { name },
+            update: {},
+            create: { id: data.id || randomUUID(), name },
+          });
+          continue;
         }
         if (lowerModel === "salesagents") {
-          if (!data.id) data.id = randomUUID();
           if (typeof data.name === "string") data.name = data.name.trim();
-          if (data.mobile === undefined) data.mobile = null;
-          if (data.email === undefined) data.email = null;
+          const name = String(data.name);
+          const existing = await prisma.salesAgents.findFirst({ where: { name } });
+          if (!existing) {
+            await prisma.salesAgents.create({
+              data: {
+                id: data.id || randomUUID(),
+                name,
+                mobile: data.mobile ?? null,
+                email: data.email ?? null,
+              },
+            });
+          }
+          continue;
         }
         if ((lowerModel === "sales" || lowerModel === "purchases") && data.productId) {
           const pid = String(data.productId);
@@ -182,7 +217,21 @@ async function main() {
             }
           }
         }
-        await model.create({ data });
+        if (lowerModel === "expenses") {
+          const transformed = {
+            expenseId: data.expenseId || randomUUID(),
+            category: String(data.category ?? data.name ?? "misc").trim(),
+            amount: Number(data.amount ?? 0),
+            timestamp: data.timestamp
+              ? new Date(data.timestamp)
+              : data.date
+              ? new Date(data.date)
+              : new Date(),
+          };
+          await prisma.expenses.create({ data: transformed });
+        } else {
+          await model.create({ data });
+        }
       }
     }
     console.log(`Seeded ${clientModelName} with data from ${fileName}`);
@@ -222,6 +271,52 @@ async function main() {
       }
       console.log("Merged importedProducts.json into Products table");
     }
+  }
+
+  // Seed Stores and Branches from assets/stores.json
+  try {
+    const storesAssetPath = path.resolve(__dirname, "../assets/stores.json");
+    if (fs.existsSync(storesAssetPath)) {
+      const raw = JSON.parse(fs.readFileSync(storesAssetPath, "utf-8"));
+      const entries: Array<{ store: string; branches: string[] }> = Array.isArray(raw?.stores)
+        ? raw.stores
+        : [];
+      let seededStores = 0;
+      let seededBranches = 0;
+      for (const entry of entries) {
+        const storeName = String(entry?.store || "").trim();
+        if (!storeName || storeName.toLowerCase() === "name") continue; // skip placeholders
+        // Upsert store by unique name
+        const storeId = randomUUID();
+        const store = await prisma.stores.upsert({
+          where: { name: storeName },
+          update: {},
+          create: { id: storeId, name: storeName },
+        });
+        seededStores += 1;
+        // Seed branches under this store
+        const branchList = Array.isArray(entry?.branches) ? entry.branches : [];
+        for (const b of branchList) {
+          const branchName = String(b || "").trim();
+          if (!branchName) continue;
+          try {
+            await prisma.branches.upsert({
+              where: { storeId_name: { storeId: store.id, name: branchName } },
+              update: {},
+              create: { id: randomUUID(), storeId: store.id, name: branchName },
+            });
+            seededBranches += 1;
+          } catch (e) {
+            console.warn("Failed upserting branch", branchName, "for store", storeName, e);
+          }
+        }
+      }
+      console.log(`Seeded Stores/Branches from assets: stores=${seededStores}, branches=${seededBranches}`);
+    } else {
+      console.log("No assets/stores.json present; skipping Stores/Branches seeding");
+    }
+  } catch (e) {
+    console.warn("Failed seeding Stores/Branches from assets:", e);
   }
 
   // Ensure an admin user exists AFTER seeding base data
