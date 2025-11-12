@@ -26,6 +26,9 @@ const getProducts = async (req, res) => {
     try {
         const rawSearch = req.query.search?.toString() ?? "";
         const search = rawSearch.trim();
+        const typeahead = String(req.query.typeahead || "").trim() === "1";
+        const limitRaw = req.query.limit?.toString();
+        const limit = limitRaw ? Math.max(1, Math.min(200, Number(limitRaw) || 20)) : undefined;
         // Cache key per search term
         const cacheKey = search.toLowerCase();
         const now = Date.now();
@@ -45,6 +48,8 @@ const getProducts = async (req, res) => {
                     },
                 }
                 : undefined,
+            ...(typeahead ? { select: { productId: true, name: true } } : {}),
+            ...(limit ? { take: limit } : {}),
             orderBy: {
                 name: "asc",
             },
@@ -261,19 +266,36 @@ const getProductMovements = async (req, res) => {
             },
             orderBy: { timestamp: "desc" },
         });
-        const saleItems = await Promise.all(sales.map(async (s) => {
-            const inv = await prisma_1.default.invoices.findFirst({ where: { customerId: s.customerId, date: s.timestamp } });
-            const meta = inv ? (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId) : undefined;
+        const saleDates = Array.from(new Set(sales.map((s) => s.timestamp.toISOString())));
+        const saleCustomerIds = Array.from(new Set(sales.map((s) => s.customerId).filter(Boolean)));
+        const candidateInvoices = saleDates.length && saleCustomerIds.length
+            ? await prisma_1.default.invoices.findMany({ where: { date: { in: saleDates.map((d) => new Date(d)) }, customerId: { in: saleCustomerIds } } })
+            : [];
+        const invoiceByPair = new Map();
+        for (const inv of candidateInvoices) {
+            invoiceByPair.set(`${inv.customerId}|${inv.date.toISOString()}`, { invoiceId: inv.invoiceId });
+        }
+        const numberById = new Map();
+        for (const inv of candidateInvoices) {
+            const meta = (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
+            if (meta?.invoiceNumber)
+                numberById.set(inv.invoiceId, meta.invoiceNumber);
+        }
+        const saleItems = sales.map((s) => {
+            const pair = `${s.customerId}|${s.timestamp.toISOString()}`;
+            const inv = invoiceByPair.get(pair);
+            const invoiceId = inv?.invoiceId;
+            const invoiceNumber = invoiceId ? numberById.get(invoiceId) : undefined;
             return {
                 kind: "sale",
                 timestamp: s.timestamp,
                 quantity: Number(s.quantity || 0),
                 unitPrice: Number(s.unitPrice || 0),
                 totalCost: Number(s.totalCost || 0),
-                invoiceId: inv?.invoiceId,
-                invoiceNumber: meta?.invoiceNumber,
+                invoiceId,
+                invoiceNumber,
             };
-        }));
+        });
         const purchaseItems = purchases.map((p) => ({
             kind: "purchase",
             timestamp: p.timestamp,
