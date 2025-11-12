@@ -40,7 +40,8 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
-    const existing = await prisma.users.findFirst({ where: { email } });
+    const normalizedEmail = String(email).trim().toLowerCase();
+    const existing = await prisma.users.findFirst({ where: { email: normalizedEmail } });
     if (existing) {
       res.status(400).json({ message: "User with this email already exists" });
       return;
@@ -52,7 +53,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       data: {
         userId: randomUUID(),
         name,
-        email,
+        email: normalizedEmail,
         password: hashedPassword,
         role: (role || "user").toLowerCase(),
       },

@@ -7,6 +7,45 @@ import { readFinancialLayout, writeFinancialLayout } from "../services/financial
 const router = Router();
 // Use shared Prisma client
 
+// Set features by email for convenience in admin UI
+router.put("/features/by-email", async (req, res) => {
+  try {
+    const email = String(req.body?.email || "").trim().toLowerCase();
+    const features: string[] = Array.isArray(req.body?.features) ? req.body.features : [];
+    const user = await prisma.users.findUnique({ where: { email } });
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    const flags = readFlags();
+    flags[user.userId] = features;
+    writeFlags(flags);
+    res.json({ userId: user.userId, features });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to set features" });
+  }
+});
+
+// Get features by email (diagnostic/fallback)
+router.get("/features/by-email", async (req, res) => {
+  try {
+    const email = String(req.query?.email || "").trim().toLowerCase();
+    if (!email) {
+      res.status(400).json({ message: "email is required" });
+      return;
+    }
+    const user = await prisma.users.findUnique({ where: { email } });
+    if (!user) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    const flags = readFlags();
+    res.json({ userId: user.userId, features: flags[user.userId] || [] });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to read features" });
+  }
+});
+
 // Get features for a user by ID
 router.get("/features/:userId", async (req, res) => {
   try {
@@ -29,25 +68,6 @@ router.put("/features/:userId", async (req, res) => {
     res.json({ features });
   } catch (err) {
     res.status(500).json({ message: "Failed to write features" });
-  }
-});
-
-// Set features by email for convenience in admin UI
-router.put("/features/by-email", async (req, res) => {
-  try {
-    const email = String(req.body?.email || "").trim().toLowerCase();
-    const features: string[] = Array.isArray(req.body?.features) ? req.body.features : [];
-    const user = await prisma.users.findUnique({ where: { email } });
-    if (!user) {
-      res.status(404).json({ message: "User not found" });
-      return;
-    }
-    const flags = readFlags();
-    flags[user.userId] = features;
-    writeFlags(flags);
-    res.json({ userId: user.userId, features });
-  } catch (err) {
-    res.status(500).json({ message: "Failed to set features" });
   }
 });
 

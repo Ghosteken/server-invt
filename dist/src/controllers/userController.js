@@ -37,7 +37,8 @@ const createUser = async (req, res) => {
             res.status(400).json({ message: "Name, email and password are required" });
             return;
         }
-        const existing = await prisma_1.default.users.findFirst({ where: { email } });
+        const normalizedEmail = String(email).trim().toLowerCase();
+        const existing = await prisma_1.default.users.findFirst({ where: { email: normalizedEmail } });
         if (existing) {
             res.status(400).json({ message: "User with this email already exists" });
             return;
@@ -47,7 +48,7 @@ const createUser = async (req, res) => {
             data: {
                 userId: (0, crypto_1.randomUUID)(),
                 name,
-                email,
+                email: normalizedEmail,
                 password: hashedPassword,
                 role: (role || "user").toLowerCase(),
             },
