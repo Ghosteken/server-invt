@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exportCustomersExcel = exports.importCustomersSample = exports.importCustomers = exports.purgeCustomerPurchases = exports.getCustomers = void 0;
+exports.exportCustomersExcel = exports.importCustomersSample = exports.importCustomers = exports.deleteCustomer = exports.updateCustomer = exports.purgeCustomerPurchases = exports.createCustomer = exports.deleteCustomerPurchase = exports.getCustomers = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const XLSX = __importStar(require("xlsx"));
 const crypto_1 = require("crypto");
@@ -70,7 +70,7 @@ const getCustomers = async (req, res) => {
         const byCustomer = new Map();
         for (const p of purchases) {
             const list = byCustomer.get(p.customerId) || [];
-            list.push({ productId: p.productId, productName: nameById.get(p.productId) || p.productId, quantity: p.quantity, totalCost: p.totalCost });
+            list.push({ id: p.id, productId: p.productId, productName: nameById.get(p.productId) || p.productId, quantity: p.quantity, totalCost: p.totalCost });
             byCustomer.set(p.customerId, list);
         }
         const result = customers.map((c) => ({
@@ -92,6 +92,74 @@ const getCustomers = async (req, res) => {
     }
 };
 exports.getCustomers = getCustomers;
+// DELETE /customers/purchases/:id - delete a specific customer purchase (customer sale)
+const deleteCustomerPurchase = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prisma_1.default.customerPurchases.findUnique({ where: { id } });
+        if (!existing) {
+            res.status(404).json({ message: "Customer purchase not found" });
+            return;
+        }
+        await prisma_1.default.customerPurchases.delete({ where: { id } });
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error("deleteCustomerPurchase error:", error);
+        res.status(500).json({ message: "Failed to delete customer purchase" });
+    }
+};
+exports.deleteCustomerPurchase = deleteCustomerPurchase;
+// POST /customers - create an individual customer
+const createCustomer = async (req, res) => {
+    try {
+        const { name, mobile, address, city, state, country, } = req.body || {};
+        const trimmedName = String(name || "").trim();
+        if (!trimmedName) {
+            res.status(400).json({ message: "Name is required" });
+            return;
+        }
+        const normName = trimmedName.toLowerCase();
+        const normMobile = mobile ? String(mobile).trim() : "";
+        // Check duplicates by mobile or case-insensitive name
+        const existing = await prisma_1.default.customers.findFirst({
+            where: normMobile
+                ? { OR: [{ mobile: normMobile }, { name: { equals: normName, mode: "insensitive" } }] }
+                : { name: { equals: normName, mode: "insensitive" } },
+        });
+        if (existing) {
+            res.status(409).json({ message: "Customer already exists" });
+            return;
+        }
+        const created = await prisma_1.default.customers.create({
+            data: {
+                customerId: (0, crypto_1.randomUUID)(),
+                name: trimmedName,
+                mobile: normMobile || null,
+                address: address ? String(address).trim() : null,
+                city: city ? String(city).trim() : null,
+                state: state ? String(state).trim() : null,
+                country: country ? String(country).trim() : null,
+            },
+        });
+        res.status(201).json({
+            customerId: created.customerId,
+            name: created.name,
+            mobile: created.mobile || undefined,
+            address: created.address || undefined,
+            city: created.city || undefined,
+            state: created.state || undefined,
+            country: created.country || undefined,
+            createdAt: created.createdAt,
+            purchases: [],
+        });
+    }
+    catch (error) {
+        console.error("createCustomer error:", error);
+        res.status(500).json({ message: "Failed to create customer" });
+    }
+};
+exports.createCustomer = createCustomer;
 const purgeCustomerPurchases = async (req, res) => {
     try {
         const result = await prisma_1.default.customerPurchases.deleteMany({});
@@ -103,6 +171,94 @@ const purgeCustomerPurchases = async (req, res) => {
     }
 };
 exports.purgeCustomerPurchases = purgeCustomerPurchases;
+// PUT /customers/:id - update a specific customer
+const updateCustomer = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { name, mobile, address, city, state, country, } = req.body || {};
+        const existing = await prisma_1.default.customers.findUnique({ where: { customerId: id } });
+        if (!existing) {
+            res.status(404).json({ message: "Customer not found" });
+            return;
+        }
+        const updates = {};
+        if (typeof name === "string") {
+            const trimmed = name.trim();
+            if (!trimmed) {
+                res.status(400).json({ message: "Name cannot be empty" });
+                return;
+            }
+            // prevent duplicate name on another record (case-insensitive)
+            const dup = await prisma_1.default.customers.findFirst({
+                where: { AND: [{ name: { equals: trimmed.toLowerCase(), mode: "insensitive" } }, { NOT: { customerId: id } }] },
+            });
+            if (dup) {
+                res.status(409).json({ message: "Another customer already uses this name" });
+                return;
+            }
+            updates.name = trimmed;
+        }
+        if (typeof mobile === "string") {
+            const mv = mobile.trim();
+            if (mv) {
+                const dupMobile = await prisma_1.default.customers.findFirst({ where: { AND: [{ mobile: mv }, { NOT: { customerId: id } }] } });
+                if (dupMobile) {
+                    res.status(409).json({ message: "Another customer already uses this mobile" });
+                    return;
+                }
+                updates.mobile = mv;
+            }
+            else {
+                updates.mobile = null;
+            }
+        }
+        if (typeof address === "string")
+            updates.address = address.trim() || null;
+        if (typeof city === "string")
+            updates.city = city.trim() || null;
+        if (typeof state === "string")
+            updates.state = state.trim() || null;
+        if (typeof country === "string")
+            updates.country = country.trim() || null;
+        const updated = await prisma_1.default.customers.update({ where: { customerId: id }, data: updates });
+        res.json({
+            customerId: updated.customerId,
+            name: updated.name,
+            mobile: updated.mobile || undefined,
+            address: updated.address || undefined,
+            city: updated.city || undefined,
+            state: updated.state || undefined,
+            country: updated.country || undefined,
+            createdAt: updated.createdAt,
+            purchases: [], // client will refetch list
+        });
+    }
+    catch (error) {
+        console.error("updateCustomer error:", error);
+        res.status(500).json({ message: "Failed to update customer" });
+    }
+};
+exports.updateCustomer = updateCustomer;
+// DELETE /customers/:id - delete a customer
+const deleteCustomer = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prisma_1.default.customers.findUnique({ where: { customerId: id } });
+        if (!existing) {
+            res.status(404).json({ message: "Customer not found" });
+            return;
+        }
+        // Optionally: cascade delete purchases or keep historical records.
+        // Here we keep purchases history and only remove the customer record.
+        await prisma_1.default.customers.delete({ where: { customerId: id } });
+        res.json({ success: true });
+    }
+    catch (error) {
+        console.error("deleteCustomer error:", error);
+        res.status(500).json({ message: "Failed to delete customer" });
+    }
+};
+exports.deleteCustomer = deleteCustomer;
 const importCustomers = async (req, res) => {
     try {
         const file = req.file;
@@ -120,6 +276,7 @@ const importCustomers = async (req, res) => {
         let updated = 0;
         let skippedExisting = 0;
         let skippedDuplicateInFile = 0;
+        const importedSnapshot = [];
         const seenKeys = new Set();
         for (const row of rows) {
             const kv = {};
@@ -131,6 +288,19 @@ const importCustomers = async (req, res) => {
             const city = kv["city"];
             const state = kv["state"];
             const country = kv["country"];
+            const netBalanceDueRaw = kv["net balance due"] ?? kv["balance"] ?? kv["net due"];
+            const netBalanceDue = (() => {
+                if (netBalanceDueRaw == null)
+                    return null;
+                if (typeof netBalanceDueRaw === "number" && Number.isFinite(netBalanceDueRaw))
+                    return netBalanceDueRaw;
+                const s = String(netBalanceDueRaw);
+                const m = s.replace(/[,]/g, "").match(/-?\d+(?:\.\d+)?/);
+                if (!m)
+                    return null;
+                const n = Number(m[0]);
+                return Number.isFinite(n) ? n : null;
+            })();
             if (!name)
                 continue;
             const normName = String(name).trim().toLowerCase();
@@ -165,6 +335,12 @@ const importCustomers = async (req, res) => {
                 });
                 created += 1;
             }
+            // Collect snapshot for seed JSON (DB does not store netBalanceDue)
+            importedSnapshot.push({
+                name: String(name).trim(),
+                mobile: mobile ? String(mobile).trim() : null,
+                netBalanceDue,
+            });
         }
         // Attempt to parse store/branch mapping from top rows (sample format)
         try {
@@ -198,6 +374,37 @@ const importCustomers = async (req, res) => {
         }
         catch (e) {
             console.warn("Skipping store/branch parsing during importCustomers:", e);
+        }
+        // Persist imported customers to seed JSON for audit and optional future seeding
+        try {
+            const seedDir = node_path_1.default.join(__dirname, "../../prisma/seedData");
+            const outPath = node_path_1.default.join(seedDir, "importedCustomers.json");
+            if (!node_fs_1.default.existsSync(seedDir)) {
+                node_fs_1.default.mkdirSync(seedDir, { recursive: true });
+            }
+            let existing = [];
+            if (node_fs_1.default.existsSync(outPath)) {
+                try {
+                    existing = JSON.parse(node_fs_1.default.readFileSync(outPath, "utf-8"));
+                }
+                catch {
+                    existing = [];
+                }
+            }
+            const map = new Map();
+            for (const item of existing) {
+                if (item && item.name)
+                    map.set(String(item.name).toLowerCase(), item);
+            }
+            for (const item of importedSnapshot) {
+                const key = String(item.name).toLowerCase();
+                map.set(key, item);
+            }
+            const merged = Array.from(map.values());
+            node_fs_1.default.writeFileSync(outPath, JSON.stringify(merged, null, 2), "utf-8");
+        }
+        catch (persistErr) {
+            console.warn("Failed to persist imported customers to JSON:", persistErr);
         }
         res.json({ created, updated, skippedExisting, skippedDuplicateInFile });
     }

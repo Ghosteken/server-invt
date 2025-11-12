@@ -88,5 +88,12 @@
     "type": "invoice",
     "message": "Invoice deleted: 1c25530c-fcd9-4603-88b5-1aaed625f319",
     "timestamp": "2025-11-09T14:03:36.082Z"
+  },
+  {
+    "id": "1762945179880-mchbv3",
+    "type": "user",
+    "message": "User deleted: david (david@inventory.com)",
+    "timestamp": "2025-11-12T10:59:39.880Z",
+    "actorUserId": "admin-user-id-123456"
   }
 ]

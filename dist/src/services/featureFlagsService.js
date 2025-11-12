@@ -18,6 +18,9 @@ const readFlags = () => {
 };
 exports.readFlags = readFlags;
 const writeFlags = (flags) => {
+    const dir = path_1.default.dirname(FLAGS_PATH);
+    if (!fs_1.default.existsSync(dir))
+        fs_1.default.mkdirSync(dir, { recursive: true });
     fs_1.default.writeFileSync(FLAGS_PATH, JSON.stringify(flags, null, 2), "utf-8");
 };
 exports.writeFlags = writeFlags;

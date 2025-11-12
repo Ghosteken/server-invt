@@ -21,7 +21,7 @@ function appendNotification(n) {
     try {
         ensureFile();
         const raw = fs_1.default.readFileSync(logFile, "utf-8");
-        const arr = JSON.parse(raw);
+        const arr = raw.trim() ? JSON.parse(raw) : [];
         const item = {
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
             type: n.type,
@@ -42,7 +42,7 @@ function getLatestNotifications(limit = 20) {
     try {
         ensureFile();
         const raw = fs_1.default.readFileSync(logFile, "utf-8");
-        const arr = JSON.parse(raw);
+        const arr = raw.trim() ? JSON.parse(raw) : [];
         return arr.sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1)).slice(0, limit);
     }
     catch (e) {

@@ -22,10 +22,13 @@ const notificationRoutes_1 = __importDefault(require("./routes/notificationRoute
 const customerRoutes_1 = __importDefault(require("./routes/customerRoutes"));
 const reportRoutes_1 = __importDefault(require("./routes/reportRoutes"));
 const storeSalesRoutes_1 = __importDefault(require("./routes/storeSalesRoutes"));
+const storesRoutes_1 = __importDefault(require("./routes/storesRoutes"));
 const adminBootstrap_1 = require("./services/adminBootstrap");
 const settingsRoutes_1 = __importDefault(require("./routes/settingsRoutes"));
 const purchasesRoutes_1 = __importDefault(require("./routes/purchasesRoutes"));
 const invoiceRoutes_1 = __importDefault(require("./routes/invoiceRoutes"));
+const salesAgentRoutes_1 = __importDefault(require("./routes/salesAgentRoutes"));
+const locationRoutes_1 = __importDefault(require("./routes/locationRoutes"));
 /* CONFIGURATIONS */
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -65,12 +68,16 @@ app.use("/customers", customerRoutes_1.default); // http://localhost:8000/custom
 app.use("/reports", reportRoutes_1.default); // http://localhost:8000/reports
 app.use("/settings", settingsRoutes_1.default); // http://localhost:8000/settings
 app.use("/store-sales", storeSalesRoutes_1.default); // http://localhost:8000/store-sales
+app.use("/stores", storesRoutes_1.default); // http://localhost:8000/stores
 app.use("/invoices", invoiceRoutes_1.default); // http://localhost:8000/invoices
 app.use("/purchases", purchasesRoutes_1.default); // http://localhost:8000/purchases
+app.use("/sales-agents", salesAgentRoutes_1.default); // http://localhost:8000/sales-agents
+app.use("/locations", locationRoutes_1.default); // http://localhost:8000/locations
 /* SERVER */
 const port = Number(process.env.PORT) || 3001;
 const host = process.env.HOST || "0.0.0.0";
 const os_1 = __importDefault(require("os"));
+const bootstrapService_1 = require("./services/bootstrapService");
 try {
     const server = app.listen(port, host, () => {
         console.log(`Server running on ${host}:${port}`);
@@ -83,6 +90,8 @@ try {
                 console.log(`  ${name} - ${addr.address} (${addr.family})${addr.internal ? ' internal' : ''}`);
             });
         });
+        // Bootstrap defaults for first-run UX
+        (0, bootstrapService_1.ensureDefaults)().catch((err) => console.warn("Bootstrap ensureDefaults failed:", err));
     });
     // On unexpected errors, log and exit
     server.on("error", (err) => {
@@ -118,7 +127,7 @@ process.on('SIGHUP', () => {
 // Keep-alive logger to show the process remains alive; logs every 10s
 setInterval(() => {
     console.log('keep-alive tick', new Date().toISOString());
-}, 1000);
+}, 10000);
 // Ensure admin user exists and is configured properly at startup (only if env is set)
 if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
     (0, adminBootstrap_1.ensureAdminUser)();

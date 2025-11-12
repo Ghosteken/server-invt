@@ -35,7 +35,7 @@ router.put("/features/:userId", async (req, res) => {
 // Set features by email for convenience in admin UI
 router.put("/features/by-email", async (req, res) => {
   try {
-    const email = String(req.body?.email || "");
+    const email = String(req.body?.email || "").trim().toLowerCase();
     const features: string[] = Array.isArray(req.body?.features) ? req.body.features : [];
     const user = await prisma.users.findUnique({ where: { email } });
     if (!user) {

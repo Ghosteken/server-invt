@@ -15,5 +15,7 @@ export const readFlags = (): FeatureFlags => {
 };
 
 export const writeFlags = (flags: FeatureFlags) => {
+  const dir = path.dirname(FLAGS_PATH);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
   fs.writeFileSync(FLAGS_PATH, JSON.stringify(flags, null, 2), "utf-8");
 };

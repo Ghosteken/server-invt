@@ -20,6 +20,7 @@ router.get("/pcs/sample", productController_1.getPcsSample);
 router.get("/pcs/export", productController_1.exportPcsExcel);
 router.post("/pcs/import", upload.single("file"), productController_1.importPcsProducts);
 router.post("/pcs/upsert", productController_1.upsertPcsItems);
+router.post("/pcs/reload", productController_1.reloadPcs);
 router.post("/invoice/process", upload.single("file"), productController_1.processInvoice);
 router.post("/invoice/manual", productController_1.processInvoiceManual);
 // Place dynamic route after specific /import routes to avoid route conflicts

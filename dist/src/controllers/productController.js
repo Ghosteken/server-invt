@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getProductUpdatesLast = exports.exportPcsExcel = exports.getPcsSample = exports.getImportSample = exports.purgeProducts = exports.deleteProduct = exports.processInvoiceManual = exports.processInvoice = exports.importProducts = exports.upsertPcsItems = exports.importPcsProducts = exports.getPcsProducts = exports.exportProductsExcel = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
+exports.getProductUpdatesLast = exports.exportPcsExcel = exports.getPcsSample = exports.getImportSample = exports.purgeProducts = exports.deleteProduct = exports.processInvoiceManual = exports.processInvoice = exports.importProducts = exports.upsertPcsItems = exports.importPcsProducts = exports.reloadPcs = exports.getPcsProducts = exports.exportProductsExcel = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 // Simple in-memory cache for product search results (per process)
 const PRODUCT_SEARCH_CACHE = new Map();
@@ -312,6 +312,18 @@ const getPcsProducts = async (req, res) => {
     }
 };
 exports.getPcsProducts = getPcsProducts;
+// Reload PCS inventory from disk (useful after external imports)
+const reloadPcs = async (req, res) => {
+    try {
+        const pcs = (0, pcsInventoryService_1.reloadPcsInventory)();
+        res.json({ reloaded: pcs.length });
+    }
+    catch (err) {
+        console.error("reloadPcs error:", err);
+        res.status(500).json({ message: "Failed to reload PCS inventory" });
+    }
+};
+exports.reloadPcs = reloadPcs;
 const importPcsProducts = async (req, res) => {
     try {
         const file = req.file;
@@ -327,6 +339,38 @@ const importPcsProducts = async (req, res) => {
             res.status(400).json({ message: "Uploaded sheet is empty." });
             return;
         }
+        // Parse optional selective update fields from multipart form (CSV or JSON array)
+        const rawUpdateFields = req.body?.updateFields ?? undefined;
+        let updateFieldsSet = null;
+        if (rawUpdateFields && typeof rawUpdateFields === "string") {
+            try {
+                const trimmed = rawUpdateFields.trim();
+                let arr = [];
+                if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                    arr = JSON.parse(trimmed);
+                }
+                else {
+                    arr = trimmed.split(/[,;\s]+/).filter(Boolean);
+                }
+                const allowed = new Set([
+                    "name",
+                    "packsize",
+                    "category",
+                    "price",
+                    "purchaseprice",
+                    "expirydate",
+                    "barcode",
+                    "description",
+                    "pcsquantity",
+                ]);
+                const selected = arr.map((f) => f.toLowerCase()).filter((f) => allowed.has(f));
+                if (selected.length > 0)
+                    updateFieldsSet = new Set(selected);
+            }
+            catch {
+                updateFieldsSet = null;
+            }
+        }
         const norm = (k) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
         const coerceNumber = (val) => {
             if (val === null || val === undefined)
@@ -341,11 +385,12 @@ const importPcsProducts = async (req, res) => {
             return Number.isFinite(n) ? n : null;
         };
         const incoming = [];
+        const importedSnapshot = [];
         for (const row of rows) {
             const kv = {};
             for (const k of Object.keys(row))
                 kv[norm(k)] = row[k];
-            let name = kv["name"] ?? kv["product"] ?? kv["item"] ?? kv["product description"] ?? kv["description"];
+            let name = kv["product description"] ?? kv["name"] ?? kv["product"] ?? kv["item"] ?? kv["description"];
             // Fallback: first non-empty string cell as name
             if (!name) {
                 const firstStrKey = Object.keys(kv).find((k) => typeof kv[k] === "string" && String(kv[k]).trim().length > 0);
@@ -354,7 +399,7 @@ const importPcsProducts = async (req, res) => {
             }
             if (!name)
                 continue;
-            let qty = coerceNumber(kv["pcs"] ?? kv["quantity"] ?? kv["qty"] ?? kv["pcs qty"] ?? kv["qty pcs"] ?? kv["pcs quantity"] ?? kv["quantity pcs"] ?? kv["pieces"] ?? kv["pcs count"] ?? kv["count pcs"]);
+            let qty = coerceNumber(kv["pcs quantity"] ?? kv["pcs"] ?? kv["quantity"] ?? kv["qty"] ?? kv["pcs qty"] ?? kv["qty pcs"] ?? kv["quantity pcs"] ?? kv["pieces"] ?? kv["pcs count"] ?? kv["count pcs"]);
             // Fallback: first numeric-like cell in the row
             if (qty == null) {
                 for (const key of Object.keys(kv)) {
@@ -368,12 +413,140 @@ const importPcsProducts = async (req, res) => {
             // If quantity is still missing, import the item with quantity 0
             if (qty == null)
                 qty = 0;
-            const packSize = kv["pack size"] ?? kv["pack"] ?? null;
+            const packSize = kv["pack size"] ?? kv["pack"] ?? kv["packsize"] ?? null;
+            const productId = kv["productid"] ?? kv["sku"] ?? null;
+            const barcode = kv["barcode"] ?? null;
+            const category = kv["category"] ?? null;
+            const purchasePrice = coerceNumber(kv["purchaseprice"]);
+            const salesPrice = coerceNumber(kv["salesprice"]);
+            const expiryDate = kv["expirydate"] ? String(kv["expirydate"]).trim() : null;
+            const description = kv["description"] ? String(kv["description"]).trim() : null;
             incoming.push({ name: String(name).trim(), quantity: Math.max(0, Number(qty)), packSize: packSize ? String(packSize).trim() : null });
+            importedSnapshot.push({
+                productId: productId ? String(productId) : undefined,
+                name: String(name).trim(),
+                barcode: barcode ? String(barcode) : undefined,
+                packSize: packSize ? String(packSize).trim() : null,
+                category: category ? String(category) : undefined,
+                pcsQuantity: Math.max(0, Number(qty)),
+                purchasePrice: purchasePrice ?? null,
+                salesPrice: salesPrice ?? null,
+                expiryDate,
+                description,
+            });
         }
-        const merged = (0, pcsInventoryService_1.upsertPcsEntries)(incoming);
-        (0, notificationService_1.appendNotification)({ type: "product", message: `Imported ${incoming.length} PCS products`, actorUserId: req.user?.userId });
-        res.json({ imported: incoming.length, total: merged.length });
+        // Optionally update matching Product records for selected fields
+        try {
+            const should = (field) => !updateFieldsSet || updateFieldsSet.has(field);
+            const existingProducts = await prisma_1.default.products.findMany({});
+            const keyOf = (r) => `${String(r.name).toLowerCase()}|${String(r.packSize ?? "").toLowerCase()}`;
+            const existingByKey = new Map();
+            const existingByBarcode = new Map();
+            for (const p of existingProducts) {
+                existingByKey.set(keyOf({ name: p.name, packSize: p.packSize ?? null }), p);
+                const bc = p.barcode;
+                if (bc)
+                    existingByBarcode.set(String(bc).trim(), p);
+            }
+            for (const item of importedSnapshot) {
+                let target = null;
+                if (item.productId) {
+                    target = await prisma_1.default.products.findUnique({ where: { productId: item.productId } });
+                }
+                if (!target && item.barcode) {
+                    target = existingByBarcode.get(String(item.barcode).trim());
+                }
+                if (!target) {
+                    target = existingByKey.get(keyOf({ name: item.name, packSize: (item.packSize ?? null) }));
+                }
+                if (!target) {
+                    target = await prisma_1.default.products.findFirst({ where: { name: item.name } });
+                }
+                if (!target)
+                    continue;
+                const dataUpdate = {};
+                if (should("name") && item.name)
+                    dataUpdate.name = item.name;
+                if (should("price") && item.salesPrice != null)
+                    dataUpdate.price = Number(item.salesPrice);
+                if (should("purchaseprice") && item.purchasePrice != null)
+                    dataUpdate.purchasePrice = Number(item.purchasePrice);
+                if (should("expirydate"))
+                    dataUpdate.expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
+                if (should("category"))
+                    dataUpdate.category = (target.category ?? item.category ?? null);
+                if (should("description"))
+                    dataUpdate.description = item.description ?? target.description ?? null;
+                if (should("packsize"))
+                    dataUpdate.packSize = item.packSize ?? target.packSize ?? null;
+                if (should("barcode"))
+                    dataUpdate.barcode = item.barcode ?? target.barcode ?? null;
+                if (Object.keys(dataUpdate).length > 0) {
+                    const existing = target;
+                    const updated = await prisma_1.default.products.update({ where: { productId: target.productId }, data: dataUpdate });
+                    try {
+                        const changed = [];
+                        for (const k of Object.keys(dataUpdate)) {
+                            const oldVal = existing[k];
+                            const newVal = updated[k];
+                            const oldNorm = oldVal instanceof Date ? oldVal.getTime() : oldVal;
+                            const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
+                            if (oldNorm !== newNorm)
+                                changed.push(k);
+                        }
+                        if (changed.length)
+                            (0, productUpdateAuditService_1.recordFieldUpdates)(target.productId, changed, "import");
+                    }
+                    catch (logErr) {
+                        console.warn("Failed to log field updates on PCS import update:", logErr);
+                    }
+                }
+            }
+        }
+        catch (updateErr) {
+            console.warn("Selective product updates on PCS import failed:", updateErr);
+        }
+        // Only upsert PCS quantities when selected or when no selection provided
+        const doPcsUpsert = !updateFieldsSet || updateFieldsSet.has("pcsquantity");
+        const merged = doPcsUpsert ? (0, pcsInventoryService_1.upsertPcsEntries)(incoming) : (0, pcsInventoryService_1.readPcsInventory)();
+        const importedCount = doPcsUpsert ? incoming.length : 0;
+        (0, notificationService_1.appendNotification)({ type: "product", message: `Imported ${importedCount} PCS products`, actorUserId: req.user?.userId });
+        // Persist imported PCS snapshot to JSON
+        try {
+            const seedDir = node_path_1.default.join(__dirname, "../../prisma/seedData");
+            const outPath = node_path_1.default.join(seedDir, "importedPcs.json");
+            if (!node_fs_1.default.existsSync(seedDir))
+                node_fs_1.default.mkdirSync(seedDir, { recursive: true });
+            let existing = [];
+            if (node_fs_1.default.existsSync(outPath)) {
+                try {
+                    existing = JSON.parse(node_fs_1.default.readFileSync(outPath, "utf-8"));
+                }
+                catch {
+                    existing = [];
+                }
+            }
+            const keyOf = (r) => `${String(r.name).toLowerCase()}|${String(r.packSize ?? "").toLowerCase()}`;
+            const map = new Map();
+            for (const item of existing) {
+                if (item && item.name)
+                    map.set(keyOf(item), item);
+            }
+            for (const item of importedSnapshot) {
+                map.set(keyOf(item), item);
+            }
+            const mergedSnap = Array.from(map.values());
+            node_fs_1.default.writeFileSync(outPath, JSON.stringify(mergedSnap, null, 2), "utf-8");
+        }
+        catch (persistErr) {
+            console.warn("Failed to persist imported PCS snapshot to JSON:", persistErr);
+        }
+        // Sync JSON snapshot with DB after potential product updates
+        try {
+            await (0, productSyncService_1.syncProductsJsonFromDb)(prisma_1.default);
+        }
+        catch { }
+        res.json({ imported: importedCount, total: merged.length });
     }
     catch (err) {
         console.error("importPcsProducts error:", err);

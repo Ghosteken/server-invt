@@ -8,6 +8,8 @@ const prisma_1 = __importDefault(require("../db/prisma"));
 const pcsInventoryService_1 = require("../services/pcsInventoryService");
 const cache_1 = require("../services/cache");
 // Use shared Prisma client
+// Only include products currently in inventory: Qty > 0
+const nonInventoryFilter = { stockQuantity: { gt: 0 } };
 const getDashboardMetrics = async (req, res) => {
     try {
         // Simplified, live analytics (no dummy tables)
@@ -20,10 +22,13 @@ const getDashboardMetrics = async (req, res) => {
             : Number.isFinite(envNum) && envNum >= 0
                 ? envNum
                 : 5;
-        const totalProducts = await (0, cache_1.withCache)(`metrics:totalProducts`, 60, async () => prisma_1.default.products.count());
-        const lowStockCount = await (0, cache_1.withCache)(`metrics:lowStock:${LOW_STOCK_THRESHOLD}`, 60, async () => prisma_1.default.products.count({ where: { stockQuantity: { lt: LOW_STOCK_THRESHOLD } } }));
+        // Total products currently in inventory (stockQuantity > 0)
+        const totalProducts = await (0, cache_1.withCache)(`metrics:totalProducts:inventory`, 60, async () => prisma_1.default.products.count({ where: nonInventoryFilter }));
+        const lowStockCount = await (0, cache_1.withCache)(`metrics:lowStock:${LOW_STOCK_THRESHOLD}`, 60, async () => prisma_1.default.products.count({
+            where: { stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
+        }));
         const inventoryValue = await (0, cache_1.withCache)(`metrics:inventoryValue`, 60, async () => {
-            const productsBasic = await prisma_1.default.products.findMany({ select: { productId: true, name: true, price: true, stockQuantity: true } });
+            const productsBasic = await prisma_1.default.products.findMany({ where: nonInventoryFilter, select: { productId: true, name: true, price: true, stockQuantity: true } });
             return productsBasic.reduce((sum, p) => sum + (Number(p.price) * p.stockQuantity), 0);
         });
         const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -51,7 +56,7 @@ const getDashboardMetrics = async (req, res) => {
         let popularProducts = [];
         if (popularGrouped.length) {
             const ids = popularGrouped.map((g) => g.productId);
-            const details = await prisma_1.default.products.findMany({ where: { productId: { in: ids } }, select: { productId: true, name: true, price: true, stockQuantity: true } });
+            const details = await prisma_1.default.products.findMany({ where: { productId: { in: ids }, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
             popularProducts = details.map((d) => ({
                 ...d,
                 price: Number(d.price),
@@ -59,7 +64,7 @@ const getDashboardMetrics = async (req, res) => {
             }));
         }
         else {
-            const fallback = await prisma_1.default.products.findMany({ take: 5, orderBy: { stockQuantity: 'desc' }, select: { productId: true, name: true, price: true, stockQuantity: true } });
+            const fallback = await prisma_1.default.products.findMany({ where: nonInventoryFilter, take: 5, orderBy: { stockQuantity: 'desc' }, select: { productId: true, name: true, price: true, stockQuantity: true } });
             popularProducts = fallback.map((d) => ({ ...d, price: Number(d.price), purchaseCount: 0 }));
         }
         res.set("Cache-Control", "public, max-age=60");
@@ -99,7 +104,7 @@ const getLowStockProducts = async (req, res) => {
         const products = await (0, cache_1.withCache)(`lowStock:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
             return prisma_1.default.products.findMany({
                 where: {
-                    stockQuantity: { lt: threshold },
+                    stockQuantity: { gt: 0, lte: threshold },
                     ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),
                 },
                 select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true },
@@ -124,7 +129,7 @@ const getExpiringProducts = async (req, res) => {
         const days = Number.isFinite(qNum) && qNum > 0 ? qNum : 90;
         const cutoff = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
         const products = await prisma_1.default.products.findMany({
-            where: { expiryDate: { lte: cutoff } },
+            where: { expiryDate: { lte: cutoff }, ...nonInventoryFilter },
             select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true }
         });
         res.set("Cache-Control", "public, max-age=30");
@@ -149,7 +154,7 @@ const getDeadStockProducts = async (req, res) => {
             _max: { timestamp: true },
         });
         const latestByProduct = new Map(grouped.map((g) => [g.productId, g._max.timestamp ? new Date(g._max.timestamp) : null]));
-        const allProducts = await prisma_1.default.products.findMany({ select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true } });
+        const allProducts = await prisma_1.default.products.findMany({ where: nonInventoryFilter, select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true } });
         const dead = allProducts.filter(p => {
             const last = latestByProduct.get(p.productId) || null;
             return !last || last < since;
@@ -211,7 +216,10 @@ const getLowStockPcs = async (req, res) => {
         const low = await (0, cache_1.withCache)(`lowPcs:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
             const pcs = (0, pcsInventoryService_1.readPcsInventory)();
             const filtered = pcs
-                .filter((e) => (e.quantity || 0) < threshold)
+                // Only items currently in inventory: quantity > 0
+                .filter((e) => (e.quantity || 0) > 0)
+                // Low-stock threshold: 1..threshold (inclusive)
+                .filter((e) => (e.quantity || 0) <= threshold)
                 .filter((e) => (search ? e.name.toLowerCase().includes(search) : true))
                 .map((e) => ({
                 name: e.name,
