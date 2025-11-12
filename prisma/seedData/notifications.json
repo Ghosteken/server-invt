@@ -102,5 +102,29 @@
     "message": "User created: davis (davis@inventory.com) as user",
     "timestamp": "2025-11-12T11:01:59.790Z",
     "actorUserId": "admin-user-id-123456"
+  },
+  {
+    "id": "1762958823709-6wg0qc",
+    "type": "invoice",
+    "message": "Invoice created: 34102ce6-8808-497a-a7f6-d123be24e49f (Distribution)",
+    "timestamp": "2025-11-12T14:47:03.709Z"
+  },
+  {
+    "id": "1762959750677-hqca7v",
+    "type": "invoice",
+    "message": "Invoice deleted: 34102ce6-8808-497a-a7f6-d123be24e49f",
+    "timestamp": "2025-11-12T15:02:30.677Z"
+  },
+  {
+    "id": "1762965010612-x0vw9b",
+    "type": "invoice",
+    "message": "Invoice created: e14d4452-019b-4c9c-96b9-f97a86d5e54b (Amagzy Global)",
+    "timestamp": "2025-11-12T16:30:10.612Z"
+  },
+  {
+    "id": "1762974497173-hqkmou",
+    "type": "invoice",
+    "message": "Invoice deleted: e14d4452-019b-4c9c-96b9-f97a86d5e54b",
+    "timestamp": "2025-11-12T19:08:17.173Z"
   }
 ]

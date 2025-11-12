@@ -27,6 +27,7 @@ router.post("/invoice/manual", productController_1.processInvoiceManual);
 // Static routes must come before dynamic ":productId" to avoid conflicts
 // router.delete("/purge", purgeProducts); // removed per requirements
 router.get("/:productId", productController_1.getProductById);
+router.get("/:productId/movements", productController_1.getProductMovements);
 router.put("/:productId", productController_1.updateProduct);
 router.delete("/:productId", productController_1.deleteProduct);
 exports.default = router;

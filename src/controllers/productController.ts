@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../db/prisma";
+import { getInvoiceMeta } from "../services/invoiceMetaService";
 
 // Simple in-memory cache for product search results (per process)
 const PRODUCT_SEARCH_CACHE = new Map<string, { ts: number; data: any[] }>();
@@ -229,6 +230,78 @@ export const exportProductsExcel = async (
   } catch (error) {
     console.error("exportProductsExcel error:", error);
     res.status(500).json({ message: "Failed to export products as Excel" });
+  }
+};
+
+export const getProductMovements = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const { productId } = req.params;
+    const fromRaw = req.query?.from?.toString();
+    const toRaw = req.query?.to?.toString();
+    const from = fromRaw ? new Date(fromRaw) : undefined;
+    const to = toRaw ? new Date(toRaw) : undefined;
+    let timestampFilter: any = undefined;
+    if (from) timestampFilter = { ...(timestampFilter || {}), gte: from };
+    if (to) timestampFilter = { ...(timestampFilter || {}), lte: to };
+
+    const product = await prisma.products.findUnique({ where: { productId } });
+    if (!product) {
+      res.status(404).json({ message: "Product not found" });
+      return;
+    }
+
+    const sales = await prisma.customerPurchases.findMany({
+      where: {
+        productId,
+        ...(timestampFilter ? { timestamp: timestampFilter } : {}),
+      },
+      orderBy: { timestamp: "desc" },
+    });
+    const purchases = await prisma.purchases.findMany({
+      where: {
+        productId,
+        ...(timestampFilter ? { timestamp: timestampFilter } : {}),
+      },
+      orderBy: { timestamp: "desc" },
+    });
+
+    const saleItems = await Promise.all(
+      sales.map(async (s) => {
+        const inv = await prisma.invoices.findFirst({ where: { customerId: s.customerId, date: s.timestamp } });
+        const meta = inv ? getInvoiceMeta(inv.invoiceId) : undefined;
+        return {
+          kind: "sale" as const,
+          timestamp: s.timestamp,
+          quantity: Number(s.quantity || 0),
+          unitPrice: Number(s.unitPrice || 0),
+          totalCost: Number(s.totalCost || 0),
+          invoiceId: inv?.invoiceId,
+          invoiceNumber: meta?.invoiceNumber,
+        };
+      })
+    );
+    const purchaseItems = purchases.map((p) => ({
+      kind: "purchase" as const,
+      timestamp: p.timestamp,
+      quantity: Number(p.quantity || 0),
+      unitCost: Number(p.unitCost || 0),
+      totalCost: Number(p.totalCost || 0),
+    }));
+    const items = [...saleItems, ...purchaseItems].sort((a, b) => new Date(b.timestamp as any).getTime() - new Date(a.timestamp as any).getTime());
+
+    res.json({
+      product: {
+        productId: product.productId,
+        name: product.name,
+        stockQuantity: Number(product.stockQuantity || 0),
+      },
+      items,
+    });
+  } catch (error) {
+    res.status(500).json({ message: "Error retrieving product movements" });
   }
 };
 

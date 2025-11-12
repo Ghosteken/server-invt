@@ -3,8 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getProductUpdatesLast = exports.exportPcsExcel = exports.getPcsSample = exports.getImportSample = exports.purgeProducts = exports.deleteProduct = exports.processInvoiceManual = exports.processInvoice = exports.importProducts = exports.upsertPcsItems = exports.importPcsProducts = exports.reloadPcs = exports.getPcsProducts = exports.exportProductsExcel = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
+exports.getProductUpdatesLast = exports.exportPcsExcel = exports.getPcsSample = exports.getImportSample = exports.purgeProducts = exports.deleteProduct = exports.processInvoiceManual = exports.processInvoice = exports.importProducts = exports.upsertPcsItems = exports.importPcsProducts = exports.reloadPcs = exports.getPcsProducts = exports.getProductMovements = exports.exportProductsExcel = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
+const invoiceMetaService_1 = require("../services/invoiceMetaService");
 // Simple in-memory cache for product search results (per process)
 const PRODUCT_SEARCH_CACHE = new Map();
 const PRODUCT_SEARCH_TTL_MS = 30000; // 30s TTL
@@ -229,6 +230,72 @@ const exportProductsExcel = async (req, res) => {
     }
 };
 exports.exportProductsExcel = exportProductsExcel;
+const getProductMovements = async (req, res) => {
+    try {
+        const { productId } = req.params;
+        const fromRaw = req.query?.from?.toString();
+        const toRaw = req.query?.to?.toString();
+        const from = fromRaw ? new Date(fromRaw) : undefined;
+        const to = toRaw ? new Date(toRaw) : undefined;
+        let timestampFilter = undefined;
+        if (from)
+            timestampFilter = { ...(timestampFilter || {}), gte: from };
+        if (to)
+            timestampFilter = { ...(timestampFilter || {}), lte: to };
+        const product = await prisma_1.default.products.findUnique({ where: { productId } });
+        if (!product) {
+            res.status(404).json({ message: "Product not found" });
+            return;
+        }
+        const sales = await prisma_1.default.customerPurchases.findMany({
+            where: {
+                productId,
+                ...(timestampFilter ? { timestamp: timestampFilter } : {}),
+            },
+            orderBy: { timestamp: "desc" },
+        });
+        const purchases = await prisma_1.default.purchases.findMany({
+            where: {
+                productId,
+                ...(timestampFilter ? { timestamp: timestampFilter } : {}),
+            },
+            orderBy: { timestamp: "desc" },
+        });
+        const saleItems = await Promise.all(sales.map(async (s) => {
+            const inv = await prisma_1.default.invoices.findFirst({ where: { customerId: s.customerId, date: s.timestamp } });
+            const meta = inv ? (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId) : undefined;
+            return {
+                kind: "sale",
+                timestamp: s.timestamp,
+                quantity: Number(s.quantity || 0),
+                unitPrice: Number(s.unitPrice || 0),
+                totalCost: Number(s.totalCost || 0),
+                invoiceId: inv?.invoiceId,
+                invoiceNumber: meta?.invoiceNumber,
+            };
+        }));
+        const purchaseItems = purchases.map((p) => ({
+            kind: "purchase",
+            timestamp: p.timestamp,
+            quantity: Number(p.quantity || 0),
+            unitCost: Number(p.unitCost || 0),
+            totalCost: Number(p.totalCost || 0),
+        }));
+        const items = [...saleItems, ...purchaseItems].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        res.json({
+            product: {
+                productId: product.productId,
+                name: product.name,
+                stockQuantity: Number(product.stockQuantity || 0),
+            },
+            items,
+        });
+    }
+    catch (error) {
+        res.status(500).json({ message: "Error retrieving product movements" });
+    }
+};
+exports.getProductMovements = getProductMovements;
 const getPcsProducts = async (req, res) => {
     try {
         const rawSearch = req.query.search?.toString() ?? "";

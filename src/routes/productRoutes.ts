@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { createProduct, getProducts, importProducts, getImportSample, getProductById, updateProduct, exportProducts, processInvoice, processInvoiceManual, deleteProduct, purgeProducts, getProductUpdatesLast, getPcsProducts, importPcsProducts, upsertPcsItems, getPcsSample, exportProductsExcel, exportPcsExcel, reloadPcs } from "../controllers/productController";
+import { createProduct, getProducts, importProducts, getImportSample, getProductById, updateProduct, exportProducts, processInvoice, processInvoiceManual, deleteProduct, purgeProducts, getProductUpdatesLast, getPcsProducts, importPcsProducts, upsertPcsItems, getPcsSample, exportProductsExcel, exportPcsExcel, reloadPcs, getProductMovements } from "../controllers/productController";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -24,6 +24,7 @@ router.post("/invoice/manual", processInvoiceManual);
 // Static routes must come before dynamic ":productId" to avoid conflicts
 // router.delete("/purge", purgeProducts); // removed per requirements
 router.get("/:productId", getProductById);
+router.get("/:productId/movements", getProductMovements);
 router.put("/:productId", updateProduct);
 router.delete("/:productId", deleteProduct);
 
