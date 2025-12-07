@@ -214,7 +214,7 @@ const getLowStockPcs = async (req, res) => {
         const offset = rawOffset ? Math.max(0, Number(rawOffset)) : (page && typeof limit === 'number' ? (page - 1) * limit : undefined);
         const search = rawSearch.trim().toLowerCase();
         const low = await (0, cache_1.withCache)(`lowPcs:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
-            const pcs = (0, pcsInventoryService_1.readPcsInventory)();
+            const pcs = await (0, pcsInventoryService_1.readPcsInventory)();
             const filtered = pcs
                 // Only items currently in inventory: quantity > 0
                 .filter((e) => (e.quantity || 0) > 0)

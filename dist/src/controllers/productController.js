@@ -277,7 +277,7 @@ const getProductMovements = async (req, res) => {
         }
         const numberById = new Map();
         for (const inv of candidateInvoices) {
-            const meta = (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
+            const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
             if (meta?.invoiceNumber)
                 numberById.set(inv.invoiceId, meta.invoiceNumber);
         }
@@ -322,7 +322,7 @@ const getPcsProducts = async (req, res) => {
     try {
         const rawSearch = req.query.search?.toString() ?? "";
         const search = rawSearch.trim().toLowerCase();
-        const pcs = (0, pcsInventoryService_1.readPcsInventory)();
+        const pcs = await (0, pcsInventoryService_1.readPcsInventory)();
         // Load all products to allow robust matching and enrichment
         const products = await prisma_1.default.products.findMany({});
         // Helper normalization (aligned with invoice parsing heuristics)
@@ -404,7 +404,7 @@ exports.getPcsProducts = getPcsProducts;
 // Reload PCS inventory from disk (useful after external imports)
 const reloadPcs = async (req, res) => {
     try {
-        const pcs = (0, pcsInventoryService_1.reloadPcsInventory)();
+        const pcs = await (0, pcsInventoryService_1.reloadPcsInventory)();
         res.json({ reloaded: pcs.length });
     }
     catch (err) {
@@ -597,7 +597,7 @@ const importPcsProducts = async (req, res) => {
         }
         // Only upsert PCS quantities when selected or when no selection provided
         const doPcsUpsert = !updateFieldsSet || updateFieldsSet.has("pcsquantity");
-        const merged = doPcsUpsert ? (0, pcsInventoryService_1.upsertPcsEntries)(incoming) : (0, pcsInventoryService_1.readPcsInventory)();
+        const merged = doPcsUpsert ? await (0, pcsInventoryService_1.upsertPcsEntries)(incoming) : await (0, pcsInventoryService_1.readPcsInventory)();
         const importedCount = doPcsUpsert ? incoming.length : 0;
         (0, notificationService_1.appendNotification)({ type: "product", message: `Imported ${importedCount} PCS products`, actorUserId: req.user?.userId });
         // Persist imported PCS snapshot to JSON
@@ -665,7 +665,7 @@ const upsertPcsItems = async (req, res) => {
             res.status(400).json({ message: "Invalid request body" });
             return;
         }
-        const merged = (0, pcsInventoryService_1.upsertPcsEntries)(items);
+        const merged = await (0, pcsInventoryService_1.upsertPcsEntries)(items);
         (0, notificationService_1.appendNotification)({ type: "product", message: `Upserted ${items.length} PCS item(s)`, actorUserId: req.user?.userId });
         res.json({ upserted: items.length, total: merged.length });
     }
@@ -1787,7 +1787,7 @@ const deleteProduct = async (req, res) => {
             return;
         }
         // Optional guard: prevent deletion if PCS inventory still references this product by name
-        const pcs = (0, pcsInventoryService_1.readPcsInventory)();
+        const pcs = await (0, pcsInventoryService_1.readPcsInventory)();
         const hasPcsRef = pcs.some((e) => String(e.name || "").trim().toLowerCase() === String(existing.name || "").trim().toLowerCase());
         if (hasPcsRef) {
             res.status(409).json({ message: "Cannot delete product while PCS inventory contains entries referencing it." });
@@ -1938,7 +1938,7 @@ exports.getImportSample = getImportSample;
 const getPcsSample = async (req, res) => {
     try {
         // Dynamically generate PCS sample using current DB products and PCS inventory
-        const pcs = (0, pcsInventoryService_1.readPcsInventory)();
+        const pcs = await (0, pcsInventoryService_1.readPcsInventory)();
         const products = await prisma_1.default.products.findMany({});
         const byName = new Map(products.map((p) => [String(p.name).toLowerCase(), p]));
         const rows = pcs.map((e) => {
@@ -1986,7 +1986,7 @@ exports.getPcsSample = getPcsSample;
 // Export PCS inventory as Excel
 const exportPcsExcel = async (req, res) => {
     try {
-        const pcs = (0, pcsInventoryService_1.readPcsInventory)();
+        const pcs = await (0, pcsInventoryService_1.readPcsInventory)();
         const products = await prisma_1.default.products.findMany({});
         const byName = new Map(products.map((p) => [String(p.name).toLowerCase(), p]));
         const rows = pcs.map((e) => {

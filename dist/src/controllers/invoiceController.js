@@ -129,7 +129,7 @@ const createInvoice = async (req, res) => {
         });
         // Persist optional invoice number in meta store
         if (invoiceNumber && invoiceNumber.trim()) {
-            (0, invoiceMetaService_1.upsertInvoiceMeta)({ invoiceId, invoiceNumber: invoiceNumber.trim() });
+            await (0, invoiceMetaService_1.upsertInvoiceMeta)({ invoiceId, invoiceNumber: invoiceNumber.trim() });
         }
         // After creating invoice, deduct stock and record purchases for each item
         for (const h of hydrated) {
@@ -140,7 +140,7 @@ const createInvoice = async (req, res) => {
                 const nameForPcs = (h.name || "").trim();
                 if (nameForPcs) {
                     // Adjust PCS inventory maintained in JSON store
-                    (0, pcsInventoryService_1.adjustPcsQuantity)({ name: nameForPcs, delta: -qty });
+                    await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: nameForPcs, delta: -qty });
                 }
                 // Record purchase if linked to a product
                 if (h.productId) {
@@ -220,14 +220,13 @@ const getInvoices = async (req, res) => {
             ? await prisma_1.default.customers.findMany({ where: { customerId: { in: customerIds } } })
             : [];
         const customerMap = new Map(customers.map((c) => [c.customerId, c.name]));
-        const list = invoices
-            .map((inv) => {
+        const list = await Promise.all(invoices.map(async (inv) => {
             const paymentsSum = inv.payments.reduce((acc, p) => acc + p.amount, 0);
             const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
-            const meta = (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
+            const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
             return { ...inv, status, customerName: customerMap.get(inv.customerId), invoiceNumber: meta?.invoiceNumber || undefined };
-        })
-            .filter((inv) => {
+        }));
+        const filtered = list.filter((inv) => {
             if (!search)
                 return true;
             return (inv.invoiceId.toLowerCase().includes(search) ||
@@ -235,7 +234,7 @@ const getInvoices = async (req, res) => {
                 (inv.customerName || "").toLowerCase().includes(search) ||
                 inv.location.toLowerCase().includes(search));
         });
-        res.json({ invoices: list });
+        res.json({ invoices: filtered });
     }
     catch (err) {
         console.error("getInvoices error:", err);
@@ -254,7 +253,7 @@ const getInvoiceById = async (req, res) => {
         }
         const paymentsSum = inv.payments.reduce((acc, p) => acc + p.amount, 0);
         const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
-        const meta = (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
+        const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
         res.json({ ...inv, status, invoiceNumber: meta?.invoiceNumber || undefined });
     }
     catch (err) {
@@ -339,7 +338,7 @@ const updateInvoice = async (req, res) => {
         // Update invoice number in meta store if provided
         if (typeof body.invoiceNumber === "string") {
             const normalized = body.invoiceNumber.trim();
-            (0, invoiceMetaService_1.upsertInvoiceMeta)({ invoiceId: id, invoiceNumber: normalized || null });
+            await (0, invoiceMetaService_1.upsertInvoiceMeta)({ invoiceId: id, invoiceNumber: normalized || null });
         }
         // Reconcile inventory changes based on item diffs (carton stock and PCS inventory)
         const prevMap = new Map();
@@ -401,14 +400,14 @@ const updateInvoice = async (req, res) => {
             }
             else if (k.startsWith("pcs:")) {
                 const name = k.slice(4);
-                (0, pcsInventoryService_1.adjustPcsQuantity)({ name, delta: -delta });
+                await (0, pcsInventoryService_1.adjustPcsQuantity)({ name, delta: -delta });
             }
         }
         if (changedCount > 0) {
             (0, notificationService_1.appendNotification)({ type: "inventory", message: `Reconciled inventory for invoice ${id}; ${changedCount} item group(s) adjusted.`, actorUserId: req.user?.userId });
         }
         await maybeNotifyDueSoon(updated, req.user?.userId);
-        const meta = (0, invoiceMetaService_1.getInvoiceMeta)(id);
+        const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(id);
         res.json({ ...updated, invoiceNumber: meta?.invoiceNumber || undefined });
     }
     catch (err) {
@@ -489,7 +488,7 @@ const deleteInvoice = async (req, res) => {
         await prisma_1.default.invoices.delete({ where: { invoiceId: id } });
         // Remove meta on delete for cleanliness
         try {
-            (0, invoiceMetaService_1.removeInvoiceMeta)(id);
+            await (0, invoiceMetaService_1.removeInvoiceMeta)(id);
         }
         catch { }
         (0, notificationService_1.appendNotification)({ type: "invoice", message: `Invoice deleted: ${id}`, actorUserId: req.user?.userId });

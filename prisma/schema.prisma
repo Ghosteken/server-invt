@@ -258,3 +258,32 @@ model Branches {
   @@index([storeId])
   @@unique([storeId, name])
 }
+
+
+// Tenant-aware replacements for JSON/meta stores
+model FeatureFlags {
+  userId    String   @id
+  features  Json
+  updatedAt DateTime @updatedAt
+}
+
+model InvoiceMeta {
+  id            String   @id
+  tenantId      String   @default("default")
+  invoiceId     String   @unique
+  invoiceNumber String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model PcsInventory {
+  id        String   @id
+  tenantId  String   @default("default")
+  name      String
+  quantity  Int      @default(0)
+  productId String?
+  packSize  String?
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, name])
+}

@@ -20,9 +20,9 @@ router.put("/features/by-email", async (req, res) => {
             res.status(404).json({ message: "User not found" });
             return;
         }
-        const flags = (0, featureFlagsService_1.readFlags)();
+        const flags = await (0, featureFlagsService_1.readFlags)();
         flags[user.userId] = features;
-        (0, featureFlagsService_1.writeFlags)(flags);
+        await (0, featureFlagsService_1.writeFlags)(flags);
         res.json({ userId: user.userId, features });
     }
     catch (err) {
@@ -42,7 +42,7 @@ router.get("/features/by-email", async (req, res) => {
             res.status(404).json({ message: "User not found" });
             return;
         }
-        const flags = (0, featureFlagsService_1.readFlags)();
+        const flags = await (0, featureFlagsService_1.readFlags)();
         res.json({ userId: user.userId, features: flags[user.userId] || [] });
     }
     catch (err) {
@@ -53,7 +53,7 @@ router.get("/features/by-email", async (req, res) => {
 router.get("/features/:userId", async (req, res) => {
     try {
         const userId = req.params.userId;
-        const flags = (0, featureFlagsService_1.readFlags)();
+        const flags = await (0, featureFlagsService_1.readFlags)();
         res.json({ features: flags[userId] || [] });
     }
     catch (err) {
@@ -65,9 +65,9 @@ router.put("/features/:userId", async (req, res) => {
     try {
         const userId = req.params.userId;
         const features = Array.isArray(req.body?.features) ? req.body.features : [];
-        const flags = (0, featureFlagsService_1.readFlags)();
+        const flags = await (0, featureFlagsService_1.readFlags)();
         flags[userId] = features;
-        (0, featureFlagsService_1.writeFlags)(flags);
+        await (0, featureFlagsService_1.writeFlags)(flags);
         res.json({ features });
     }
     catch (err) {

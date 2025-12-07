@@ -146,7 +146,7 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
 
     // Persist optional invoice number in meta store
     if (invoiceNumber && invoiceNumber.trim()) {
-      upsertInvoiceMeta({ invoiceId, invoiceNumber: invoiceNumber.trim() });
+      await upsertInvoiceMeta({ invoiceId, invoiceNumber: invoiceNumber.trim() });
     }
 
     // After creating invoice, deduct stock and record purchases for each item
@@ -159,7 +159,7 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
         const nameForPcs = (h.name || "").trim();
         if (nameForPcs) {
           // Adjust PCS inventory maintained in JSON store
-          adjustPcsQuantity({ name: nameForPcs, delta: -qty });
+          await adjustPcsQuantity({ name: nameForPcs, delta: -qty });
         }
         // Record purchase if linked to a product
         if (h.productId) {
@@ -236,23 +236,24 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
       ? await prisma.customers.findMany({ where: { customerId: { in: customerIds } } })
       : [];
     const customerMap = new Map(customers.map((c) => [c.customerId, c.name] as const));
-    const list = invoices
-      .map((inv) => {
+    const list = await Promise.all(
+      invoices.map(async (inv) => {
         const paymentsSum = inv.payments.reduce((acc, p) => acc + p.amount, 0);
         const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
-        const meta = getInvoiceMeta(inv.invoiceId);
+        const meta = await getInvoiceMeta(inv.invoiceId);
         return { ...inv, status, customerName: customerMap.get(inv.customerId), invoiceNumber: meta?.invoiceNumber || undefined } as any;
       })
-      .filter((inv) => {
-        if (!search) return true;
-        return (
-          inv.invoiceId.toLowerCase().includes(search) ||
-          (inv.invoiceNumber || "").toLowerCase().includes(search) ||
-          (inv.customerName || "").toLowerCase().includes(search) ||
-          inv.location.toLowerCase().includes(search)
-        );
-      });
-    res.json({ invoices: list });
+    );
+    const filtered = list.filter((inv) => {
+      if (!search) return true;
+      return (
+        inv.invoiceId.toLowerCase().includes(search) ||
+        (inv.invoiceNumber || "").toLowerCase().includes(search) ||
+        (inv.customerName || "").toLowerCase().includes(search) ||
+        inv.location.toLowerCase().includes(search)
+      );
+    });
+    res.json({ invoices: filtered });
   } catch (err) {
     console.error("getInvoices error:", err);
     const msg = err instanceof Error ? err.message : "Failed to load invoices";
@@ -270,7 +271,7 @@ export const getInvoiceById = async (req: Request, res: Response): Promise<void>
     }
     const paymentsSum = inv.payments.reduce((acc, p) => acc + p.amount, 0);
     const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
-    const meta = getInvoiceMeta(inv.invoiceId);
+    const meta = await getInvoiceMeta(inv.invoiceId);
     res.json({ ...inv, status, invoiceNumber: meta?.invoiceNumber || undefined });
   } catch (err) {
     console.error("getInvoiceById error:", err);
@@ -356,7 +357,7 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
     // Update invoice number in meta store if provided
     if (typeof body.invoiceNumber === "string") {
       const normalized = body.invoiceNumber.trim();
-      upsertInvoiceMeta({ invoiceId: id, invoiceNumber: normalized || null });
+      await upsertInvoiceMeta({ invoiceId: id, invoiceNumber: normalized || null });
     }
 
     // Reconcile inventory changes based on item diffs (carton stock and PCS inventory)
@@ -415,14 +416,14 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
         }
       } else if (k.startsWith("pcs:")) {
         const name = k.slice(4);
-        adjustPcsQuantity({ name, delta: -delta });
+        await adjustPcsQuantity({ name, delta: -delta });
       }
     }
     if (changedCount > 0) {
       appendNotification({ type: "inventory", message: `Reconciled inventory for invoice ${id}; ${changedCount} item group(s) adjusted.`, actorUserId: req.user?.userId });
     }
     await maybeNotifyDueSoon(updated as any, req.user?.userId);
-    const meta = getInvoiceMeta(id);
+    const meta = await getInvoiceMeta(id);
     res.json({ ...updated, invoiceNumber: meta?.invoiceNumber || undefined });
   } catch (err) {
     console.error("updateInvoice error:", err);
@@ -503,7 +504,7 @@ export const deleteInvoice = async (req: Request, res: Response): Promise<void> 
 
     await prisma.invoices.delete({ where: { invoiceId: id } });
     // Remove meta on delete for cleanliness
-    try { removeInvoiceMeta(id); } catch {}
+    try { await removeInvoiceMeta(id); } catch {}
     appendNotification({ type: "invoice", message: `Invoice deleted: ${id}`, actorUserId: req.user?.userId });
     res.json({ success: true });
   } catch (err) {

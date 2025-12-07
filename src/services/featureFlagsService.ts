@@ -1,21 +1,26 @@
-import fs from "fs";
-import path from "path";
+import prisma from "../db/prisma";
 
 type FeatureFlags = Record<string, string[]>; // userId -> features
 
-const FLAGS_PATH = path.join(__dirname, "../../assets/featureFlags.json");
-
-export const readFlags = (): FeatureFlags => {
-  try {
-    const raw = fs.readFileSync(FLAGS_PATH, "utf-8");
-    return JSON.parse(raw);
-  } catch {
-    return {};
+export const readFlags = async (): Promise<FeatureFlags> => {
+  const rows = await prisma.featureFlags.findMany({});
+  const out: FeatureFlags = {};
+  for (const r of rows) {
+    const arr = Array.isArray(r.features) ? (r.features as unknown as string[]) : [];
+    out[r.userId] = arr;
   }
+  return out;
 };
 
-export const writeFlags = (flags: FeatureFlags) => {
-  const dir = path.dirname(FLAGS_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-  fs.writeFileSync(FLAGS_PATH, JSON.stringify(flags, null, 2), "utf-8");
+export const writeFlags = async (flags: FeatureFlags) => {
+  const ids = Object.keys(flags);
+  // Upsert each user features JSON atomically
+  for (const userId of ids) {
+    const features = flags[userId] || [];
+    await prisma.featureFlags.upsert({
+      where: { userId },
+      create: { userId, features },
+      update: { features },
+    });
+  }
 };

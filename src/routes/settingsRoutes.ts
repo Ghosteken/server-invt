@@ -17,9 +17,9 @@ router.put("/features/by-email", async (req, res) => {
       res.status(404).json({ message: "User not found" });
       return;
     }
-    const flags = readFlags();
+    const flags = await readFlags();
     flags[user.userId] = features;
-    writeFlags(flags);
+    await writeFlags(flags);
     res.json({ userId: user.userId, features });
   } catch (err) {
     res.status(500).json({ message: "Failed to set features" });
@@ -39,7 +39,7 @@ router.get("/features/by-email", async (req, res) => {
       res.status(404).json({ message: "User not found" });
       return;
     }
-    const flags = readFlags();
+    const flags = await readFlags();
     res.json({ userId: user.userId, features: flags[user.userId] || [] });
   } catch (err) {
     res.status(500).json({ message: "Failed to read features" });
@@ -50,7 +50,7 @@ router.get("/features/by-email", async (req, res) => {
 router.get("/features/:userId", async (req, res) => {
   try {
     const userId = req.params.userId;
-    const flags = readFlags();
+    const flags = await readFlags();
     res.json({ features: flags[userId] || [] });
   } catch (err) {
     res.status(500).json({ message: "Failed to read features" });
@@ -62,9 +62,9 @@ router.put("/features/:userId", async (req, res) => {
   try {
     const userId = req.params.userId;
     const features: string[] = Array.isArray(req.body?.features) ? req.body.features : [];
-    const flags = readFlags();
+    const flags = await readFlags();
     flags[userId] = features;
-    writeFlags(flags);
+    await writeFlags(flags);
     res.json({ features });
   } catch (err) {
     res.status(500).json({ message: "Failed to write features" });

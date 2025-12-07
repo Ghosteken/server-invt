@@ -140,5 +140,33 @@
     "message": "Processed manual invoice for Alice; updated 0 product(s).",
     "timestamp": "2025-12-07T18:07:03.529Z",
     "actorUserId": "tester"
+  },
+  {
+    "id": "1765131943365-lc2c5l",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-07T18:25:43.365Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765131943377-u8w0b5",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-07T18:25:43.377Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765132410378-f03qw5",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-07T18:33:30.378Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765132410389-5kj6k1",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-07T18:33:30.389Z",
+    "actorUserId": "tester"
   }
 ]

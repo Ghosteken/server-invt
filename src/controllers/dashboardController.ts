@@ -227,7 +227,7 @@ export const getLowStockPcs = async (req: Request, res: Response): Promise<void>
     const search = rawSearch.trim().toLowerCase();
 
     const low = await withCache(`lowPcs:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
-      const pcs = readPcsInventory();
+      const pcs = await readPcsInventory();
       const filtered = pcs
         // Only items currently in inventory: quantity > 0
         .filter((e) => (e.quantity || 0) > 0)
