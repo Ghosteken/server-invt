@@ -5,8 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.appendNotification = appendNotification;
 exports.getLatestNotifications = getLatestNotifications;
+exports.appendAuditLog = appendAuditLog;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
+const prisma_1 = __importDefault(require("../db/prisma"));
 const logDir = path_1.default.join(__dirname, "../../prisma/seedData");
 const logFile = path_1.default.join(logDir, "notifications.json");
 function ensureFile() {
@@ -48,5 +50,33 @@ function getLatestNotifications(limit = 20) {
     catch (e) {
         console.warn("getLatestNotifications failed", e);
         return [];
+    }
+}
+async function appendAuditLog({ tenantId = "default", actorUserId, action, resourceType, resourceId, payload }) {
+    try {
+        await prisma_1.default.auditLogs.create({
+            data: {
+                id: cryptoRandom(),
+                tenantId,
+                actorUserId: actorUserId || null,
+                action,
+                resourceType,
+                resourceId: resourceId || null,
+                payload: payload ?? null,
+            },
+        });
+    }
+    catch (e) {
+        // fallback: also write a notification entry for visibility
+        appendNotification({ type: "audit", message: `${action} ${resourceType} ${resourceId || ""}`.trim(), actorUserId });
+    }
+}
+function cryptoRandom() {
+    try {
+        const { randomUUID } = require("crypto");
+        return randomUUID();
+    }
+    catch {
+        return Math.random().toString(36).slice(2);
     }
 }

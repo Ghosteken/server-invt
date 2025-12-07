@@ -262,9 +262,14 @@ model Branches {
 
 // Tenant-aware replacements for JSON/meta stores
 model FeatureFlags {
-  userId    String   @id
+  id        String   @id
+  tenantId  String   @default("default")
+  userId    String
   features  Json
   updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, userId])
+  @@map("tenant_features")
 }
 
 model InvoiceMeta {
@@ -274,6 +279,7 @@ model InvoiceMeta {
   invoiceNumber String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+  @@map("invoice_meta")
 }
 
 model PcsInventory {
@@ -286,4 +292,35 @@ model PcsInventory {
   updatedAt DateTime @updatedAt
 
   @@unique([tenantId, name])
+  @@map("pcs_inventory")
+}
+
+// Audit logs for compliance and operations
+model AuditLogs {
+  id           String   @id
+  tenantId     String   @default("default")
+  actorUserId  String?
+  action       String
+  resourceType String
+  resourceId   String?
+  payload      Json?
+  timestamp    DateTime @default(now())
+
+  @@index([tenantId, action])
+  @@index([tenantId, resourceType])
+  @@map("audit_logs")
+}
+
+// Support inbox / in-app feedback
+model SupportMessages {
+  id        String   @id
+  tenantId  String   @default("default")
+  userId    String?
+  subject   String
+  body      String
+  status    String   @default("open")
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, status])
+  @@map("support_messages")
 }

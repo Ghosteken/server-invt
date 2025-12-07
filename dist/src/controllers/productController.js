@@ -15,6 +15,7 @@ const customerSalesService_1 = require("../services/customerSalesService");
 const pcsInventoryService_1 = require("../services/pcsInventoryService");
 const productUpdateAuditService_1 = require("../services/productUpdateAuditService");
 const xlsx_1 = __importDefault(require("xlsx"));
+const zod_1 = require("zod");
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const crypto_1 = require("crypto");
@@ -64,7 +65,15 @@ const getProducts = async (req, res) => {
 exports.getProducts = getProducts;
 const createProduct = async (req, res) => {
     try {
-        const { name, price, stockQuantity, category, description, packSize } = req.body;
+        const Body = zod_1.z.object({
+            name: zod_1.z.string().min(1),
+            price: zod_1.z.coerce.number().nonnegative(),
+            stockQuantity: zod_1.z.coerce.number().int().nonnegative(),
+            category: zod_1.z.string().optional().nullable(),
+            description: zod_1.z.string().optional().nullable(),
+            packSize: zod_1.z.string().optional().nullable(),
+        });
+        const { name, price, stockQuantity, category, description, packSize } = Body.parse(req.body);
         const product = await prisma_1.default.products.create({
             data: {
                 productId: (0, crypto_1.randomUUID)(),
@@ -109,7 +118,18 @@ exports.getProductById = getProductById;
 const updateProduct = async (req, res) => {
     try {
         const { productId } = req.params;
-        const { name, price, purchasePrice, stockQuantity, expiryDate, category, description, packSize, barcode } = req.body;
+        const Body = zod_1.z.object({
+            name: zod_1.z.string().min(1).optional(),
+            price: zod_1.z.coerce.number().nonnegative().optional(),
+            purchasePrice: zod_1.z.coerce.number().nonnegative().optional(),
+            stockQuantity: zod_1.z.coerce.number().int().nonnegative().optional(),
+            expiryDate: zod_1.z.string().nullable().optional(),
+            category: zod_1.z.string().nullable().optional(),
+            description: zod_1.z.string().nullable().optional(),
+            packSize: zod_1.z.string().nullable().optional(),
+            barcode: zod_1.z.string().nullable().optional(),
+        });
+        const { name, price, purchasePrice, stockQuantity, expiryDate, category, description, packSize, barcode } = Body.parse(req.body);
         const existing = await prisma_1.default.products.findUnique({ where: { productId } });
         if (!existing) {
             res.status(404).json({ message: "Product not found" });
@@ -320,9 +340,12 @@ const getProductMovements = async (req, res) => {
 exports.getProductMovements = getProductMovements;
 const getPcsProducts = async (req, res) => {
     try {
-        const rawSearch = req.query.search?.toString() ?? "";
+        const Query = zod_1.z.object({ search: zod_1.z.string().optional() });
+        const q = Query.safeParse({ search: req.query.search?.toString() });
+        const rawSearch = q.success ? q.data.search ?? "" : "";
         const search = rawSearch.trim().toLowerCase();
-        const pcs = await (0, pcsInventoryService_1.readPcsInventory)();
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const pcs = await (0, pcsInventoryService_1.readPcsInventory)(tenantId);
         // Load all products to allow robust matching and enrichment
         const products = await prisma_1.default.products.findMany({});
         // Helper normalization (aligned with invoice parsing heuristics)
@@ -404,7 +427,7 @@ exports.getPcsProducts = getPcsProducts;
 // Reload PCS inventory from disk (useful after external imports)
 const reloadPcs = async (req, res) => {
     try {
-        const pcs = await (0, pcsInventoryService_1.reloadPcsInventory)();
+        const pcs = await (0, pcsInventoryService_1.reloadPcsInventory)(req.tenantId || req.user?.tenantId || "default");
         res.json({ reloaded: pcs.length });
     }
     catch (err) {
@@ -597,7 +620,8 @@ const importPcsProducts = async (req, res) => {
         }
         // Only upsert PCS quantities when selected or when no selection provided
         const doPcsUpsert = !updateFieldsSet || updateFieldsSet.has("pcsquantity");
-        const merged = doPcsUpsert ? await (0, pcsInventoryService_1.upsertPcsEntries)(incoming) : await (0, pcsInventoryService_1.readPcsInventory)();
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const merged = doPcsUpsert ? await (0, pcsInventoryService_1.upsertPcsEntries)(incoming, tenantId) : await (0, pcsInventoryService_1.readPcsInventory)(tenantId);
         const importedCount = doPcsUpsert ? incoming.length : 0;
         (0, notificationService_1.appendNotification)({ type: "product", message: `Imported ${importedCount} PCS products`, actorUserId: req.user?.userId });
         // Persist imported PCS snapshot to JSON
@@ -646,10 +670,12 @@ exports.importPcsProducts = importPcsProducts;
 // Upsert a PCS entry (or multiple) directly via JSON body
 const upsertPcsItems = async (req, res) => {
     try {
-        const body = req.body;
+        const Item = zod_1.z.object({ name: zod_1.z.string().min(1), quantity: zod_1.z.coerce.number().int().nonnegative(), packSize: zod_1.z.string().nullable().optional() });
+        const Body = zod_1.z.union([zod_1.z.array(Item), Item]);
+        const body = Body.parse(req.body);
         let items = [];
         if (Array.isArray(body)) {
-            items = body.map((e) => ({ name: String(e?.name || "").trim(), quantity: Math.max(0, Number(e?.quantity) || 0), packSize: e?.packSize ? String(e.packSize).trim() : null }));
+            items = body.map((e) => ({ name: e.name.trim(), quantity: Math.max(0, Number(e.quantity) || 0), packSize: e.packSize ? String(e.packSize).trim() : null }));
         }
         else if (body && typeof body === "object") {
             const name = String(body?.name || "").trim();
@@ -1787,7 +1813,7 @@ const deleteProduct = async (req, res) => {
             return;
         }
         // Optional guard: prevent deletion if PCS inventory still references this product by name
-        const pcs = await (0, pcsInventoryService_1.readPcsInventory)();
+        const pcs = await (0, pcsInventoryService_1.readPcsInventory)(req.tenantId || req.user?.tenantId || "default");
         const hasPcsRef = pcs.some((e) => String(e.name || "").trim().toLowerCase() === String(existing.name || "").trim().toLowerCase());
         if (hasPcsRef) {
             res.status(409).json({ message: "Cannot delete product while PCS inventory contains entries referencing it." });

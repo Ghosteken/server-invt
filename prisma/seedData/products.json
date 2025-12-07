@@ -1,5 +1,32 @@
 [
   {
+    "productId": "030c6a77-e31c-4099-99d3-07588804b4ac",
+    "name": "030c6a77-e31c-4099-99d3-07588804b4ac",
+    "price": 5312.5,
+    "stockQuantity": 4,
+    "category": null,
+    "packSize": "24",
+    "barcode": null
+  },
+  {
+    "productId": "2bec9503-edbc-4142-b687-ac3ce740c74b",
+    "name": "2bec9503-edbc-4142-b687-ac3ce740c74b",
+    "price": 20000,
+    "stockQuantity": 500,
+    "category": null,
+    "packSize": "16",
+    "barcode": null
+  },
+  {
+    "productId": "34f74929-4ed7-42b9-80f4-bee880824742",
+    "name": "34f74929-4ed7-42b9-80f4-bee880824742",
+    "price": 137500,
+    "stockQuantity": 97,
+    "category": null,
+    "packSize": "24",
+    "barcode": null
+  },
+  {
     "productId": "8b6eaab6-45c0-48ec-a79b-dee047630d24",
     "name": "A.LEGAL MACEDOINE MIXED VEGETABLES 400G",
     "price": 0,
@@ -9,12 +36,12 @@
     "barcode": "3047205212019"
   },
   {
-    "productId": "d190bc91-b6eb-4c38-b761-4fcd200377ab",
-    "name": "ADOBO GOYA ALL PURPOSE SEASONING",
-    "price": 152500,
-    "stockQuantity": 4,
-    "category": "SPICES",
-    "packSize": "12",
+    "productId": "aa067548-808d-4a0c-8471-851d9c64e112",
+    "name": "aa067548-808d-4a0c-8471-851d9c64e112",
+    "price": 36250,
+    "stockQuantity": 1,
+    "category": "GREEN PEAS & SWEET CORN(CAN FOODS)",
+    "packSize": "48",
     "barcode": null
   },
   {
@@ -23,6 +50,15 @@
     "price": 152500,
     "stockQuantity": 4,
     "category": null,
+    "packSize": "12",
+    "barcode": null
+  },
+  {
+    "productId": "d190bc91-b6eb-4c38-b761-4fcd200377ab",
+    "name": "ADOBO GOYA ALL PURPOSE SEASONING",
+    "price": 152500,
+    "stockQuantity": 4,
+    "category": "SPICES",
     "packSize": "12",
     "barcode": null
   },
@@ -309,7 +345,7 @@
     "productId": "bcce9b50-3bbd-41cb-a5f2-6a90a5b04675",
     "name": "BAKED YOGHURT 500ml",
     "price": 8625,
-    "stockQuantity": 0,
+    "stockQuantity": 1,
     "category": "VIJU PRODUCT",
     "packSize": "12",
     "barcode": "6156000264080"
@@ -351,20 +387,20 @@
     "barcode": "603964010346"
   },
   {
-    "productId": "069d4f97-faec-4287-9589-1358d190efe1",
-    "name": "BAMBOO SKEWER STICK FALCON 10INCH",
-    "price": 40340,
-    "stockQuantity": 189,
-    "category": null,
-    "packSize": "1",
-    "barcode": null
-  },
-  {
     "productId": "9088f14a-bc0d-4f3e-b0f4-b43b5a499000",
     "name": "BAMBOO SKEWER STICK FALCON 10INCH",
     "price": 40340,
     "stockQuantity": 95,
     "category": "FALCON STICKS",
+    "packSize": "1",
+    "barcode": null
+  },
+  {
+    "productId": "069d4f97-faec-4287-9589-1358d190efe1",
+    "name": "BAMBOO SKEWER STICK FALCON 10INCH",
+    "price": 40340,
+    "stockQuantity": 190,
+    "category": null,
     "packSize": "1",
     "barcode": null
   },
@@ -423,15 +459,6 @@
     "barcode": "5029788172780"
   },
   {
-    "productId": "fd3ea3fc-b1f6-442c-8fd5-1046644d09fd",
-    "name": "BBSTAR APPLE",
-    "price": 5750,
-    "stockQuantity": 35,
-    "category": "VIJU PRODUCT",
-    "packSize": "24",
-    "barcode": null
-  },
-  {
     "productId": "5bd4f6f4-3122-4bf9-abd6-ac4fc549e258",
     "name": "BBSTAR APPLE",
     "price": 5750,
@@ -441,11 +468,11 @@
     "barcode": null
   },
   {
-    "productId": "1b5a0aea-8d98-4f6c-8694-6c2463dd43d8",
-    "name": "BBSTAR ORANGE",
+    "productId": "fd3ea3fc-b1f6-442c-8fd5-1046644d09fd",
+    "name": "BBSTAR APPLE",
     "price": 5750,
-    "stockQuantity": 36,
-    "category": null,
+    "stockQuantity": 35,
+    "category": "VIJU PRODUCT",
     "packSize": "24",
     "barcode": null
   },
@@ -455,6 +482,15 @@
     "price": 5750,
     "stockQuantity": 33,
     "category": "VIJU PRODUCT",
+    "packSize": "24",
+    "barcode": null
+  },
+  {
+    "productId": "1b5a0aea-8d98-4f6c-8694-6c2463dd43d8",
+    "name": "BBSTAR ORANGE",
+    "price": 5750,
+    "stockQuantity": 36,
+    "category": null,
     "packSize": "24",
     "barcode": null
   },
@@ -513,7 +549,7 @@
     "barcode": "8936047441105"
   },
   {
-    "productId": "15d00422-fdda-432f-8ceb-bf9f7284291c",
+    "productId": "4e8f5f43-8531-442e-95c7-53da68323b82",
     "name": "BISCUIT TRIPLE MILK CHOCOLATE COOKIES LONDON 160G",
     "price": 0,
     "stockQuantity": 0,
@@ -522,7 +558,7 @@
     "barcode": "5060727640755"
   },
   {
-    "productId": "4e8f5f43-8531-442e-95c7-53da68323b82",
+    "productId": "15d00422-fdda-432f-8ceb-bf9f7284291c",
     "name": "BISCUIT TRIPLE MILK CHOCOLATE COOKIES LONDON 160G",
     "price": 0,
     "stockQuantity": 0,
@@ -549,20 +585,20 @@
     "barcode": null
   },
   {
-    "productId": "6322ef78-f88b-4ac5-9a7a-855b8b1536cc",
-    "name": "BISCUITS Dark Chocolate Digestive BELMONT 300G",
-    "price": 75000,
-    "stockQuantity": 14,
-    "category": null,
-    "packSize": "30",
-    "barcode": null
-  },
-  {
     "productId": "2a160ee7-f377-416c-9d7c-e1f56502e558",
     "name": "BISCUITS Dark Chocolate Digestive BELMONT 300G",
     "price": 75000,
     "stockQuantity": 14,
     "category": "BELMONT BISCUITS",
+    "packSize": "30",
+    "barcode": null
+  },
+  {
+    "productId": "6322ef78-f88b-4ac5-9a7a-855b8b1536cc",
+    "name": "BISCUITS Dark Chocolate Digestive BELMONT 300G",
+    "price": 75000,
+    "stockQuantity": 14,
+    "category": null,
     "packSize": "30",
     "barcode": null
   },
@@ -621,15 +657,6 @@
     "barcode": "4088600108230"
   },
   {
-    "productId": "c08852cf-fb9f-4e3d-8ae6-f1568e15f956",
-    "name": "BISCUITS malted milk TOWERGATE 200G",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "TOWERGATE BISCUITS",
-    "packSize": "28",
-    "barcode": null
-  },
-  {
     "productId": "6a4f64cb-cd9e-4748-8fc9-d5bd43efc678",
     "name": "BISCUITS malted milk TOWERGATE 200G",
     "price": 0,
@@ -639,20 +666,20 @@
     "barcode": "4088600108230"
   },
   {
+    "productId": "c08852cf-fb9f-4e3d-8ae6-f1568e15f956",
+    "name": "BISCUITS malted milk TOWERGATE 200G",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "TOWERGATE BISCUITS",
+    "packSize": "28",
+    "barcode": null
+  },
+  {
     "productId": "ac718f3c-ab18-404f-abb8-d73c20a45c63",
     "name": "BISCUITS MILK 3 IN 1 DESMOND'S 600G",
     "price": 0,
     "stockQuantity": 0,
     "category": "OTHER BISCUIT",
-    "packSize": "18",
-    "barcode": "6930058652170"
-  },
-  {
-    "productId": "40c1ec2e-84c1-4233-8143-07006bd8ab18",
-    "name": "BISCUITS MILK 3 IN 1 DESMOND'S 600G",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "OTHER BISCUITS",
     "packSize": "18",
     "barcode": "6930058652170"
   },
@@ -666,52 +693,16 @@
     "barcode": "6930058652170"
   },
   {
-    "productId": "d8285fad-b29a-46d7-bf16-29de1fdb5efb",
-    "name": "BISCUITS MILK 3 IN 1 GOLD SCOTTISH 600G",
+    "productId": "40c1ec2e-84c1-4233-8143-07006bd8ab18",
+    "name": "BISCUITS MILK 3 IN 1 DESMOND'S 600G",
     "price": 0,
     "stockQuantity": 0,
     "category": "OTHER BISCUITS",
     "packSize": "18",
-    "barcode": "6940701201020"
-  },
-  {
-    "productId": "969beaab-a357-41d0-82d1-30dd18dcc820",
-    "name": "BISCUITS MILK 3 IN 1 GOLD SCOTTISH 600G",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "OTHER BISCUITS",
-    "packSize": "18",
-    "barcode": "6940701201020"
-  },
-  {
-    "productId": "310cb567-5d6b-4de4-a9c7-564d1dd443f7",
-    "name": "BISCUITS MILK 3 IN 1 GOLD SCOTTISH 600G",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "OTHER BISCUITS",
-    "packSize": "18",
-    "barcode": "6940701201020"
-  },
-  {
-    "productId": "b0533a28-153e-4118-91a8-58505b2436dc",
-    "name": "BISCUITS MILK 3 IN 1 GOLD SCOTTISH 600G",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "OTHER BISCUITS",
-    "packSize": "18",
-    "barcode": "6940701201020"
+    "barcode": "6930058652170"
   },
   {
     "productId": "3994d83e-e33e-4a5c-b5c2-f7983f13fad3",
-    "name": "BISCUITS MILK 3 IN 1 GOLD SCOTTISH 600G",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "OTHER BISCUITS",
-    "packSize": "18",
-    "barcode": "6940701201020"
-  },
-  {
-    "productId": "c498332c-2be9-4e30-82d2-d2f41e4b8eb3",
     "name": "BISCUITS MILK 3 IN 1 GOLD SCOTTISH 600G",
     "price": 0,
     "stockQuantity": 0,
@@ -730,6 +721,51 @@
   },
   {
     "productId": "91e68ad1-3a17-4781-bc91-2a942df5e469",
+    "name": "BISCUITS MILK 3 IN 1 GOLD SCOTTISH 600G",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "OTHER BISCUITS",
+    "packSize": "18",
+    "barcode": "6940701201020"
+  },
+  {
+    "productId": "b0533a28-153e-4118-91a8-58505b2436dc",
+    "name": "BISCUITS MILK 3 IN 1 GOLD SCOTTISH 600G",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "OTHER BISCUITS",
+    "packSize": "18",
+    "barcode": "6940701201020"
+  },
+  {
+    "productId": "c498332c-2be9-4e30-82d2-d2f41e4b8eb3",
+    "name": "BISCUITS MILK 3 IN 1 GOLD SCOTTISH 600G",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "OTHER BISCUITS",
+    "packSize": "18",
+    "barcode": "6940701201020"
+  },
+  {
+    "productId": "d8285fad-b29a-46d7-bf16-29de1fdb5efb",
+    "name": "BISCUITS MILK 3 IN 1 GOLD SCOTTISH 600G",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "OTHER BISCUITS",
+    "packSize": "18",
+    "barcode": "6940701201020"
+  },
+  {
+    "productId": "310cb567-5d6b-4de4-a9c7-564d1dd443f7",
+    "name": "BISCUITS MILK 3 IN 1 GOLD SCOTTISH 600G",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "OTHER BISCUITS",
+    "packSize": "18",
+    "barcode": "6940701201020"
+  },
+  {
+    "productId": "969beaab-a357-41d0-82d1-30dd18dcc820",
     "name": "BISCUITS MILK 3 IN 1 GOLD SCOTTISH 600G",
     "price": 0,
     "stockQuantity": 0,
@@ -810,15 +846,6 @@
     "barcode": "6953206118649"
   },
   {
-    "productId": "8f99d3f7-c3ec-4c78-bef9-5359275202c4",
-    "name": "BISCUITS ONION CRACKER OWEN'S 200G",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "OWEN'S BISCUITS         ",
-    "packSize": "24",
-    "barcode": "6953206119721"
-  },
-  {
     "productId": "194ebe21-2361-45e8-a049-de5918910fae",
     "name": "BISCUITS ONION CRACKER OWEN'S 200G",
     "price": 0,
@@ -837,13 +864,13 @@
     "barcode": "6953206119721"
   },
   {
-    "productId": "94eed9a9-04a6-45d0-a67d-b03e806b4dd8",
-    "name": "BISCUITS RICH MILK CRACKERS OWEN'S 100G",
+    "productId": "8f99d3f7-c3ec-4c78-bef9-5359275202c4",
+    "name": "BISCUITS ONION CRACKER OWEN'S 200G",
     "price": 0,
     "stockQuantity": 0,
-    "category": "OWEN'S BISCUITS ",
+    "category": "OWEN'S BISCUITS         ",
     "packSize": "24",
-    "barcode": "6953206119653"
+    "barcode": "6953206119721"
   },
   {
     "productId": "97dc37c8-c76c-4489-a540-228e4c974556",
@@ -851,6 +878,15 @@
     "price": 0,
     "stockQuantity": 0,
     "category": "OWEN'S BISCUITS         ",
+    "packSize": "24",
+    "barcode": "6953206119653"
+  },
+  {
+    "productId": "94eed9a9-04a6-45d0-a67d-b03e806b4dd8",
+    "name": "BISCUITS RICH MILK CRACKERS OWEN'S 100G",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "OWEN'S BISCUITS ",
     "packSize": "24",
     "barcode": "6953206119653"
   },
@@ -990,15 +1026,6 @@
     "barcode": "6975318690103"
   },
   {
-    "productId": "03817150-e719-4991-b7bf-87ea4f4a2112",
-    "name": "BOBO 100 FLAVOURED MILK DRINK 210ML",
-    "price": 6000,
-    "stockQuantity": 37,
-    "category": "BOBO PRODUCT",
-    "packSize": "24",
-    "barcode": null
-  },
-  {
     "productId": "65d0f6b6-ef5f-47e9-9a6f-762b87fdfbbb",
     "name": "BOBO 100 FLAVOURED MILK DRINK 210ML",
     "price": 6000,
@@ -1008,25 +1035,16 @@
     "barcode": null
   },
   {
-    "productId": "da666fd7-2021-4711-acbc-4df640c26d4d",
-    "name": "BOBO MILK DRINK APPLE 180ML",
-    "price": 0,
-    "stockQuantity": 0,
+    "productId": "03817150-e719-4991-b7bf-87ea4f4a2112",
+    "name": "BOBO 100 FLAVOURED MILK DRINK 210ML",
+    "price": 6000,
+    "stockQuantity": 37,
     "category": "BOBO PRODUCT",
     "packSize": "24",
     "barcode": null
   },
   {
-    "productId": "a601bd97-10e4-4120-be0c-dd3704be53e7",
-    "name": "BOBO MILK DRINK APPLE 180ML",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "BOBO PRODUCT",
-    "packSize": "24",
-    "barcode": null
-  },
-  {
-    "productId": "f82f4c32-24d2-4fac-a30b-8bb98d69d941",
+    "productId": "4d926245-6d96-4bb3-ac52-b9f99720299f",
     "name": "BOBO MILK DRINK APPLE 180ML",
     "price": 0,
     "stockQuantity": 0,
@@ -1044,6 +1062,15 @@
     "barcode": null
   },
   {
+    "productId": "f82f4c32-24d2-4fac-a30b-8bb98d69d941",
+    "name": "BOBO MILK DRINK APPLE 180ML",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BOBO PRODUCT",
+    "packSize": "24",
+    "barcode": null
+  },
+  {
     "productId": "fbb74558-be3e-4112-99c7-c3e6b03141ca",
     "name": "BOBO MILK DRINK APPLE 180ML",
     "price": 0,
@@ -1053,7 +1080,7 @@
     "barcode": null
   },
   {
-    "productId": "4d926245-6d96-4bb3-ac52-b9f99720299f",
+    "productId": "a601bd97-10e4-4120-be0c-dd3704be53e7",
     "name": "BOBO MILK DRINK APPLE 180ML",
     "price": 0,
     "stockQuantity": 0,
@@ -1062,62 +1089,8 @@
     "barcode": null
   },
   {
-    "productId": "f19d2f1c-50a3-406d-a793-7cc9ba79d618",
-    "name": "BOBO MILK DRINK ORANGE 180ML",
-    "price": 5312.5,
-    "stockQuantity": 12,
-    "category": null,
-    "packSize": "24",
-    "barcode": null
-  },
-  {
-    "productId": "50da33b7-6704-440e-a642-69607dca8e24",
-    "name": "BOBO MILK DRINK ORANGE 180ML",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "BOBO PRODUCT",
-    "packSize": "24",
-    "barcode": null
-  },
-  {
-    "productId": "64b12a19-b8bb-424f-bc29-cc0f8eb213db",
-    "name": "BOBO MILK DRINK ORANGE 180ML",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "BOBO PRODUCT",
-    "packSize": "24",
-    "barcode": null
-  },
-  {
-    "productId": "05337aff-07f9-47d5-9ecb-9c1e9274877c",
-    "name": "BOBO MILK DRINK ORANGE 180ML",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "BOBO PRODUCT",
-    "packSize": "24",
-    "barcode": null
-  },
-  {
-    "productId": "c09f1a2e-08d8-43d6-9a1a-921cd5b7f397",
-    "name": "BOBO MILK DRINK ORANGE 180ML",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "BOBO PRODUCT",
-    "packSize": "24",
-    "barcode": null
-  },
-  {
-    "productId": "24603ff2-1d10-418b-80b3-2ab15506a313",
-    "name": "BOBO MILK DRINK ORANGE 180ML",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "BOBO PRODUCT",
-    "packSize": "24",
-    "barcode": null
-  },
-  {
-    "productId": "81c73707-1444-4bcf-bcec-fd5cb53d9dd7",
-    "name": "BOBO MILK DRINK ORANGE 180ML",
+    "productId": "da666fd7-2021-4711-acbc-4df640c26d4d",
+    "name": "BOBO MILK DRINK APPLE 180ML",
     "price": 0,
     "stockQuantity": 0,
     "category": "BOBO PRODUCT",
@@ -1134,16 +1107,7 @@
     "barcode": null
   },
   {
-    "productId": "4d86bcb6-445b-41ee-8b11-a38d89915abb",
-    "name": "BOBO MILK DRINK ORANGE 180ML",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "BOBO PRODUCT",
-    "packSize": "24",
-    "barcode": null
-  },
-  {
-    "productId": "433e4138-2f9c-4c5c-8fbf-7d30ce45c1eb",
+    "productId": "50da33b7-6704-440e-a642-69607dca8e24",
     "name": "BOBO MILK DRINK ORANGE 180ML",
     "price": 0,
     "stockQuantity": 0,
@@ -1161,11 +1125,74 @@
     "barcode": null
   },
   {
-    "productId": "030c6a77-e31c-4099-99d3-07588804b4ac",
-    "name": "BOBO MILK DRINK VANILLA 180ML",
+    "productId": "64b12a19-b8bb-424f-bc29-cc0f8eb213db",
+    "name": "BOBO MILK DRINK ORANGE 180ML",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BOBO PRODUCT",
+    "packSize": "24",
+    "barcode": null
+  },
+  {
+    "productId": "4d86bcb6-445b-41ee-8b11-a38d89915abb",
+    "name": "BOBO MILK DRINK ORANGE 180ML",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BOBO PRODUCT",
+    "packSize": "24",
+    "barcode": null
+  },
+  {
+    "productId": "05337aff-07f9-47d5-9ecb-9c1e9274877c",
+    "name": "BOBO MILK DRINK ORANGE 180ML",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BOBO PRODUCT",
+    "packSize": "24",
+    "barcode": null
+  },
+  {
+    "productId": "24603ff2-1d10-418b-80b3-2ab15506a313",
+    "name": "BOBO MILK DRINK ORANGE 180ML",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BOBO PRODUCT",
+    "packSize": "24",
+    "barcode": null
+  },
+  {
+    "productId": "f19d2f1c-50a3-406d-a793-7cc9ba79d618",
+    "name": "BOBO MILK DRINK ORANGE 180ML",
     "price": 5312.5,
-    "stockQuantity": 4,
+    "stockQuantity": 12,
     "category": null,
+    "packSize": "24",
+    "barcode": null
+  },
+  {
+    "productId": "81c73707-1444-4bcf-bcec-fd5cb53d9dd7",
+    "name": "BOBO MILK DRINK ORANGE 180ML",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BOBO PRODUCT",
+    "packSize": "24",
+    "barcode": null
+  },
+  {
+    "productId": "433e4138-2f9c-4c5c-8fbf-7d30ce45c1eb",
+    "name": "BOBO MILK DRINK ORANGE 180ML",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BOBO PRODUCT",
+    "packSize": "24",
+    "barcode": null
+  },
+  {
+    "productId": "c09f1a2e-08d8-43d6-9a1a-921cd5b7f397",
+    "name": "BOBO MILK DRINK ORANGE 180ML",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BOBO PRODUCT",
     "packSize": "24",
     "barcode": null
   },
@@ -1278,15 +1305,6 @@
     "barcode": "20008574"
   },
   {
-    "productId": "3ddaa2c3-8737-4818-9406-d4358a388239",
-    "name": "CEREAL CORN FLAKES CROWNFIELD 500G",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "CEREALS",
-    "packSize": "16",
-    "barcode": "20159917"
-  },
-  {
     "productId": "3b46b7f8-c158-4a77-a5fc-b0ff80ed2c60",
     "name": "CEREAL CORN FLAKES CROWNFIELD 500G",
     "price": 0,
@@ -1294,6 +1312,15 @@
     "category": "CEREALS",
     "packSize": "16",
     "barcode": "20067267"
+  },
+  {
+    "productId": "3ddaa2c3-8737-4818-9406-d4358a388239",
+    "name": "CEREAL CORN FLAKES CROWNFIELD 500G",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "CEREALS",
+    "packSize": "16",
+    "barcode": "20159917"
   },
   {
     "productId": "99257701-6869-47eb-af7d-7496fe3a426e",
@@ -1386,20 +1413,20 @@
     "barcode": "5057753937133"
   },
   {
-    "productId": "8297a1a5-4f74-4669-8198-8fb994f21ce9",
-    "name": "CEREAL RAISING & ALMOND CROWNFIELD 1KG",
-    "price": 142500,
-    "stockQuantity": 8,
-    "category": null,
-    "packSize": "20",
-    "barcode": null
-  },
-  {
     "productId": "392d8901-058c-48ea-8487-27e1634aa138",
     "name": "CEREAL RAISING & ALMOND CROWNFIELD 1KG",
     "price": 142500,
     "stockQuantity": 8,
     "category": "GRANOLA/CEREAL",
+    "packSize": "20",
+    "barcode": null
+  },
+  {
+    "productId": "8297a1a5-4f74-4669-8198-8fb994f21ce9",
+    "name": "CEREAL RAISING & ALMOND CROWNFIELD 1KG",
+    "price": 142500,
+    "stockQuantity": 8,
+    "category": null,
     "packSize": "20",
     "barcode": null
   },
@@ -1413,20 +1440,20 @@
     "barcode": "20719319"
   },
   {
-    "productId": "e96ab334-7476-4a44-b5b4-a3baa8f979d0",
-    "name": "CERES APPLE JUICE",
-    "price": 43750,
-    "stockQuantity": 2,
-    "category": "ALCHOHOLIC DRINK",
-    "packSize": "24",
-    "barcode": null
-  },
-  {
     "productId": "e71bc81a-67cc-441b-bc67-dd75c79de0ff",
     "name": "CERES APPLE JUICE",
     "price": 43750,
     "stockQuantity": 2,
     "category": null,
+    "packSize": "24",
+    "barcode": null
+  },
+  {
+    "productId": "e96ab334-7476-4a44-b5b4-a3baa8f979d0",
+    "name": "CERES APPLE JUICE",
+    "price": 43750,
+    "stockQuantity": 2,
+    "category": "ALCHOHOLIC DRINK",
     "packSize": "24",
     "barcode": null
   },
@@ -1494,15 +1521,6 @@
     "barcode": null
   },
   {
-    "productId": "fb279c73-752c-44e4-a56d-8b2244d28dad",
-    "name": "CHECKERS CUSTARD 3IN1 JAR 1.5KG",
-    "price": 16456.25,
-    "stockQuantity": 10,
-    "category": null,
-    "packSize": "3",
-    "barcode": null
-  },
-  {
     "productId": "439df868-131c-4275-940f-efa7bd28635e",
     "name": "CHECKERS CUSTARD 3IN1 JAR 1.5KG",
     "price": 16456.25,
@@ -1510,6 +1528,15 @@
     "category": "CHECKERS",
     "packSize": "3",
     "barcode": "714084860084"
+  },
+  {
+    "productId": "fb279c73-752c-44e4-a56d-8b2244d28dad",
+    "name": "CHECKERS CUSTARD 3IN1 JAR 1.5KG",
+    "price": 16456.25,
+    "stockQuantity": 10,
+    "category": null,
+    "packSize": "3",
+    "barcode": null
   },
   {
     "productId": "7f0c0e03-39af-4eb0-a6fb-b957246c08a2",
@@ -1530,15 +1557,6 @@
     "barcode": "782706100115"
   },
   {
-    "productId": "df2b5e35-6fa4-42b2-bbd5-39b79b233e5d",
-    "name": "CHECKERS CUSTARD 3IN1 JAR 400GM",
-    "price": 13657.5,
-    "stockQuantity": 19,
-    "category": null,
-    "packSize": "6",
-    "barcode": null
-  },
-  {
     "productId": "bf622774-5e14-4966-abc0-b0cfdfa0b9bc",
     "name": "CHECKERS CUSTARD 3IN1 JAR 400GM",
     "price": 0,
@@ -1546,6 +1564,15 @@
     "category": "CHECKERS",
     "packSize": "6",
     "barcode": "6154000248017"
+  },
+  {
+    "productId": "df2b5e35-6fa4-42b2-bbd5-39b79b233e5d",
+    "name": "CHECKERS CUSTARD 3IN1 JAR 400GM",
+    "price": 13657.5,
+    "stockQuantity": 19,
+    "category": null,
+    "packSize": "6",
+    "barcode": null
   },
   {
     "productId": "20cb24de-4f66-4484-8aed-faee8137859d",
@@ -1584,15 +1611,6 @@
     "barcode": null
   },
   {
-    "productId": "b25cc1c3-d245-4d1b-9ceb-d9ac88e6065b",
-    "name": "CHECKERS CUSTARD BANANA JAR 1KG",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "CHECKERS",
-    "packSize": "4",
-    "barcode": "782706100139"
-  },
-  {
     "productId": "23efedf5-2be3-4cc2-9bf5-6fba37415e9a",
     "name": "CHECKERS CUSTARD BANANA JAR 1KG",
     "price": 11026.25,
@@ -1602,13 +1620,13 @@
     "barcode": null
   },
   {
-    "productId": "06a560fd-c274-4576-bc4b-2862f8db1bd2",
-    "name": "CHECKERS CUSTARD BANANA JAR 2KG",
-    "price": 12305,
-    "stockQuantity": 14,
-    "category": null,
-    "packSize": "3",
-    "barcode": null
+    "productId": "b25cc1c3-d245-4d1b-9ceb-d9ac88e6065b",
+    "name": "CHECKERS CUSTARD BANANA JAR 1KG",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "CHECKERS",
+    "packSize": "4",
+    "barcode": "782706100139"
   },
   {
     "productId": "1544ebf3-b371-4aed-b89c-16f9ec668c67",
@@ -1620,12 +1638,12 @@
     "barcode": "714084852690"
   },
   {
-    "productId": "4d32808a-0d6c-453d-895b-3d27bb0dcdd2",
-    "name": "CHECKERS CUSTARD BANANA JAR 400GMS",
-    "price": 13050,
-    "stockQuantity": 16,
+    "productId": "06a560fd-c274-4576-bc4b-2862f8db1bd2",
+    "name": "CHECKERS CUSTARD BANANA JAR 2KG",
+    "price": 12305,
+    "stockQuantity": 14,
     "category": null,
-    "packSize": "12",
+    "packSize": "3",
     "barcode": null
   },
   {
@@ -1636,6 +1654,15 @@
     "category": "CHECKERS",
     "packSize": "12",
     "barcode": "6154000248000"
+  },
+  {
+    "productId": "4d32808a-0d6c-453d-895b-3d27bb0dcdd2",
+    "name": "CHECKERS CUSTARD BANANA JAR 400GMS",
+    "price": 13050,
+    "stockQuantity": 16,
+    "category": null,
+    "packSize": "12",
+    "barcode": null
   },
   {
     "productId": "88d2d895-1ce8-4b18-89ea-e4e4ea39e8a7",
@@ -1674,15 +1701,6 @@
     "barcode": "180201379676"
   },
   {
-    "productId": "135477c2-5ff9-4d5f-9fd1-a45a033b7732",
-    "name": "CHECKERS CUSTARD CHOCOLATE JAR 400GMS",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "CHECKERS",
-    "packSize": "6",
-    "barcode": "180201379676"
-  },
-  {
     "productId": "c4792970-7f19-49d5-9702-ff3ab85fb3b2",
     "name": "CHECKERS CUSTARD CHOCOLATE JAR 400GMS",
     "price": 0,
@@ -1701,21 +1719,21 @@
     "barcode": "180201379676"
   },
   {
+    "productId": "135477c2-5ff9-4d5f-9fd1-a45a033b7732",
+    "name": "CHECKERS CUSTARD CHOCOLATE JAR 400GMS",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "CHECKERS",
+    "packSize": "6",
+    "barcode": "180201379676"
+  },
+  {
     "productId": "478e9338-00c1-4f3e-b92c-a8315cec582d",
     "name": "CHECKERS CUSTARD CHOCOLATE JAR 400GMS",
     "price": 10420,
     "stockQuantity": 11,
     "category": null,
     "packSize": "6",
-    "barcode": null
-  },
-  {
-    "productId": "a1ba7eef-675c-4b19-8d0a-1b25a46f9f66",
-    "name": "CHECKERS CUSTARD CHOCOLATE SACHET 40GMS",
-    "price": 12291.25,
-    "stockQuantity": 12,
-    "category": null,
-    "packSize": "80",
     "barcode": null
   },
   {
@@ -1726,6 +1744,15 @@
     "category": "CHECKERS",
     "packSize": "80",
     "barcode": "180201379621"
+  },
+  {
+    "productId": "a1ba7eef-675c-4b19-8d0a-1b25a46f9f66",
+    "name": "CHECKERS CUSTARD CHOCOLATE SACHET 40GMS",
+    "price": 12291.25,
+    "stockQuantity": 12,
+    "category": null,
+    "packSize": "80",
+    "barcode": null
   },
   {
     "productId": "a1b90cd2-b106-4498-9d66-099986964d5c",
@@ -1782,6 +1809,15 @@
     "barcode": null
   },
   {
+    "productId": "c7ca35fc-f9fa-46cd-9896-de5fe5f8e9d1",
+    "name": "CHECKERS CUSTARD VANILLA REFILL PACK 1KG",
+    "price": 13606.25,
+    "stockQuantity": 16,
+    "category": null,
+    "packSize": "8",
+    "barcode": null
+  },
+  {
     "productId": "e9ab17ee-76f7-480e-882e-aee216ded6eb",
     "name": "CHECKERS CUSTARD VANILLA REFILL PACK 1KG",
     "price": 13606.25,
@@ -1791,12 +1827,12 @@
     "barcode": "714084851198"
   },
   {
-    "productId": "c7ca35fc-f9fa-46cd-9896-de5fe5f8e9d1",
-    "name": "CHECKERS CUSTARD VANILLA REFILL PACK 1KG",
-    "price": 13606.25,
-    "stockQuantity": 16,
+    "productId": "0583ef5b-b9f7-4784-b358-6eb178bbbb14",
+    "name": "CHECKERS CUSTARD VANILLA REFILL PACK 400GMS",
+    "price": 12898.75,
+    "stockQuantity": 26,
     "category": null,
-    "packSize": "8",
+    "packSize": "16",
     "barcode": null
   },
   {
@@ -1809,13 +1845,13 @@
     "barcode": "714084851204"
   },
   {
-    "productId": "0583ef5b-b9f7-4784-b358-6eb178bbbb14",
-    "name": "CHECKERS CUSTARD VANILLA REFILL PACK 400GMS",
-    "price": 12898.75,
-    "stockQuantity": 26,
-    "category": null,
-    "packSize": "16",
-    "barcode": null
+    "productId": "479b2034-f33e-4e75-b233-4a8baf701b2e",
+    "name": "CHECKERS CUSTARD VANILLA SACHET 45GMS",
+    "price": 12291.25,
+    "stockQuantity": 22,
+    "category": "CHECKERS",
+    "packSize": "96",
+    "barcode": "714084852683"
   },
   {
     "productId": "1d1be068-cbf2-4ef0-b17d-2430f6c81952",
@@ -1827,13 +1863,13 @@
     "barcode": null
   },
   {
-    "productId": "479b2034-f33e-4e75-b233-4a8baf701b2e",
-    "name": "CHECKERS CUSTARD VANILLA SACHET 45GMS",
-    "price": 12291.25,
-    "stockQuantity": 22,
-    "category": "CHECKERS",
-    "packSize": "96",
-    "barcode": "714084852683"
+    "productId": "48538455-186d-46da-815a-536915b2556d",
+    "name": "CHECKERS PAP 3IN1 JAR 400G",
+    "price": 13281.625,
+    "stockQuantity": 10,
+    "category": null,
+    "packSize": "6",
+    "barcode": null
   },
   {
     "productId": "efc36899-34d6-42a7-a9f4-478b29897584",
@@ -1845,13 +1881,13 @@
     "barcode": "6154000248048"
   },
   {
-    "productId": "48538455-186d-46da-815a-536915b2556d",
-    "name": "CHECKERS PAP 3IN1 JAR 400G",
-    "price": 13281.625,
+    "productId": "624bf53d-0b83-4ed8-aa66-5224a8862016",
+    "name": "CHECKERS PAP 3IN1 REFILL 400G",
+    "price": 14875.313,
     "stockQuantity": 10,
-    "category": null,
-    "packSize": "6",
-    "barcode": null
+    "category": "CHECKERS",
+    "packSize": "8",
+    "barcode": "6154000248055"
   },
   {
     "productId": "28c16ead-fe1b-4c0b-9b20-c2bb43c37fc6",
@@ -1861,15 +1897,6 @@
     "category": null,
     "packSize": "8",
     "barcode": null
-  },
-  {
-    "productId": "624bf53d-0b83-4ed8-aa66-5224a8862016",
-    "name": "CHECKERS PAP 3IN1 REFILL 400G",
-    "price": 14875.313,
-    "stockQuantity": 10,
-    "category": "CHECKERS",
-    "packSize": "8",
-    "barcode": "6154000248055"
   },
   {
     "productId": "80a781da-e2b2-4954-8453-3c7f507e8dfc",
@@ -1908,15 +1935,6 @@
     "barcode": "5029788178317"
   },
   {
-    "productId": "abc1df8c-6232-4f24-91cd-34e4f2b10224",
-    "name": "CHOCO TEE CHECKERS 20G",
-    "price": 18593.46894736842,
-    "stockQuantity": 19,
-    "category": null,
-    "packSize": "120",
-    "barcode": null
-  },
-  {
     "productId": "b3232cd9-91c5-455b-870d-f02ff1003cc3",
     "name": "CHOCO TEE CHECKERS 20G",
     "price": 18593.46894736842,
@@ -1924,6 +1942,15 @@
     "category": "CHECKERS",
     "packSize": "120",
     "barcode": "154000248109"
+  },
+  {
+    "productId": "abc1df8c-6232-4f24-91cd-34e4f2b10224",
+    "name": "CHOCO TEE CHECKERS 20G",
+    "price": 18593.46894736842,
+    "stockQuantity": 19,
+    "category": null,
+    "packSize": "120",
+    "barcode": null
   },
   {
     "productId": "74584225-29e9-47c4-88bd-da996aa95f88",
@@ -2232,15 +2259,6 @@
     "barcode": null
   },
   {
-    "productId": "41d7f3b7-555d-4c37-81b9-de238fe18e17",
-    "name": "CUSTARD PAP FLAVOUR 3 IN 1 REFILL CHECKERS 700G",
-    "price": 16469,
-    "stockQuantity": 10,
-    "category": null,
-    "packSize": "6",
-    "barcode": null
-  },
-  {
     "productId": "f8867444-19fa-4f69-82cb-581bf7b201bf",
     "name": "CUSTARD PAP FLAVOUR 3 IN 1 REFILL CHECKERS 700G",
     "price": 16469,
@@ -2248,6 +2266,15 @@
     "category": "CHECKERS",
     "packSize": "6",
     "barcode": "6154000248093"
+  },
+  {
+    "productId": "41d7f3b7-555d-4c37-81b9-de238fe18e17",
+    "name": "CUSTARD PAP FLAVOUR 3 IN 1 REFILL CHECKERS 700G",
+    "price": 16469,
+    "stockQuantity": 10,
+    "category": null,
+    "packSize": "6",
+    "barcode": null
   },
   {
     "productId": "3d35cec9-2ed8-495b-be0a-2635669298b4",
@@ -2583,15 +2610,6 @@
     "barcode": "70074407012"
   },
   {
-    "productId": "1e741e74-a30e-4c95-a1ff-413060b5742f",
-    "name": "ENSURE CHOCOLATE 237ML",
-    "price": 80000,
-    "stockQuantity": 32,
-    "category": null,
-    "packSize": "24",
-    "barcode": null
-  },
-  {
     "productId": "6cc4eb26-fa47-465f-874f-1f486fbc3c2d",
     "name": "ENSURE CHOCOLATE 237ML",
     "price": 0,
@@ -2607,6 +2625,15 @@
     "stockQuantity": 3,
     "category": null,
     "packSize": "30",
+    "barcode": null
+  },
+  {
+    "productId": "1e741e74-a30e-4c95-a1ff-413060b5742f",
+    "name": "ENSURE CHOCOLATE 237ML",
+    "price": 80000,
+    "stockQuantity": 32,
+    "category": null,
+    "packSize": "24",
     "barcode": null
   },
   {
@@ -2637,15 +2664,6 @@
     "barcode": "70074407180"
   },
   {
-    "productId": "34f74929-4ed7-42b9-80f4-bee880824742",
-    "name": "ENSURE PLUS VANILLA DRINK SHAKE 237ML",
-    "price": 137500,
-    "stockQuantity": 97,
-    "category": null,
-    "packSize": "30",
-    "barcode": null
-  },
-  {
     "productId": "60caccb8-bb4d-4d94-bd3b-32794521b1e9",
     "name": "ENSURE PLUS VANILLA DRINK SHAKE 237ML",
     "price": 137500,
@@ -2662,15 +2680,6 @@
     "category": "ALCHOHOLIC DRINK",
     "packSize": "24",
     "barcode": "70074407029"
-  },
-  {
-    "productId": "6fd0c0d5-c1cd-4005-98bb-30949ac2b8ec",
-    "name": "ENSURE STRAWBERRY 237ML",
-    "price": 90000,
-    "stockQuantity": 17,
-    "category": null,
-    "packSize": "24",
-    "barcode": null
   },
   {
     "productId": "1eb879b0-d7cf-460d-b7d6-3774d0d35729",
@@ -2691,12 +2700,12 @@
     "barcode": "70074407050"
   },
   {
-    "productId": "94c26078-3eab-4c6e-a747-f6bdf9b89a0f",
-    "name": "ENSURE VANILLA 237ML",
-    "price": 112500,
-    "stockQuantity": 12,
+    "productId": "6fd0c0d5-c1cd-4005-98bb-30949ac2b8ec",
+    "name": "ENSURE STRAWBERRY 237ML",
+    "price": 90000,
+    "stockQuantity": 17,
     "category": null,
-    "packSize": "30",
+    "packSize": "24",
     "barcode": null
   },
   {
@@ -2709,6 +2718,15 @@
     "barcode": null
   },
   {
+    "productId": "eb61a3fb-8688-4739-b1eb-1af40cce7095",
+    "name": "ENSURE VANILLA 237ML",
+    "price": 90000,
+    "stockQuantity": 20,
+    "category": "ALCHOHOLIC DRINK",
+    "packSize": "30",
+    "barcode": "70074407111"
+  },
+  {
     "productId": "a03c7e1b-81ff-439d-ada9-75af437c2f90",
     "name": "ENSURE VANILLA 237ML",
     "price": 0,
@@ -2718,13 +2736,13 @@
     "barcode": "70074407111"
   },
   {
-    "productId": "eb61a3fb-8688-4739-b1eb-1af40cce7095",
+    "productId": "94c26078-3eab-4c6e-a747-f6bdf9b89a0f",
     "name": "ENSURE VANILLA 237ML",
-    "price": 90000,
-    "stockQuantity": 20,
-    "category": "ALCHOHOLIC DRINK",
+    "price": 112500,
+    "stockQuantity": 12,
+    "category": null,
     "packSize": "30",
-    "barcode": "70074407111"
+    "barcode": null
   },
   {
     "productId": "468ed484-2189-415e-842b-1f005bd7f940",
@@ -2853,15 +2871,6 @@
     "barcode": "5029788166581"
   },
   {
-    "productId": "ef21d43f-72ca-441c-a0c4-65fe281e5f8a",
-    "name": "GLUCERNA FLAV MILK CHOCOLATE GLUCERNA 237ML",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "NUTRITIOUS & ENERGY DRINKS",
-    "packSize": "24",
-    "barcode": "70074678429"
-  },
-  {
     "productId": "798130b0-8920-488c-9838-4964f2ef10db",
     "name": "GLUCERNA FLAV MILK CHOCOLATE GLUCERNA 237ML",
     "price": 0,
@@ -2880,22 +2889,13 @@
     "barcode": "70074678429"
   },
   {
-    "productId": "21701f55-c7e6-4a66-8046-65c14e74cec1",
-    "name": "GLUCERNA FLAV MILK STRAWBERRY 237ML",
+    "productId": "ef21d43f-72ca-441c-a0c4-65fe281e5f8a",
+    "name": "GLUCERNA FLAV MILK CHOCOLATE GLUCERNA 237ML",
     "price": 0,
     "stockQuantity": 0,
     "category": "NUTRITIOUS & ENERGY DRINKS",
     "packSize": "24",
-    "barcode": "70074578088"
-  },
-  {
-    "productId": "aef9fa37-dc4e-429d-828b-032d7308b037",
-    "name": "GLUCERNA FLAV MILK STRAWBERRY 237ML",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "NUTRITIOUS & ENERGY DRINKS",
-    "packSize": "24",
-    "barcode": "70074578088"
+    "barcode": "70074678429"
   },
   {
     "productId": "c4a6fb17-080a-4c1b-8e57-3da2239bf309",
@@ -2908,6 +2908,24 @@
   },
   {
     "productId": "3e5e58b5-fe3b-4238-aac4-3e5230fbada3",
+    "name": "GLUCERNA FLAV MILK STRAWBERRY 237ML",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "NUTRITIOUS & ENERGY DRINKS",
+    "packSize": "24",
+    "barcode": "70074578088"
+  },
+  {
+    "productId": "21701f55-c7e6-4a66-8046-65c14e74cec1",
+    "name": "GLUCERNA FLAV MILK STRAWBERRY 237ML",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "NUTRITIOUS & ENERGY DRINKS",
+    "packSize": "24",
+    "barcode": "70074578088"
+  },
+  {
+    "productId": "aef9fa37-dc4e-429d-828b-032d7308b037",
     "name": "GLUCERNA FLAV MILK STRAWBERRY 237ML",
     "price": 0,
     "stockQuantity": 0,
@@ -2943,20 +2961,20 @@
     "barcode": "70074678436"
   },
   {
-    "productId": "91609770-9b7b-4e18-8346-6353bfef12e8",
-    "name": "GRACIA PLANTA FLOUR 1KG",
-    "price": 46875,
-    "stockQuantity": 2,
-    "category": "BASMATI",
-    "packSize": "10",
-    "barcode": null
-  },
-  {
     "productId": "95ef0080-b647-43cd-a675-5990d2bbf174",
     "name": "GRACIA PLANTA FLOUR 1KG",
     "price": 46875,
     "stockQuantity": 2,
     "category": null,
+    "packSize": "10",
+    "barcode": null
+  },
+  {
+    "productId": "91609770-9b7b-4e18-8346-6353bfef12e8",
+    "name": "GRACIA PLANTA FLOUR 1KG",
+    "price": 46875,
+    "stockQuantity": 2,
+    "category": "BASMATI",
     "packSize": "10",
     "barcode": null
   },
@@ -3025,15 +3043,6 @@
   },
   {
     "productId": "1e8ecbd6-af42-4a9b-82b6-b4f1c70aded2",
-    "name": "GREEN GIANT SWEET CORN 184G",
-    "price": 36250,
-    "stockQuantity": 1,
-    "category": "GREEN PEAS & SWEET CORN(CAN FOODS)",
-    "packSize": "48",
-    "barcode": null
-  },
-  {
-    "productId": "aa067548-808d-4a0c-8471-851d9c64e112",
     "name": "GREEN GIANT SWEET CORN 184G",
     "price": 36250,
     "stockQuantity": 1,
@@ -3249,15 +3258,6 @@
     "barcode": null
   },
   {
-    "productId": "2bec9503-edbc-4142-b687-ac3ce740c74b",
-    "name": "HAZELNUT NUTELLA 160G",
-    "price": 20000,
-    "stockQuantity": 500,
-    "category": null,
-    "packSize": null,
-    "barcode": null
-  },
-  {
     "productId": "ad1a8597-c640-4329-a512-00b60fc2b450",
     "name": "HAZELNUT NUTELLA 180G",
     "price": 0,
@@ -3265,15 +3265,6 @@
     "category": "SPREAD",
     "packSize": "16",
     "barcode": "80177425"
-  },
-  {
-    "productId": "724c4c7e-157a-469d-a4a4-a6d8f2e34f9f",
-    "name": "HAZELNUT NUTELLA 350G",
-    "price": 106250,
-    "stockQuantity": 4,
-    "category": "SPREAD",
-    "packSize": "15",
-    "barcode": "80176800"
   },
   {
     "productId": "430e9faf-27d0-4b9d-9a73-efa11eec9080",
@@ -3285,19 +3276,28 @@
     "barcode": null
   },
   {
-    "productId": "39f0f63f-8e4c-495e-9459-b22eb443283a",
-    "name": "HAZELNUT NUTELLA 750G",
-    "price": 156250,
-    "stockQuantity": 1,
+    "productId": "724c4c7e-157a-469d-a4a4-a6d8f2e34f9f",
+    "name": "HAZELNUT NUTELLA 350G",
+    "price": 106250,
+    "stockQuantity": 4,
     "category": "SPREAD",
-    "packSize": "12",
-    "barcode": null
+    "packSize": "15",
+    "barcode": "80176800"
   },
   {
     "productId": "0c977dc9-d87e-40c9-8840-d80e2f6f0c22",
     "name": "HAZELNUT NUTELLA 750G",
     "price": 156250,
     "stockQuantity": 0,
+    "category": "SPREAD",
+    "packSize": "12",
+    "barcode": null
+  },
+  {
+    "productId": "39f0f63f-8e4c-495e-9459-b22eb443283a",
+    "name": "HAZELNUT NUTELLA 750G",
+    "price": 156250,
+    "stockQuantity": 1,
     "category": "SPREAD",
     "packSize": "12",
     "barcode": null
@@ -3339,6 +3339,15 @@
     "barcode": "691189139553"
   },
   {
+    "productId": "1c74f4f5-5074-4d7a-828a-ea7e326fe8b1",
+    "name": "IJELE BITTERS-HIBISCUS TEA BAGS 50G",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "IJELE TEAS ",
+    "packSize": "24",
+    "barcode": "6156000285733"
+  },
+  {
     "productId": "40379b01-b11f-4073-8d54-11347f73a668",
     "name": "IJELE BITTERS-HIBISCUS TEA BAGS 50G",
     "price": 27000,
@@ -3348,13 +3357,13 @@
     "barcode": null
   },
   {
-    "productId": "1c74f4f5-5074-4d7a-828a-ea7e326fe8b1",
-    "name": "IJELE BITTERS-HIBISCUS TEA BAGS 50G",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "IJELE TEAS ",
+    "productId": "d3f2f5f8-c7e1-467b-af3e-4b3d3a82fca9",
+    "name": "IJELE BITTERS-LEMON TEA BAGS 50G",
+    "price": 27000,
+    "stockQuantity": 86,
+    "category": "IJELE TEAS",
     "packSize": "24",
-    "barcode": "6156000285733"
+    "barcode": null
   },
   {
     "productId": "27228ce3-90bb-466d-afa2-0000de9c179b",
@@ -3366,10 +3375,10 @@
     "barcode": "6156000285726"
   },
   {
-    "productId": "d3f2f5f8-c7e1-467b-af3e-4b3d3a82fca9",
-    "name": "IJELE BITTERS-LEMON TEA BAGS 50G",
-    "price": 27000,
-    "stockQuantity": 86,
+    "productId": "3c2fbc70-fd7e-4134-a042-96554442afd2",
+    "name": "IJELE HIBISCUS, LEMON & GINGER TEA BAGS 50G",
+    "price": 19500,
+    "stockQuantity": 100,
     "category": "IJELE TEAS",
     "packSize": "24",
     "barcode": null
@@ -3382,15 +3391,6 @@
     "category": "IJELE TEAS ",
     "packSize": "24",
     "barcode": "6156000285719"
-  },
-  {
-    "productId": "3c2fbc70-fd7e-4134-a042-96554442afd2",
-    "name": "IJELE HIBISCUS, LEMON & GINGER TEA BAGS 50G",
-    "price": 19500,
-    "stockQuantity": 100,
-    "category": "IJELE TEAS",
-    "packSize": "24",
-    "barcode": null
   },
   {
     "productId": "7d360dde-f72b-4da0-b2bb-639cd1f838bb",
@@ -3429,15 +3429,6 @@
     "barcode": "6156000285757"
   },
   {
-    "productId": "91c5efca-f998-4a4d-a73a-18f6d34b788c",
-    "name": "IJELE WHOLE HEALTH & WELLNESS TEA BAGS 50G",
-    "price": 30000,
-    "stockQuantity": 64,
-    "category": "IJELE TEAS",
-    "packSize": "24",
-    "barcode": "6156000285764"
-  },
-  {
     "productId": "bd80fed3-93c1-4843-a962-327ad15b053a",
     "name": "IJELE WHOLE HEALTH & WELLNESS TEA BAGS 50G",
     "price": 30000,
@@ -3445,6 +3436,15 @@
     "category": "IJELE TEAS",
     "packSize": "24",
     "barcode": null
+  },
+  {
+    "productId": "91c5efca-f998-4a4d-a73a-18f6d34b788c",
+    "name": "IJELE WHOLE HEALTH & WELLNESS TEA BAGS 50G",
+    "price": 30000,
+    "stockQuantity": 64,
+    "category": "IJELE TEAS",
+    "packSize": "24",
+    "barcode": "6156000285764"
   },
   {
     "productId": "b99ab9ec-ff01-4a9c-b867-11283e3d373e",
@@ -3501,15 +3501,6 @@
     "barcode": "21084638"
   },
   {
-    "productId": "92f38a1c-9e42-4a41-b528-b7d665a9a6a6",
-    "name": "INSTANT COFFEE savers",
-    "price": 50000,
-    "stockQuantity": 24,
-    "category": "COFFEE",
-    "packSize": "12",
-    "barcode": null
-  },
-  {
     "productId": "c531b736-6043-4681-92c0-3add0a2f13a5",
     "name": "INSTANT COFFEE savers",
     "price": 50000,
@@ -3517,6 +3508,15 @@
     "category": "COFFEE",
     "packSize": "12",
     "barcode": "5010251620525"
+  },
+  {
+    "productId": "92f38a1c-9e42-4a41-b528-b7d665a9a6a6",
+    "name": "INSTANT COFFEE savers",
+    "price": 50000,
+    "stockQuantity": 24,
+    "category": "COFFEE",
+    "packSize": "12",
+    "barcode": null
   },
   {
     "productId": "088418f1-4444-42e8-b64b-df09cc5eeba1",
@@ -3594,7 +3594,7 @@
     "productId": "6a646219-eb1a-46e4-8971-6ffa728d809c",
     "name": "JUMBO CHEESE MAX FLAVOURISED STICK  20g",
     "price": 5187.5,
-    "stockQuantity": 31,
+    "stockQuantity": 32,
     "category": "BISCUITS( SMALL SIZES)",
     "packSize": "60",
     "barcode": "7331898382996"
@@ -3681,15 +3681,6 @@
     "barcode": null
   },
   {
-    "productId": "0a305dba-bfa3-490e-adb6-41e5ac826404",
-    "name": "JUMBO COCONUT STICKS GOLA 10G ",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "BISCUITS( SMALL SIZES)",
-    "packSize": "96",
-    "barcode": "680548161366"
-  },
-  {
     "productId": "908c36a8-6063-4ce2-a416-05ead04cc4be",
     "name": "JUMBO COCONUT STICKS GOLA 10G ",
     "price": 0,
@@ -3699,13 +3690,13 @@
     "barcode": "680548161366"
   },
   {
-    "productId": "d097cc3e-3851-4c88-9678-0db87963931b",
-    "name": "JUMBO MILK STICKS GOLA 10G",
-    "price": 5250,
-    "stockQuantity": 103,
-    "category": null,
+    "productId": "0a305dba-bfa3-490e-adb6-41e5ac826404",
+    "name": "JUMBO COCONUT STICKS GOLA 10G ",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BISCUITS( SMALL SIZES)",
     "packSize": "96",
-    "barcode": null
+    "barcode": "680548161366"
   },
   {
     "productId": "dcc303c8-ad28-4269-8bcd-b0f1a55a54de",
@@ -3713,6 +3704,15 @@
     "price": 5250,
     "stockQuantity": 103,
     "category": "OTHER BISCUIT",
+    "packSize": "96",
+    "barcode": null
+  },
+  {
+    "productId": "d097cc3e-3851-4c88-9678-0db87963931b",
+    "name": "JUMBO MILK STICKS GOLA 10G",
+    "price": 5250,
+    "stockQuantity": 103,
+    "category": null,
     "packSize": "96",
     "barcode": null
   },
@@ -3726,7 +3726,7 @@
     "barcode": null
   },
   {
-    "productId": "ff32c45a-d5a8-46a7-a9d2-53e285590a60",
+    "productId": "1542d2f5-d4fe-404e-b094-fa011066d135",
     "name": "JUMBO STRAWBERRY STICKS GOLA 10G ",
     "price": 0,
     "stockQuantity": 0,
@@ -3735,7 +3735,7 @@
     "barcode": "680548160604"
   },
   {
-    "productId": "1542d2f5-d4fe-404e-b094-fa011066d135",
+    "productId": "ff32c45a-d5a8-46a7-a9d2-53e285590a60",
     "name": "JUMBO STRAWBERRY STICKS GOLA 10G ",
     "price": 0,
     "stockQuantity": 0,
@@ -3807,20 +3807,20 @@
     "barcode": null
   },
   {
-    "productId": "ea648695-4286-49ea-82a2-ce76c09416b8",
-    "name": "KIRKLAND UNSWEETENED 946ML",
-    "price": 35000,
-    "stockQuantity": 13,
-    "category": "MILK POWDER/CONDENSED",
-    "packSize": "6",
-    "barcode": null
-  },
-  {
     "productId": "7415dab6-e14b-46cb-9179-d7660d4b00ba",
     "name": "KIRKLAND UNSWEETENED 946ML",
     "price": 35000,
     "stockQuantity": 13,
     "category": null,
+    "packSize": "6",
+    "barcode": null
+  },
+  {
+    "productId": "ea648695-4286-49ea-82a2-ce76c09416b8",
+    "name": "KIRKLAND UNSWEETENED 946ML",
+    "price": 35000,
+    "stockQuantity": 13,
+    "category": "MILK POWDER/CONDENSED",
     "packSize": "6",
     "barcode": null
   },
@@ -4044,7 +4044,7 @@
     "productId": "411f4694-6f7c-404c-914e-b72adc47596c",
     "name": "MILK POWDER SOYA SWEETENED AGV 360G",
     "price": 70875,
-    "stockQuantity": 49,
+    "stockQuantity": 48,
     "category": "SOYA PRODUCTS",
     "packSize": "48",
     "barcode": "6156000272658"
@@ -4275,20 +4275,20 @@
     "barcode": "96619237494"
   },
   {
-    "productId": "5e411387-0210-4b63-af56-a3bda9cad048",
-    "name": "ODODGWU BITTER",
-    "price": 11250,
-    "stockQuantity": 5,
-    "category": "ALCHOHOLIC DRINK",
-    "packSize": "24",
-    "barcode": null
-  },
-  {
     "productId": "d6b0ad81-8842-4f2c-807c-a385989b0ce1",
     "name": "ODODGWU BITTER",
     "price": 11250,
     "stockQuantity": 5,
     "category": null,
+    "packSize": "24",
+    "barcode": null
+  },
+  {
+    "productId": "5e411387-0210-4b63-af56-a3bda9cad048",
+    "name": "ODODGWU BITTER",
+    "price": 11250,
+    "stockQuantity": 5,
+    "category": "ALCHOHOLIC DRINK",
     "packSize": "24",
     "barcode": null
   },
@@ -4410,15 +4410,6 @@
     "barcode": "6972498021611"
   },
   {
-    "productId": "96292dc4-c197-4202-8446-7734fdd1a8e6",
-    "name": "PEDIASURE FLAV MILK 237ML, CHOCOLATE",
-    "price": 103750,
-    "stockQuantity": 3,
-    "category": null,
-    "packSize": "24",
-    "barcode": null
-  },
-  {
     "productId": "8c63f9db-0df8-4bbe-9eca-4f1106f12ae5",
     "name": "PEDIASURE FLAV MILK 237ML, CHOCOLATE",
     "price": 103750,
@@ -4428,7 +4419,25 @@
     "barcode": null
   },
   {
+    "productId": "96292dc4-c197-4202-8446-7734fdd1a8e6",
+    "name": "PEDIASURE FLAV MILK 237ML, CHOCOLATE",
+    "price": 103750,
+    "stockQuantity": 3,
+    "category": null,
+    "packSize": "24",
+    "barcode": null
+  },
+  {
     "productId": "2a4a5c70-6ae5-48e3-8403-ce409599fcf4",
+    "name": "PEDIASURE FLAV MILK 237ML, STRAWBERRY",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "NUTRITIOUS & ENERGY DRINKS",
+    "packSize": "24",
+    "barcode": "70074670942"
+  },
+  {
+    "productId": "85ed1c6a-1f4e-46a2-8cd5-046117634d12",
     "name": "PEDIASURE FLAV MILK 237ML, STRAWBERRY",
     "price": 0,
     "stockQuantity": 0,
@@ -4446,16 +4455,7 @@
     "barcode": "70074578088"
   },
   {
-    "productId": "85ed1c6a-1f4e-46a2-8cd5-046117634d12",
-    "name": "PEDIASURE FLAV MILK 237ML, STRAWBERRY",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "NUTRITIOUS & ENERGY DRINKS",
-    "packSize": "24",
-    "barcode": "70074670942"
-  },
-  {
-    "productId": "19c4b62a-a0dc-44a0-b052-ff17f9b54d43",
+    "productId": "467fdc71-a0d1-4db8-955d-f51f2aec0f37",
     "name": "PEDIASURE FLAV MILK 237ML, VANILLA",
     "price": 0,
     "stockQuantity": 0,
@@ -4464,7 +4464,7 @@
     "barcode": "70074580500"
   },
   {
-    "productId": "467fdc71-a0d1-4db8-955d-f51f2aec0f37",
+    "productId": "9883a7fd-c70d-483a-a77d-a583d2497403",
     "name": "PEDIASURE FLAV MILK 237ML, VANILLA",
     "price": 0,
     "stockQuantity": 0,
@@ -4491,7 +4491,7 @@
     "barcode": null
   },
   {
-    "productId": "9883a7fd-c70d-483a-a77d-a583d2497403",
+    "productId": "31aa7e7e-e685-4568-824a-66c394f58bbc",
     "name": "PEDIASURE FLAV MILK 237ML, VANILLA",
     "price": 0,
     "stockQuantity": 0,
@@ -4500,7 +4500,7 @@
     "barcode": "70074580500"
   },
   {
-    "productId": "31aa7e7e-e685-4568-824a-66c394f58bbc",
+    "productId": "19c4b62a-a0dc-44a0-b052-ff17f9b54d43",
     "name": "PEDIASURE FLAV MILK 237ML, VANILLA",
     "price": 0,
     "stockQuantity": 0,
@@ -4527,6 +4527,15 @@
     "barcode": "70074580593"
   },
   {
+    "productId": "f61aea17-88c7-45ba-9239-573bacd94bf2",
+    "name": "PENNE EVERYDAY 500G",
+    "price": 60000,
+    "stockQuantity": 21,
+    "category": "PENNE",
+    "packSize": "20",
+    "barcode": null
+  },
+  {
     "productId": "ec960c7d-95a7-4273-88b4-ca6e8af0380c",
     "name": "PENNE EVERYDAY 500G",
     "price": 0,
@@ -4541,15 +4550,6 @@
     "price": 60000,
     "stockQuantity": 21,
     "category": null,
-    "packSize": "20",
-    "barcode": null
-  },
-  {
-    "productId": "f61aea17-88c7-45ba-9239-573bacd94bf2",
-    "name": "PENNE EVERYDAY 500G",
-    "price": 60000,
-    "stockQuantity": 21,
-    "category": "PENNE",
     "packSize": "20",
     "barcode": null
   },
@@ -4599,7 +4599,7 @@
     "barcode": "6925785182052"
   },
   {
-    "productId": "201ede52-83c5-4f6f-a58a-f7d789b13da7",
+    "productId": "0e295127-1c0d-4ea5-a89f-5d09c54ced15",
     "name": "PINEAPPLE FRUIT MILK VIJU 500ML",
     "price": 0,
     "stockQuantity": 0,
@@ -4608,7 +4608,7 @@
     "barcode": null
   },
   {
-    "productId": "0e295127-1c0d-4ea5-a89f-5d09c54ced15",
+    "productId": "201ede52-83c5-4f6f-a58a-f7d789b13da7",
     "name": "PINEAPPLE FRUIT MILK VIJU 500ML",
     "price": 0,
     "stockQuantity": 0,
@@ -4635,20 +4635,20 @@
     "barcode": "6972815393728"
   },
   {
-    "productId": "854dffc5-6f0a-4792-9828-e3d33a568a41",
-    "name": "PLAIN YOGHURT 500ML",
-    "price": 6875,
-    "stockQuantity": 58,
-    "category": "VIJU PRODUCT",
-    "packSize": "12",
-    "barcode": null
-  },
-  {
     "productId": "877aabfa-9821-433b-b355-024027628634",
     "name": "PLAIN YOGHURT 500ML",
     "price": 6875,
     "stockQuantity": 68,
     "category": null,
+    "packSize": "12",
+    "barcode": null
+  },
+  {
+    "productId": "854dffc5-6f0a-4792-9828-e3d33a568a41",
+    "name": "PLAIN YOGHURT 500ML",
+    "price": 6875,
+    "stockQuantity": 58,
+    "category": "VIJU PRODUCT",
     "packSize": "12",
     "barcode": null
   },
@@ -4860,20 +4860,20 @@
     "barcode": "4003301049941"
   },
   {
-    "productId": "4379bd64-c2d3-4555-aaa2-acf3f85dedc7",
-    "name": "RED WINE MOSCATO",
-    "price": 105000,
-    "stockQuantity": 0,
-    "category": "ALCHOHOLIC DRINK",
-    "packSize": "12",
-    "barcode": null
-  },
-  {
     "productId": "e9384125-8a94-40d7-ac72-fc83cd7bbf0a",
     "name": "RED WINE MOSCATO",
     "price": 105000,
     "stockQuantity": 0,
     "category": null,
+    "packSize": "12",
+    "barcode": null
+  },
+  {
+    "productId": "4379bd64-c2d3-4555-aaa2-acf3f85dedc7",
+    "name": "RED WINE MOSCATO",
+    "price": 105000,
+    "stockQuantity": 0,
+    "category": "ALCHOHOLIC DRINK",
     "packSize": "12",
     "barcode": null
   },
@@ -5031,15 +5031,6 @@
     "barcode": "20457310"
   },
   {
-    "productId": "72353412-b2d5-4a9c-abf2-f92298cbfc36",
-    "name": "RIPE CHILLI PLAINTAIN CHIPS AGV 400G",
-    "price": 82500,
-    "stockQuantity": 8,
-    "category": "CHIPS",
-    "packSize": "12",
-    "barcode": null
-  },
-  {
     "productId": "8b6d109e-f343-417a-8e51-99871998a201",
     "name": "RIPE CHILLI PLAINTAIN CHIPS AGV 400G",
     "price": 0,
@@ -5047,6 +5038,15 @@
     "category": "CHIPS",
     "packSize": "12",
     "barcode": "721688630906"
+  },
+  {
+    "productId": "72353412-b2d5-4a9c-abf2-f92298cbfc36",
+    "name": "RIPE CHILLI PLAINTAIN CHIPS AGV 400G",
+    "price": 82500,
+    "stockQuantity": 8,
+    "category": "CHIPS",
+    "packSize": "12",
+    "barcode": null
   },
   {
     "productId": "b5c27eaa-9f49-446b-b2a7-e1925028a509",
@@ -5112,7 +5112,7 @@
     "barcode": null
   },
   {
-    "productId": "6a446ace-7127-4aab-9dab-8275efe28617",
+    "productId": "6056f062-5564-4934-b4a0-f3c06e5a28f5",
     "name": "SARDINE IN SUNFLOWER OIL  TROPICAL SUN 125G",
     "price": 0,
     "stockQuantity": 0,
@@ -5121,7 +5121,7 @@
     "barcode": "5029788181249"
   },
   {
-    "productId": "8f3088e1-ed36-46ea-8a55-31d10a3b14f5",
+    "productId": "ea9a5eb4-f94b-41b9-8620-54006a92c588",
     "name": "SARDINE IN SUNFLOWER OIL  TROPICAL SUN 125G",
     "price": 0,
     "stockQuantity": 0,
@@ -5148,7 +5148,7 @@
     "barcode": "5029788181249"
   },
   {
-    "productId": "ea9a5eb4-f94b-41b9-8620-54006a92c588",
+    "productId": "6a446ace-7127-4aab-9dab-8275efe28617",
     "name": "SARDINE IN SUNFLOWER OIL  TROPICAL SUN 125G",
     "price": 0,
     "stockQuantity": 0,
@@ -5157,16 +5157,7 @@
     "barcode": "5029788181249"
   },
   {
-    "productId": "6056f062-5564-4934-b4a0-f3c06e5a28f5",
-    "name": "SARDINE IN SUNFLOWER OIL  TROPICAL SUN 125G",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "SARDINE & TUNA FISH",
-    "packSize": "48",
-    "barcode": "5029788181249"
-  },
-  {
-    "productId": "6cedc400-c121-4bcf-9b30-9a72849501be",
+    "productId": "8b0d4355-a3f4-489b-90ab-ee21feaa0f1a",
     "name": "SARDINE IN SUNFLOWER OIL  TROPICAL SUN 125G",
     "price": 0,
     "stockQuantity": 0,
@@ -5184,7 +5175,16 @@
     "barcode": "5029788181249"
   },
   {
-    "productId": "8b0d4355-a3f4-489b-90ab-ee21feaa0f1a",
+    "productId": "6cedc400-c121-4bcf-9b30-9a72849501be",
+    "name": "SARDINE IN SUNFLOWER OIL  TROPICAL SUN 125G",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "SARDINE & TUNA FISH",
+    "packSize": "48",
+    "barcode": "5029788181249"
+  },
+  {
+    "productId": "8f3088e1-ed36-46ea-8a55-31d10a3b14f5",
     "name": "SARDINE IN SUNFLOWER OIL  TROPICAL SUN 125G",
     "price": 0,
     "stockQuantity": 0,
@@ -5211,15 +5211,6 @@
     "barcode": "5029788181263"
   },
   {
-    "productId": "302bfaa6-06e8-4b86-89d8-70ea94a265db",
-    "name": "SAUCE LIGHT SOY MR ALEX 625G",
-    "price": 33000,
-    "stockQuantity": 6,
-    "category": "SAUCES",
-    "packSize": "12",
-    "barcode": null
-  },
-  {
     "productId": "e60ea39b-68c4-489a-a0be-df6700c8d8b5",
     "name": "SAUCE LIGHT SOY MR ALEX 625G",
     "price": 0,
@@ -5227,6 +5218,15 @@
     "category": "SAUCES",
     "packSize": "12",
     "barcode": "6926548647504"
+  },
+  {
+    "productId": "302bfaa6-06e8-4b86-89d8-70ea94a265db",
+    "name": "SAUCE LIGHT SOY MR ALEX 625G",
+    "price": 33000,
+    "stockQuantity": 6,
+    "category": "SAUCES",
+    "packSize": "12",
+    "barcode": null
   },
   {
     "productId": "b066496b-fe4c-4990-95f1-d01cd2bf682b",
@@ -5337,15 +5337,6 @@
     "barcode": "4056489511175"
   },
   {
-    "productId": "1d5e77b7-c728-424e-833e-506400bea4fd",
-    "name": "SIMPLY PENNE",
-    "price": 60000,
-    "stockQuantity": 2,
-    "category": null,
-    "packSize": "24",
-    "barcode": null
-  },
-  {
     "productId": "d780fef3-e132-4f0c-95c7-cae46b478fd5",
     "name": "SIMPLY PENNE",
     "price": 60000,
@@ -5355,10 +5346,10 @@
     "barcode": null
   },
   {
-    "productId": "8dca7cf1-58b4-4611-8ecf-d303d73b226d",
-    "name": "SIMPLY SPAGHETTI",
-    "price": 37500,
-    "stockQuantity": 37,
+    "productId": "1d5e77b7-c728-424e-833e-506400bea4fd",
+    "name": "SIMPLY PENNE",
+    "price": 60000,
+    "stockQuantity": 2,
     "category": null,
     "packSize": "24",
     "barcode": null
@@ -5373,12 +5364,12 @@
     "barcode": null
   },
   {
-    "productId": "d66c79dd-5967-4398-8e5a-bc70e7fc783a",
-    "name": "SMALL BAMBOO SKEWER STICK FALCON 12INCH",
-    "price": 32287.5,
-    "stockQuantity": 395,
+    "productId": "8dca7cf1-58b4-4611-8ecf-d303d73b226d",
+    "name": "SIMPLY SPAGHETTI",
+    "price": 37500,
+    "stockQuantity": 37,
     "category": null,
-    "packSize": "1",
+    "packSize": "24",
     "barcode": null
   },
   {
@@ -5387,6 +5378,15 @@
     "price": 32287.5,
     "stockQuantity": 395,
     "category": "FALCON STICKS",
+    "packSize": "1",
+    "barcode": null
+  },
+  {
+    "productId": "d66c79dd-5967-4398-8e5a-bc70e7fc783a",
+    "name": "SMALL BAMBOO SKEWER STICK FALCON 12INCH",
+    "price": 32287.5,
+    "stockQuantity": 395,
+    "category": null,
     "packSize": "1",
     "barcode": null
   },
@@ -5466,7 +5466,7 @@
     "productId": "2751473c-1a81-47cc-8a15-3d22b0888641",
     "name": "SOYA MILK  MIXED AGV 360G",
     "price": 0,
-    "stockQuantity": 66,
+    "stockQuantity": 65,
     "category": "SOYA PRODUCTS",
     "packSize": "48",
     "barcode": null
@@ -5616,15 +5616,6 @@
     "barcode": "41244002566"
   },
   {
-    "productId": "5cd98b0b-a42a-4e17-aea5-47c8a9596064",
-    "name": "SPARKLING APPLE CIDER MARTINELLI'S 750ML",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "NON - ALCHOHOLIC DRINK",
-    "packSize": "12",
-    "barcode": "41244430062"
-  },
-  {
     "productId": "b96ff95e-2633-4658-b257-af17049d693d",
     "name": "SPARKLING APPLE CIDER MARTINELLI'S 750ML",
     "price": 100000,
@@ -5632,6 +5623,15 @@
     "category": null,
     "packSize": "12",
     "barcode": null
+  },
+  {
+    "productId": "5cd98b0b-a42a-4e17-aea5-47c8a9596064",
+    "name": "SPARKLING APPLE CIDER MARTINELLI'S 750ML",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "NON - ALCHOHOLIC DRINK",
+    "packSize": "12",
+    "barcode": "41244430062"
   },
   {
     "productId": "d80d230e-556e-42a2-b4b2-bd477f804dfe",
@@ -5976,15 +5976,6 @@
     "barcode": "5010046002017"
   },
   {
-    "productId": "da27ff3b-dbfb-468f-b892-a49dcb2d55b0",
-    "name": "SWEETENED CONDENSED MILK TROPICAL SUN 1KG",
-    "price": 47500,
-    "stockQuantity": 8,
-    "category": null,
-    "packSize": "6",
-    "barcode": null
-  },
-  {
     "productId": "151bd28b-24df-484a-843c-9f1bc42bef4c",
     "name": "SWEETENED CONDENSED MILK TROPICAL SUN 1KG",
     "price": 47500,
@@ -5994,13 +5985,13 @@
     "barcode": "5029788182420"
   },
   {
-    "productId": "bab9bce6-d5e9-4c37-a716-6b8259f46d65",
-    "name": "SWEETENED CONDENSED MILK TROPICAL SUN 305ML",
-    "price": 46250,
-    "stockQuantity": 1,
-    "category": "MILK POWDER/CONDENSED",
-    "packSize": "12",
-    "barcode": "5029788161005"
+    "productId": "da27ff3b-dbfb-468f-b892-a49dcb2d55b0",
+    "name": "SWEETENED CONDENSED MILK TROPICAL SUN 1KG",
+    "price": 47500,
+    "stockQuantity": 8,
+    "category": null,
+    "packSize": "6",
+    "barcode": null
   },
   {
     "productId": "82ec0cbc-b12a-433e-a885-0555521f0efc",
@@ -6012,13 +6003,13 @@
     "barcode": null
   },
   {
-    "productId": "f7ed2eef-5bd2-4249-9a6d-f8cca3e517ea",
-    "name": "SYRUP MIVILLE",
-    "price": 78750,
-    "stockQuantity": 86,
-    "category": null,
+    "productId": "bab9bce6-d5e9-4c37-a716-6b8259f46d65",
+    "name": "SWEETENED CONDENSED MILK TROPICAL SUN 305ML",
+    "price": 46250,
+    "stockQuantity": 1,
+    "category": "MILK POWDER/CONDENSED",
     "packSize": "12",
-    "barcode": null
+    "barcode": "5029788161005"
   },
   {
     "productId": "5c4d9406-2fa1-4a9e-b21e-b959088a33c2",
@@ -6026,6 +6017,15 @@
     "price": 78750,
     "stockQuantity": 86,
     "category": "BAKING POWDER/SYRUP",
+    "packSize": "12",
+    "barcode": null
+  },
+  {
+    "productId": "f7ed2eef-5bd2-4249-9a6d-f8cca3e517ea",
+    "name": "SYRUP MIVILLE",
+    "price": 78750,
+    "stockQuantity": 86,
+    "category": null,
     "packSize": "12",
     "barcode": null
   },
@@ -6210,20 +6210,20 @@
     "barcode": "5000208038053"
   },
   {
-    "productId": "a25afa83-7f0e-4541-a0a1-6d4afd91b43c",
-    "name": "TESCO GRANOLA",
-    "price": 112500,
-    "stockQuantity": 6,
-    "category": "GRANOLA",
-    "packSize": "10",
-    "barcode": null
-  },
-  {
     "productId": "9b76cbb9-4e3f-4630-acdd-0c174473fd94",
     "name": "TESCO GRANOLA",
     "price": 112500,
     "stockQuantity": 6,
     "category": null,
+    "packSize": "10",
+    "barcode": null
+  },
+  {
+    "productId": "a25afa83-7f0e-4541-a0a1-6d4afd91b43c",
+    "name": "TESCO GRANOLA",
+    "price": 112500,
+    "stockQuantity": 6,
+    "category": "GRANOLA",
     "packSize": "10",
     "barcode": null
   },
@@ -6489,15 +6489,6 @@
     "barcode": "721688630937"
   },
   {
-    "productId": "405a8741-f520-4973-895b-93a36b2b93b9",
-    "name": "UNRIPE PLAINTAIN CHIPS AGV 400G",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "CHIPS",
-    "packSize": "12",
-    "barcode": "721688630920"
-  },
-  {
     "productId": "831a7570-8008-4e5d-b42d-b403f66f117a",
     "name": "UNRIPE PLAINTAIN CHIPS AGV 400G",
     "price": 82500,
@@ -6505,6 +6496,15 @@
     "category": "CHIPS",
     "packSize": "12",
     "barcode": null
+  },
+  {
+    "productId": "405a8741-f520-4973-895b-93a36b2b93b9",
+    "name": "UNRIPE PLAINTAIN CHIPS AGV 400G",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "CHIPS",
+    "packSize": "12",
+    "barcode": "721688630920"
   },
   {
     "productId": "978137da-2139-4795-a206-294ede9a2d87",
@@ -6525,25 +6525,7 @@
     "barcode": "96619533008"
   },
   {
-    "productId": "593ad9fd-a678-476e-9ff9-79035deac452",
-    "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "BAKING POWDER/SYRUP/HOT PEPPER",
-    "packSize": "20",
-    "barcode": "691189135814"
-  },
-  {
-    "productId": "bc5ebc40-6e00-42ad-8135-2b5f85e5fd64",
-    "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "BAKING POWDER/SYRUP/HOT PEPPER",
-    "packSize": "20",
-    "barcode": "691189135814"
-  },
-  {
-    "productId": "a5d98fcb-a7e1-4587-9793-efebf82be68f",
+    "productId": "2493f8ee-c7e6-4d60-b0d9-a26249b4e423",
     "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
     "price": 0,
     "stockQuantity": 0,
@@ -6559,33 +6541,6 @@
     "category": "BAKING POWDER/SYRUP/HOT PEPPER",
     "packSize": "20",
     "barcode": "691189135814"
-  },
-  {
-    "productId": "2493f8ee-c7e6-4d60-b0d9-a26249b4e423",
-    "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "BAKING POWDER/SYRUP/HOT PEPPER",
-    "packSize": "20",
-    "barcode": "691189135814"
-  },
-  {
-    "productId": "2e4132b3-2f28-49f5-ac5e-0a8cd8aa6345",
-    "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "BAKING POWDER/SYRUP/HOT PEPPER",
-    "packSize": "20",
-    "barcode": "691189135814"
-  },
-  {
-    "productId": "361c2734-cc24-4776-a76e-9375d0101a52",
-    "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
-    "price": 3125,
-    "stockQuantity": 10,
-    "category": null,
-    "packSize": "20",
-    "barcode": null
   },
   {
     "productId": "ab7e01fd-6f59-496c-8626-cab8899bdedb",
@@ -6606,15 +6561,6 @@
     "barcode": "691189135814"
   },
   {
-    "productId": "6c4c3cc2-37b5-40e5-882f-6b6305899412",
-    "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "BAKING POWDER/SYRUP/HOT PEPPER",
-    "packSize": "20",
-    "barcode": "691189135814"
-  },
-  {
     "productId": "4c42f4ae-388c-4ce4-9361-f0f4fe7f09f9",
     "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
     "price": 0,
@@ -6624,12 +6570,57 @@
     "barcode": "691189135814"
   },
   {
-    "productId": "ab2c231e-2a8b-44d0-8ad2-5c9150a9e1f8",
-    "name": "VCOOL COFFEE",
-    "price": 3725,
-    "stockQuantity": 9,
-    "category": "VIJU PRODUCT",
-    "packSize": "12",
+    "productId": "a5d98fcb-a7e1-4587-9793-efebf82be68f",
+    "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BAKING POWDER/SYRUP/HOT PEPPER",
+    "packSize": "20",
+    "barcode": "691189135814"
+  },
+  {
+    "productId": "593ad9fd-a678-476e-9ff9-79035deac452",
+    "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BAKING POWDER/SYRUP/HOT PEPPER",
+    "packSize": "20",
+    "barcode": "691189135814"
+  },
+  {
+    "productId": "6c4c3cc2-37b5-40e5-882f-6b6305899412",
+    "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BAKING POWDER/SYRUP/HOT PEPPER",
+    "packSize": "20",
+    "barcode": "691189135814"
+  },
+  {
+    "productId": "2e4132b3-2f28-49f5-ac5e-0a8cd8aa6345",
+    "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BAKING POWDER/SYRUP/HOT PEPPER",
+    "packSize": "20",
+    "barcode": "691189135814"
+  },
+  {
+    "productId": "bc5ebc40-6e00-42ad-8135-2b5f85e5fd64",
+    "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
+    "price": 0,
+    "stockQuantity": 0,
+    "category": "BAKING POWDER/SYRUP/HOT PEPPER",
+    "packSize": "20",
+    "barcode": "691189135814"
+  },
+  {
+    "productId": "361c2734-cc24-4776-a76e-9375d0101a52",
+    "name": "VANILLA FLAVOUR POWDER HAVANA 100g",
+    "price": 3125,
+    "stockQuantity": 10,
+    "category": null,
+    "packSize": "20",
     "barcode": null
   },
   {
@@ -6642,11 +6633,11 @@
     "barcode": null
   },
   {
-    "productId": "4a6999cc-8b57-434a-b3b6-90402f01720a",
-    "name": "VCOOL COLA",
+    "productId": "ab2c231e-2a8b-44d0-8ad2-5c9150a9e1f8",
+    "name": "VCOOL COFFEE",
     "price": 3725,
-    "stockQuantity": 73,
-    "category": null,
+    "stockQuantity": 9,
+    "category": "VIJU PRODUCT",
     "packSize": "12",
     "barcode": null
   },
@@ -6656,6 +6647,15 @@
     "price": 3725,
     "stockQuantity": 71,
     "category": "VIJU PRODUCT",
+    "packSize": "12",
+    "barcode": null
+  },
+  {
+    "productId": "4a6999cc-8b57-434a-b3b6-90402f01720a",
+    "name": "VCOOL COLA",
+    "price": 3725,
+    "stockQuantity": 73,
+    "category": null,
     "packSize": "12",
     "barcode": null
   },
@@ -6759,20 +6759,20 @@
     "barcode": null
   },
   {
-    "productId": "63f7122d-0705-4b0c-8583-b7137e265ed7",
-    "name": "VSMATIC WHEAT 1L",
-    "price": 17250,
-    "stockQuantity": 49,
-    "category": "VIJU PRODUCT",
-    "packSize": "10",
-    "barcode": null
-  },
-  {
     "productId": "fbd178a8-249e-4993-8e89-464873c2261e",
     "name": "VSMATIC WHEAT 1L",
     "price": 17250,
     "stockQuantity": 53,
     "category": null,
+    "packSize": "10",
+    "barcode": null
+  },
+  {
+    "productId": "63f7122d-0705-4b0c-8583-b7137e265ed7",
+    "name": "VSMATIC WHEAT 1L",
+    "price": 17250,
+    "stockQuantity": 49,
+    "category": "VIJU PRODUCT",
     "packSize": "10",
     "barcode": null
   },
@@ -6795,20 +6795,20 @@
     "barcode": "5065009914951"
   },
   {
-    "productId": "ea5955a8-3a28-40de-bcd6-559f303dcc42",
-    "name": "WESSON CANOLA OIL",
-    "price": 100000,
-    "stockQuantity": 1,
-    "category": "OILS",
-    "packSize": "4",
-    "barcode": null
-  },
-  {
     "productId": "a1938bad-804c-464e-9952-2e6b0ed47235",
     "name": "WESSON CANOLA OIL",
     "price": 100000,
     "stockQuantity": 49,
     "category": null,
+    "packSize": "4",
+    "barcode": null
+  },
+  {
+    "productId": "ea5955a8-3a28-40de-bcd6-559f303dcc42",
+    "name": "WESSON CANOLA OIL",
+    "price": 100000,
+    "stockQuantity": 1,
+    "category": "OILS",
     "packSize": "4",
     "barcode": null
   },
@@ -6939,15 +6939,6 @@
     "barcode": "6948805321019"
   },
   {
-    "productId": "f9e03988-1057-48b9-8dfc-2587421d553f",
-    "name": "YEAST INSTANT DRY STK ROYAL 500G",
-    "price": 75000,
-    "stockQuantity": 2,
-    "category": "YEAST",
-    "packSize": "20",
-    "barcode": "6948805331117"
-  },
-  {
     "productId": "9e5486b9-e6d4-49e0-8409-2c966c8f684e",
     "name": "YEAST INSTANT DRY STK ROYAL 500G",
     "price": 75000,
@@ -6955,6 +6946,15 @@
     "category": null,
     "packSize": "20",
     "barcode": null
+  },
+  {
+    "productId": "f9e03988-1057-48b9-8dfc-2587421d553f",
+    "name": "YEAST INSTANT DRY STK ROYAL 500G",
+    "price": 75000,
+    "stockQuantity": 2,
+    "category": "YEAST",
+    "packSize": "20",
+    "barcode": "6948805331117"
   },
   {
     "productId": "daabc29c-fa53-49df-bbf3-712d85f1621d",
@@ -7020,20 +7020,20 @@
     "barcode": null
   },
   {
-    "productId": "817bf6c2-a422-4043-a6f4-e6fa324e98c4",
-    "name": "YUGO YOGURT BANANA 500ML",
-    "price": 7625,
-    "stockQuantity": 61,
-    "category": null,
-    "packSize": "12",
-    "barcode": null
-  },
-  {
     "productId": "4110a50e-b506-4825-b53a-05c57fd0c214",
     "name": "YUGO YOGURT BANANA 500ML",
     "price": 0,
     "stockQuantity": 0,
     "category": "BOBO PRODUCT",
+    "packSize": "12",
+    "barcode": null
+  },
+  {
+    "productId": "817bf6c2-a422-4043-a6f4-e6fa324e98c4",
+    "name": "YUGO YOGURT BANANA 500ML",
+    "price": 7625,
+    "stockQuantity": 61,
+    "category": null,
     "packSize": "12",
     "barcode": null
   },

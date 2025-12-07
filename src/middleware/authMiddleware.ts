@@ -13,7 +13,9 @@ declare global {
         userId: string;
         email: string;
         role: string;
+        tenantId?: string;
       };
+      tenantId?: string;
     }
   }
 }
@@ -35,8 +37,12 @@ export const authenticateToken = (
       userId: string;
       email: string;
       role: string;
+      tenantId?: string;
     };
-    req.user = decoded;
+    const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+    const tenantId = decoded.tenantId || (headerTenant || "default");
+    req.user = { userId: decoded.userId, email: decoded.email, role: decoded.role, tenantId };
+    req.tenantId = tenantId;
     next();
   } catch (error) {
     return res.status(403).json({ message: "Invalid token" });

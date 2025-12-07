@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import prisma from "../db/prisma";
 
 type NotificationItem = {
   id: string;
@@ -52,4 +53,27 @@ export function getLatestNotifications(limit: number = 20): NotificationItem[] {
     console.warn("getLatestNotifications failed", e);
     return [];
   }
+}
+
+export async function appendAuditLog({ tenantId = "default", actorUserId, action, resourceType, resourceId, payload }: { tenantId?: string; actorUserId?: string; action: string; resourceType: string; resourceId?: string; payload?: any }) {
+  try {
+    await prisma.auditLogs.create({
+      data: {
+        id: cryptoRandom(),
+        tenantId,
+        actorUserId: actorUserId || null,
+        action,
+        resourceType,
+        resourceId: resourceId || null,
+        payload: payload ?? null,
+      },
+    });
+  } catch (e) {
+    // fallback: also write a notification entry for visibility
+    appendNotification({ type: "audit", message: `${action} ${resourceType} ${resourceId || ""}`.trim(), actorUserId });
+  }
+}
+
+function cryptoRandom(): string {
+  try { const { randomUUID } = require("crypto"); return randomUUID(); } catch { return Math.random().toString(36).slice(2); }
 }

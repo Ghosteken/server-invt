@@ -30,13 +30,37 @@ export function createApp() {
   app.use(express.json());
   app.use(helmet());
   app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
+  app.use(helmet.contentSecurityPolicy({
+    useDefaults: true,
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", "data:"],
+      connectSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+    }
+  }));
+  if ((process.env.NODE_ENV || "").toLowerCase() === "production") {
+    app.set("trust proxy", 1);
+    app.use(helmet.hsts({ maxAge: 63072000 }));
+  }
   app.use(morgan("common"));
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({ extended: false }));
   app.use(cors());
 
   // Rate limiter; configurable via env
-  const limiter = rateLimit({ windowMs: 60 * 1000, max: Number(process.env.RATE_LIMIT_MAX || 300) });
+  const limiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: Number(process.env.RATE_LIMIT_MAX || 300),
+    keyGenerator: (req) => {
+      const tid = (req as any).tenantId || req.user?.tenantId || "default";
+      const uid = req.user?.userId || req.ip;
+      return `${tid}:${uid}`;
+    },
+  });
   app.use(limiter);
 
   // Simple request logger for debugging

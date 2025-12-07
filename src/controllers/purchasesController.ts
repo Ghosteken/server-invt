@@ -329,3 +329,25 @@ export const updatePurchase = async (req: Request, res: Response): Promise<void>
     res.status(500).json({ message: msg });
   }
 };
+
+export const getPurchasePrintOptions = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const existing = await prisma.purchases.findUnique({ where: { purchaseId: id } });
+    if (!existing) {
+      res.status(404).json({ message: "Purchase not found" });
+      return;
+    }
+    res.json({
+      purchaseId: id,
+      options: {
+        includePrices: true,
+        includeSupplierDetails: true,
+        pageSizes: ["A4", "Letter"],
+        orientation: ["portrait", "landscape"],
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to load print options" });
+  }
+};

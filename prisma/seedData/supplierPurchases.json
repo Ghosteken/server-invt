@@ -24,5 +24,14 @@
     "date": "2025-11-09T00:00:00.000Z",
     "dueDate": null,
     "unit": "ctn"
+  },
+  {
+    "purchaseId": "b05868e9-44f1-4049-a8f6-3cab2ac4b886",
+    "supplierName": "STOCK CORRECTION",
+    "supplierMobile": "+2341243",
+    "paymentTerm": "due_date",
+    "date": "2025-12-17T00:00:00.000Z",
+    "dueDate": "2025-12-17",
+    "unit": "ctn"
   }
 ]

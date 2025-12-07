@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.updatePurchase = exports.updatePurchaseMeta = exports.addPurchasePayment = exports.createPurchase = exports.deletePurchase = exports.getPurchases = void 0;
+exports.getPurchasePrintOptions = exports.updatePurchase = exports.updatePurchaseMeta = exports.addPurchasePayment = exports.createPurchase = exports.deletePurchase = exports.getPurchases = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const crypto_1 = require("crypto");
 const pcsInventoryService_1 = require("../services/pcsInventoryService");
@@ -331,3 +331,26 @@ const updatePurchase = async (req, res) => {
     }
 };
 exports.updatePurchase = updatePurchase;
+const getPurchasePrintOptions = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prisma_1.default.purchases.findUnique({ where: { purchaseId: id } });
+        if (!existing) {
+            res.status(404).json({ message: "Purchase not found" });
+            return;
+        }
+        res.json({
+            purchaseId: id,
+            options: {
+                includePrices: true,
+                includeSupplierDetails: true,
+                pageSizes: ["A4", "Letter"],
+                orientation: ["portrait", "landscape"],
+            },
+        });
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to load print options" });
+    }
+};
+exports.getPurchasePrintOptions = getPurchasePrintOptions;

@@ -5,5 +5,12 @@
     "email": "davis@inventory.com",
     "role": "user",
     "createdAt": "2025-11-12T11:01:59.786Z"
+  },
+  {
+    "userId": "57324da3-94e2-48bf-b17a-c0c0905f3e12",
+    "name": "ben",
+    "email": "ben@amagzy.com",
+    "role": "user",
+    "createdAt": "2025-12-07T20:22:29.092Z"
   }
 ]

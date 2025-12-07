@@ -9,4 +9,5 @@ router.delete("/:id", purchasesController_1.deletePurchase);
 router.post("/:id/payments", purchasesController_1.addPurchasePayment);
 router.put("/:id/meta", purchasesController_1.updatePurchaseMeta);
 router.put("/:id", purchasesController_1.updatePurchase);
+router.get("/:id/print-options", purchasesController_1.getPurchasePrintOptions);
 exports.default = router;

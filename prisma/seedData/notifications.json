@@ -168,5 +168,136 @@
     "message": "Processed manual invoice for Alice; updated 0 product(s).",
     "timestamp": "2025-12-07T18:33:30.389Z",
     "actorUserId": "tester"
+  },
+  {
+    "id": "1765134587667-hui607",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-07T19:09:47.667Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765134587675-6y2vtj",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-07T19:09:47.675Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765138949095-jik14d",
+    "type": "user",
+    "message": "User created: ben (ben@amagzy.com) as user",
+    "timestamp": "2025-12-07T20:22:29.095Z",
+    "actorUserId": "admin-user-id-123456"
+  },
+  {
+    "id": "1765139022614-yp37sm",
+    "type": "user",
+    "message": "User blocked: davis (davis@inventory.com)",
+    "timestamp": "2025-12-07T20:23:42.614Z",
+    "actorUserId": "admin-user-id-123456"
+  },
+  {
+    "id": "1765139547874-hpc0er",
+    "type": "user",
+    "message": "User deleted: davis (davis@inventory.com)",
+    "timestamp": "2025-12-07T20:32:27.874Z",
+    "actorUserId": "admin-user-id-123456"
+  },
+  {
+    "id": "1765139635457-xwqqw1",
+    "type": "expense",
+    "message": "Created expense 'bank1' (diesel) ₦2,000",
+    "timestamp": "2025-12-07T20:33:55.457Z"
+  },
+  {
+    "id": "1765139652132-7aw5tt",
+    "type": "expense",
+    "message": "Updated expense 'bank1' (chrismas/annual bonus for staffs) to ₦2,000",
+    "timestamp": "2025-12-07T20:34:12.132Z"
+  },
+  {
+    "id": "1765139673969-f95l1v",
+    "type": "expense",
+    "message": "Created expense 'ff' (firewood) ₦2,220",
+    "timestamp": "2025-12-07T20:34:33.969Z"
+  },
+  {
+    "id": "1765139732648-5fidvm",
+    "type": "expense",
+    "message": "Created expense 'fff' (bank charges) ₦220",
+    "timestamp": "2025-12-07T20:35:32.648Z"
+  },
+  {
+    "id": "1765139817857-ufyspx",
+    "type": "expense",
+    "message": "Created expense 'eded' (drivers license) ₦200,030",
+    "timestamp": "2025-12-07T20:36:57.857Z"
+  },
+  {
+    "id": "1765139858031-hs3uyo",
+    "type": "expense",
+    "message": "Deleted expense e838de46-d422-4b23-8426-255b350e53c3",
+    "timestamp": "2025-12-07T20:37:38.031Z"
+  },
+  {
+    "id": "1765139859566-ns8g70",
+    "type": "expense",
+    "message": "Deleted expense d034eff0-1287-4816-8aee-f580630a9c9b",
+    "timestamp": "2025-12-07T20:37:39.566Z"
+  },
+  {
+    "id": "1765139861154-kbyql8",
+    "type": "expense",
+    "message": "Deleted expense 15c6e625-a48e-48a1-b669-bafde98c8713",
+    "timestamp": "2025-12-07T20:37:41.154Z"
+  },
+  {
+    "id": "1765139962271-i25fw0",
+    "type": "purchase",
+    "message": "Purchased 1 ctn of 'A.LEGAL MACEDOINE MIXED VEGETABLES 400G' for ₦40,000",
+    "timestamp": "2025-12-07T20:39:22.271Z"
+  },
+  {
+    "id": "1765140308411-5giahe",
+    "type": "invoice",
+    "message": "Invoice created: 23de2fc9-b12a-486d-83e9-107e6a27f30d (Open Market)",
+    "timestamp": "2025-12-07T20:45:08.411Z"
+  },
+  {
+    "id": "1765146492893-72y44n",
+    "type": "product",
+    "message": "Imported 29 PCS products",
+    "timestamp": "2025-12-07T22:28:12.893Z"
+  },
+  {
+    "id": "1765146644780-numk0q",
+    "type": "invoice",
+    "message": "Invoice deleted: 23de2fc9-b12a-486d-83e9-107e6a27f30d",
+    "timestamp": "2025-12-07T22:30:44.780Z"
+  },
+  {
+    "id": "1765147378707-tyfr1l",
+    "type": "purchase",
+    "message": "Deleted purchase b05868e9-44f1-4049-a8f6-3cab2ac4b886",
+    "timestamp": "2025-12-07T22:42:58.707Z"
+  },
+  {
+    "id": "1765147418729-rl1zpz",
+    "type": "expense",
+    "message": "Created expense 'ss' (bank charges) ₦33,330",
+    "timestamp": "2025-12-07T22:43:38.729Z"
+  },
+  {
+    "id": "1765147428031-9ibs95",
+    "type": "expense",
+    "message": "Deleted expense 9d27b335-f67b-4993-b499-f07fd86c923b",
+    "timestamp": "2025-12-07T22:43:48.031Z"
+  },
+  {
+    "id": "1765147428853-kzpw2k",
+    "type": "expense",
+    "message": "Deleted expense fdc82fba-39d4-468e-bc79-fc732d18de03",
+    "timestamp": "2025-12-07T22:43:48.853Z"
   }
 ]

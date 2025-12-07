@@ -1,0 +1,18 @@
+{
+  "template": "standard",
+  "header": {
+    "businessName": "Amagzy",
+    "address": "Address line",
+    "phone": "",
+    "position": "center"
+  },
+  "footer": {
+    "text": "Thank you for your business",
+    "position": "center"
+  },
+  "logo": {
+    "url": null,
+    "position": "left"
+  },
+  "showTotals": true
+}

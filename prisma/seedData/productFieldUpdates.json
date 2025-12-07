@@ -10,5 +10,41 @@
     "field": "purchaseprice",
     "updatedAt": "2025-11-08T21:30:52.132Z",
     "source": "api"
+  },
+  {
+    "productId": "2bec9503-edbc-4142-b687-ac3ce740c74b",
+    "field": "name",
+    "updatedAt": "2025-12-07T22:28:12.743Z",
+    "source": "import"
+  },
+  {
+    "productId": "2bec9503-edbc-4142-b687-ac3ce740c74b",
+    "field": "packsize",
+    "updatedAt": "2025-12-07T22:28:12.743Z",
+    "source": "import"
+  },
+  {
+    "productId": "34f74929-4ed7-42b9-80f4-bee880824742",
+    "field": "name",
+    "updatedAt": "2025-12-07T22:28:12.774Z",
+    "source": "import"
+  },
+  {
+    "productId": "34f74929-4ed7-42b9-80f4-bee880824742",
+    "field": "packsize",
+    "updatedAt": "2025-12-07T22:28:12.774Z",
+    "source": "import"
+  },
+  {
+    "productId": "030c6a77-e31c-4099-99d3-07588804b4ac",
+    "field": "name",
+    "updatedAt": "2025-12-07T22:28:12.783Z",
+    "source": "import"
+  },
+  {
+    "productId": "aa067548-808d-4a0c-8471-851d9c64e112",
+    "field": "name",
+    "updatedAt": "2025-12-07T22:28:12.801Z",
+    "source": "import"
   }
 ]

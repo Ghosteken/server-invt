@@ -3,12 +3,58 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteInvoice = exports.addPayment = exports.updateInvoice = exports.getInvoiceById = exports.getInvoices = exports.createInvoice = void 0;
+exports.deleteInvoice = exports.addPayment = exports.updateInvoice = exports.getInvoiceById = exports.getInvoices = exports.getInvoicePrintOptions = exports.createInvoice = void 0;
+const zod_1 = require("zod");
 const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../db/prisma"));
 const notificationService_1 = require("../services/notificationService");
 const invoiceMetaService_1 = require("../services/invoiceMetaService");
 const pcsInventoryService_1 = require("../services/pcsInventoryService");
+const CreateInvoiceBodySchema = zod_1.z.object({
+    customerId: zod_1.z.string().optional(),
+    customerName: zod_1.z.string().optional(),
+    date: zod_1.z.string().optional(),
+    location: zod_1.z.string().min(1),
+    salesAgent: zod_1.z.string().min(1),
+    locationId: zod_1.z.string().optional(),
+    salesAgentId: zod_1.z.string().optional(),
+    vatPercent: zod_1.z.coerce.number().nonnegative().optional(),
+    discountPercent: zod_1.z.coerce.number().min(0).max(100).optional(),
+    paymentTermType: zod_1.z.enum(["immediate", "due_date"]),
+    dueDate: zod_1.z.string().optional(),
+    notes: zod_1.z.string().optional(),
+    invoiceNumber: zod_1.z.string().optional(),
+    items: zod_1.z.array(zod_1.z.object({
+        productId: zod_1.z.string().optional(),
+        name: zod_1.z.string().min(1),
+        unit: zod_1.z.enum(["ctn", "pcs"]),
+        quantity: zod_1.z.coerce.number().int().min(1),
+        unitPrice: zod_1.z.coerce.number().nonnegative().optional(),
+    })),
+});
+const UpdateInvoiceBodySchema = zod_1.z.object({
+    date: zod_1.z.string().optional(),
+    location: zod_1.z.string().optional(),
+    salesAgent: zod_1.z.string().optional(),
+    locationId: zod_1.z.string().optional(),
+    salesAgentId: zod_1.z.string().optional(),
+    vatPercent: zod_1.z.coerce.number().nonnegative().optional(),
+    discountPercent: zod_1.z.coerce.number().min(0).max(100).optional(),
+    paymentTermType: zod_1.z.enum(["immediate", "due_date"]).optional(),
+    dueDate: zod_1.z.string().optional(),
+    notes: zod_1.z.string().optional(),
+    invoiceNumber: zod_1.z.string().optional(),
+    items: zod_1.z
+        .array(zod_1.z.object({
+        id: zod_1.z.string().optional(),
+        productId: zod_1.z.string().optional(),
+        name: zod_1.z.string().optional(),
+        unit: zod_1.z.enum(["ctn", "pcs"]),
+        quantity: zod_1.z.coerce.number().int().min(1),
+        unitPrice: zod_1.z.coerce.number().nonnegative().optional(),
+    }))
+        .optional(),
+});
 function computeTotals(items, vatPercent, discountPercent) {
     const totalWithoutVAT = items.reduce((acc, it) => acc + it.quantity * it.unitPrice, 0);
     const discountAmount = discountPercent > 0 ? (totalWithoutVAT * discountPercent) / 100 : 0;
@@ -46,7 +92,8 @@ async function maybeNotifyDueSoon(inv, actorUserId) {
 }
 const createInvoice = async (req, res) => {
     try {
-        const body = req.body || {};
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const body = CreateInvoiceBodySchema.parse(req.body || {});
         const { customerId, customerName, date, location, salesAgent, locationId, salesAgentId, vatPercent = 7.5, discountPercent = 0, paymentTermType, dueDate, notes, items, invoiceNumber } = body;
         if (!location || !salesAgent || !Array.isArray(items) || items.length === 0) {
             res.status(400).json({ message: "Missing required fields" });
@@ -129,7 +176,7 @@ const createInvoice = async (req, res) => {
         });
         // Persist optional invoice number in meta store
         if (invoiceNumber && invoiceNumber.trim()) {
-            await (0, invoiceMetaService_1.upsertInvoiceMeta)({ invoiceId, invoiceNumber: invoiceNumber.trim() });
+            await (0, invoiceMetaService_1.upsertInvoiceMeta)({ invoiceId, invoiceNumber: invoiceNumber.trim(), tenantId });
         }
         // After creating invoice, deduct stock and record purchases for each item
         for (const h of hydrated) {
@@ -140,7 +187,7 @@ const createInvoice = async (req, res) => {
                 const nameForPcs = (h.name || "").trim();
                 if (nameForPcs) {
                     // Adjust PCS inventory maintained in JSON store
-                    await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: nameForPcs, delta: -qty });
+                    await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: nameForPcs, delta: -qty, tenantId });
                 }
                 // Record purchase if linked to a product
                 if (h.productId) {
@@ -190,6 +237,30 @@ const createInvoice = async (req, res) => {
     }
 };
 exports.createInvoice = createInvoice;
+const getInvoicePrintOptions = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prisma_1.default.invoices.findUnique({ where: { invoiceId: id } });
+        if (!existing) {
+            res.status(404).json({ message: "Invoice not found" });
+            return;
+        }
+        res.json({
+            invoiceId: id,
+            options: {
+                includePrices: true,
+                includeDiscounts: true,
+                includeVAT: true,
+                pageSizes: ["A4", "Letter"],
+                orientation: ["portrait", "landscape"],
+            },
+        });
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to load print options" });
+    }
+};
+exports.getInvoicePrintOptions = getInvoicePrintOptions;
 const getInvoices = async (req, res) => {
     try {
         const search = (req.query.search || "").toString().trim().toLowerCase();
@@ -264,8 +335,9 @@ const getInvoiceById = async (req, res) => {
 exports.getInvoiceById = getInvoiceById;
 const updateInvoice = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const { id } = req.params;
-        const body = req.body || {};
+        const body = UpdateInvoiceBodySchema.parse(req.body || {});
         const existing = await prisma_1.default.invoices.findUnique({ where: { invoiceId: id }, include: { items: true, payments: true } });
         if (!existing) {
             res.status(404).json({ message: "Invoice not found" });
@@ -293,7 +365,7 @@ const updateInvoice = async (req, res) => {
             }
             unitPrice = unitPrice ?? 0;
             const quantity = Math.max(1, Number(it.quantity) || 1);
-            return { id: (0, crypto_1.randomUUID)(), productId: it.productId || null, name: displayName, unit: it.unit, quantity, unitPrice, subtotal: quantity * unitPrice };
+            return { id: (0, crypto_1.randomUUID)(), productId: it.productId || null, name: displayName || "", unit: it.unit, quantity, unitPrice, subtotal: quantity * unitPrice };
         })) : existing.items;
         const totals = computeTotals(updatedItems.map((i) => ({ quantity: i.quantity, unitPrice: i.unitPrice })), vatPercent, discountPercent);
         // Resolve normalized display names if IDs provided
@@ -338,7 +410,7 @@ const updateInvoice = async (req, res) => {
         // Update invoice number in meta store if provided
         if (typeof body.invoiceNumber === "string") {
             const normalized = body.invoiceNumber.trim();
-            await (0, invoiceMetaService_1.upsertInvoiceMeta)({ invoiceId: id, invoiceNumber: normalized || null });
+            await (0, invoiceMetaService_1.upsertInvoiceMeta)({ invoiceId: id, invoiceNumber: normalized || null, tenantId });
         }
         // Reconcile inventory changes based on item diffs (carton stock and PCS inventory)
         const prevMap = new Map();
@@ -400,14 +472,14 @@ const updateInvoice = async (req, res) => {
             }
             else if (k.startsWith("pcs:")) {
                 const name = k.slice(4);
-                await (0, pcsInventoryService_1.adjustPcsQuantity)({ name, delta: -delta });
+                await (0, pcsInventoryService_1.adjustPcsQuantity)({ name, delta: -delta, tenantId });
             }
         }
         if (changedCount > 0) {
             (0, notificationService_1.appendNotification)({ type: "inventory", message: `Reconciled inventory for invoice ${id}; ${changedCount} item group(s) adjusted.`, actorUserId: req.user?.userId });
         }
         await maybeNotifyDueSoon(updated, req.user?.userId);
-        const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(id);
+        const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(id, req.tenantId || req.user?.tenantId || "default");
         res.json({ ...updated, invoiceNumber: meta?.invoiceNumber || undefined });
     }
     catch (err) {

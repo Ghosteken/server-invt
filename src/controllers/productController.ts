@@ -11,6 +11,7 @@ import { appendCustomerSales } from "../services/customerSalesService";
 import { readPcsInventory, upsertPcsEntries, adjustPcsQuantity, reloadPcsInventory } from "../services/pcsInventoryService";
 import { recordFieldUpdates, getLastFieldUpdates } from "../services/productUpdateAuditService";
 import XLSX from "xlsx";
+import { z } from "zod";
 import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "crypto";
@@ -69,7 +70,15 @@ export const createProduct = async (
   res: Response
 ): Promise<void> => {
   try {
-    const { name, price, stockQuantity, category, description, packSize } = req.body;
+    const Body = z.object({
+      name: z.string().min(1),
+      price: z.coerce.number().nonnegative(),
+      stockQuantity: z.coerce.number().int().nonnegative(),
+      category: z.string().optional().nullable(),
+      description: z.string().optional().nullable(),
+      packSize: z.string().optional().nullable(),
+    });
+    const { name, price, stockQuantity, category, description, packSize } = Body.parse(req.body);
     const product = await prisma.products.create({
       data: {
         productId: randomUUID(),
@@ -118,7 +127,18 @@ export const updateProduct = async (
 ): Promise<void> => {
   try {
     const { productId } = req.params;
-    const { name, price, purchasePrice, stockQuantity, expiryDate, category, description, packSize, barcode } = req.body;
+    const Body = z.object({
+      name: z.string().min(1).optional(),
+      price: z.coerce.number().nonnegative().optional(),
+      purchasePrice: z.coerce.number().nonnegative().optional(),
+      stockQuantity: z.coerce.number().int().nonnegative().optional(),
+      expiryDate: z.string().nullable().optional(),
+      category: z.string().nullable().optional(),
+      description: z.string().nullable().optional(),
+      packSize: z.string().nullable().optional(),
+      barcode: z.string().nullable().optional(),
+    });
+    const { name, price, purchasePrice, stockQuantity, expiryDate, category, description, packSize, barcode } = Body.parse(req.body);
 
     const existing = await prisma.products.findUnique({ where: { productId } });
     if (!existing) {
@@ -326,9 +346,12 @@ export const getProductMovements = async (
 
 export const getPcsProducts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const rawSearch = req.query.search?.toString() ?? "";
+    const Query = z.object({ search: z.string().optional() });
+    const q = Query.safeParse({ search: req.query.search?.toString() });
+    const rawSearch = q.success ? q.data.search ?? "" : "";
     const search = rawSearch.trim().toLowerCase();
-    const pcs = await readPcsInventory();
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const pcs = await readPcsInventory(tenantId);
     // Load all products to allow robust matching and enrichment
     const products = await prisma.products.findMany({});
 
@@ -422,7 +445,7 @@ export const getPcsProducts = async (req: Request, res: Response): Promise<void>
 // Reload PCS inventory from disk (useful after external imports)
 export const reloadPcs = async (req: Request, res: Response): Promise<void> => {
   try {
-    const pcs = await reloadPcsInventory();
+    const pcs = await reloadPcsInventory(req.tenantId || req.user?.tenantId || "default");
     res.json({ reloaded: pcs.length });
   } catch (err) {
     console.error("reloadPcs error:", err);
@@ -606,7 +629,8 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
 
     // Only upsert PCS quantities when selected or when no selection provided
     const doPcsUpsert = !updateFieldsSet || updateFieldsSet.has("pcsquantity");
-    const merged = doPcsUpsert ? await upsertPcsEntries(incoming) : await readPcsInventory();
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const merged = doPcsUpsert ? await upsertPcsEntries(incoming, tenantId) : await readPcsInventory(tenantId);
     const importedCount = doPcsUpsert ? incoming.length : 0;
     appendNotification({ type: "product", message: `Imported ${importedCount} PCS products`, actorUserId: req.user?.userId });
     // Persist imported PCS snapshot to JSON
@@ -648,10 +672,12 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
 // Upsert a PCS entry (or multiple) directly via JSON body
 export const upsertPcsItems = async (req: Request, res: Response): Promise<void> => {
   try {
-    const body = req.body as any;
+    const Item = z.object({ name: z.string().min(1), quantity: z.coerce.number().int().nonnegative(), packSize: z.string().nullable().optional() });
+    const Body = z.union([z.array(Item), Item]);
+    const body = Body.parse(req.body);
     let items: Array<{ name: string; quantity: number; packSize?: string | null }> = [];
     if (Array.isArray(body)) {
-      items = body.map((e) => ({ name: String(e?.name || "").trim(), quantity: Math.max(0, Number(e?.quantity) || 0), packSize: e?.packSize ? String(e.packSize).trim() : null }));
+      items = body.map((e) => ({ name: e.name.trim(), quantity: Math.max(0, Number(e.quantity) || 0), packSize: e.packSize ? String(e.packSize).trim() : null }));
     } else if (body && typeof body === "object") {
       const name = String(body?.name || "").trim();
       const qty = Math.max(0, Number(body?.quantity) || 0);
@@ -1805,7 +1831,7 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
       return;
     }
     // Optional guard: prevent deletion if PCS inventory still references this product by name
-    const pcs = await readPcsInventory();
+    const pcs = await readPcsInventory(req.tenantId || req.user?.tenantId || "default");
     const hasPcsRef = pcs.some((e) => String(e.name || "").trim().toLowerCase() === String(existing.name || "").trim().toLowerCase());
     if (hasPcsRef) {
       res.status(409).json({ message: "Cannot delete product while PCS inventory contains entries referencing it." });

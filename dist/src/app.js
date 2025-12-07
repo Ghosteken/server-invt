@@ -35,12 +35,36 @@ function createApp() {
     app.use(express_1.default.json());
     app.use((0, helmet_1.default)());
     app.use(helmet_1.default.crossOriginResourcePolicy({ policy: "cross-origin" }));
+    app.use(helmet_1.default.contentSecurityPolicy({
+        useDefaults: true,
+        directives: {
+            defaultSrc: ["'self'"],
+            scriptSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'"],
+            imgSrc: ["'self'", "data:"],
+            connectSrc: ["'self'"],
+            objectSrc: ["'none'"],
+            frameAncestors: ["'none'"],
+        }
+    }));
+    if ((process.env.NODE_ENV || "").toLowerCase() === "production") {
+        app.set("trust proxy", 1);
+        app.use(helmet_1.default.hsts({ maxAge: 63072000 }));
+    }
     app.use((0, morgan_1.default)("common"));
     app.use(body_parser_1.default.json());
     app.use(body_parser_1.default.urlencoded({ extended: false }));
     app.use((0, cors_1.default)());
     // Rate limiter; configurable via env
-    const limiter = (0, express_rate_limit_1.default)({ windowMs: 60 * 1000, max: Number(process.env.RATE_LIMIT_MAX || 300) });
+    const limiter = (0, express_rate_limit_1.default)({
+        windowMs: 60 * 1000,
+        max: Number(process.env.RATE_LIMIT_MAX || 300),
+        keyGenerator: (req) => {
+            const tid = req.tenantId || req.user?.tenantId || "default";
+            const uid = req.user?.userId || req.ip;
+            return `${tid}:${uid}`;
+        },
+    });
     app.use(limiter);
     // Simple request logger for debugging
     app.use((req, res, next) => {

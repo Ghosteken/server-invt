@@ -16,7 +16,10 @@ const authenticateToken = (req, res, next) => {
     }
     try {
         const decoded = jsonwebtoken_1.default.verify(token, JWT_SECRET);
-        req.user = decoded;
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = decoded.tenantId || (headerTenant || "default");
+        req.user = { userId: decoded.userId, email: decoded.email, role: decoded.role, tenantId };
+        req.tenantId = tenantId;
         next();
     }
     catch (error) {

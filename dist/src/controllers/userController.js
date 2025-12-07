@@ -26,6 +26,7 @@ const getUsers = async (req, res) => {
         res.json(users);
     }
     catch (error) {
+        console.error("getUsers error:", error);
         res.status(500).json({ message: "Error retrieving users" });
     }
 };

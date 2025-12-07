@@ -1,4 +1,6 @@
 import express from "express";
+import { z, ZodError } from "zod";
+import { randomUUID } from "crypto";
 import dotenv from "dotenv";
 import bodyParser from "body-parser";
 import cors from "cors";
@@ -7,6 +9,7 @@ import morgan from "morgan";
 import path from "path";
 import compression from "compression";
 import rateLimit from "express-rate-limit";
+import prisma from "./db/prisma";
 /* ROUTE IMPORTS */
 import dashboardRoutes from "./routes/dashboardRoutes";
 import productRoutes from "./routes/productRoutes";
@@ -33,13 +36,38 @@ app.use(compression());
 app.use(express.json());
 app.use(helmet());
 app.use(helmet.crossOriginResourcePolicy({ policy: "cross-origin" }));
+app.use(helmet.contentSecurityPolicy({
+  useDefaults: true,
+  directives: {
+    defaultSrc: ["'self'"],
+    scriptSrc: ["'self'"],
+    styleSrc: ["'self'", "'unsafe-inline'"],
+    imgSrc: ["'self'", "data:"],
+    connectSrc: ["'self'"],
+    objectSrc: ["'none'"],
+    frameAncestors: ["'none'"],
+  }
+}));
+if ((process.env.NODE_ENV || "").toLowerCase() === "production") {
+  app.set("trust proxy", 1);
+  app.use(helmet.hsts({ maxAge: 63072000 }));
+}
 app.use(morgan("common"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
 
 // Basic rate limiting to protect hot endpoints
-const limiter = rateLimit({ windowMs: 60 * 1000, max: Number(process.env.RATE_LIMIT_MAX || 300) });
+const limiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_MAX || 300),
+  keyGenerator: (req) => {
+    const tid = (req as any).tenantId || req.user?.tenantId || "default";
+    const uid = req.user?.userId || req.ip;
+    return `${tid}:${uid}`;
+  },
+  skip: (req) => req.method === 'GET' && req.path.startsWith('/users'),
+});
 app.use(limiter);
 
 // Simple request logger that prints method, url and body for debugging
@@ -72,6 +100,86 @@ app.use("/invoices", invoiceRoutes); // http://localhost:8000/invoices
 app.use("/purchases", purchasesRoutes); // http://localhost:8000/purchases
 app.use("/sales-agents", salesAgentRoutes); // http://localhost:8000/sales-agents
 app.use("/locations", locationRoutes); // http://localhost:8000/locations
+
+app.get("/health", async (_req, res) => {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ status: "ok", db: "ok", time: new Date().toISOString() });
+  } catch (err) {
+    res.status(500).json({ status: "error", db: "down" });
+  }
+});
+
+app.get("/status", (_req, res) => {
+  res.json({ status: "ok", uptime: process.uptime(), timestamp: new Date().toISOString() });
+});
+
+app.get("/legal/terms", (_req, res) => {
+  res.json({ name: "Terms of Service", version: "1.0" });
+});
+
+app.get("/legal/privacy", (_req, res) => {
+  res.json({ name: "Privacy Policy", version: "1.0" });
+});
+
+app.get("/legal/dpa", (_req, res) => {
+  res.json({ name: "Data Processing Addendum", version: "1.0" });
+});
+
+app.post("/support/messages", async (req, res) => {
+  try {
+    const Body = z.object({ subject: z.string().min(1), body: z.string().min(1) });
+    const { subject, body } = Body.parse(req.body || {});
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const created = await prisma.supportMessages.create({ data: { id: randomUUID(), tenantId, userId: req.user?.userId || null, subject, body } });
+    res.status(201).json(created);
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(400).json({ message: "Invalid input", errors: err.issues });
+      return;
+    }
+    res.status(500).json({ message: "Failed to create support message" });
+  }
+});
+
+app.get("/support/messages", async (req, res) => {
+  try {
+    const Query = z.object({ status: z.string().optional() });
+    const { status } = Query.parse(req.query);
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const messages = await prisma.supportMessages.findMany({ where: { tenantId, ...(status ? { status } : {}) }, orderBy: { createdAt: "desc" } });
+    res.json({ messages });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(400).json({ message: "Invalid input", errors: err.issues });
+      return;
+    }
+    res.status(500).json({ message: "Failed to read support messages" });
+  }
+});
+
+app.put("/support/messages/:id/status", async (req, res) => {
+  try {
+    const Params = z.object({ id: z.string().min(1) });
+    const { id } = Params.parse(req.params);
+    const Body = z.object({ status: z.enum(["open", "pending", "closed"]) });
+    const { status } = Body.parse(req.body || {});
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const existing = await prisma.supportMessages.findUnique({ where: { id } });
+    if (!existing || existing.tenantId !== tenantId) {
+      res.status(404).json({ message: "Message not found" });
+      return;
+    }
+    const updated = await prisma.supportMessages.update({ where: { id }, data: { status } });
+    res.json(updated);
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(400).json({ message: "Invalid input", errors: err.issues });
+      return;
+    }
+    res.status(500).json({ message: "Failed to update message status" });
+  }
+});
 
 /* SERVER */
 const port = Number(process.env.PORT) || 3001;
