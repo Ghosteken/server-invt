@@ -126,5 +126,19 @@
     "type": "invoice",
     "message": "Invoice deleted: e14d4452-019b-4c9c-96b9-f97a86d5e54b",
     "timestamp": "2025-11-12T19:08:17.173Z"
+  },
+  {
+    "id": "1765130823513-pozsfk",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-07T18:07:03.513Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765130823529-t4pnf1",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-07T18:07:03.529Z",
+    "actorUserId": "tester"
   }
 ]
