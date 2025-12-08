@@ -1886,14 +1886,13 @@ export const getImportSample = async (
   res: Response
 ): Promise<void> => {
   try {
-    // Build a sample Excel by combining current DB products with any missing
-    // items from the server/assets/barcode-products.xlsx file.
-    const products = await prisma.products.findMany({ orderBy: { name: "asc" } });
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const products = await prisma.products.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
 
     const norm = (s: string | null | undefined) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
     const keyOf = (name: string, packSize: string | null | undefined) => `${norm(name)}|${norm(packSize ?? null)}`;
 
-    const rows: any[] = products.map((p) => ({
+    let rows: any[] = products.map((p) => ({
       ProductId: p.productId,
       SKU: p.productId,
       ProductDescription: p.name,
@@ -1963,8 +1962,7 @@ export const getImportSample = async (
       }
     }
 
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(rows, { header: [
+    const header = [
       "ProductId",
       "SKU",
       "ProductDescription",
@@ -1976,7 +1974,14 @@ export const getImportSample = async (
       "Quantity",
       "ExpiryDate",
       "Description",
-    ]});
+    ];
+    if (tenantId !== "default") {
+      rows = [];
+    }
+    const wb = XLSX.utils.book_new();
+    const ws = rows.length
+      ? XLSX.utils.json_to_sheet(rows, { header })
+      : XLSX.utils.aoa_to_sheet([header]);
     XLSX.utils.book_append_sheet(wb, ws, "Products");
     const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
     res.setHeader(
@@ -1997,12 +2002,12 @@ export const getPcsSample = async (
   res: Response
 ): Promise<void> => {
   try {
-    // Dynamically generate PCS sample using current DB products and PCS inventory
-    const pcs = await readPcsInventory();
-    const products = await prisma.products.findMany({});
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const pcs = await readPcsInventory(tenantId);
+    const products = await prisma.products.findMany({ where: { tenantId } });
     const byName = new Map(products.map((p) => [String(p.name).toLowerCase(), p] as const));
 
-    const rows = pcs.map((e) => {
+    const rows = tenantId === "default" ? pcs.map((e) => {
       const match = byName.get(String(e.name).toLowerCase());
       return {
         ProductId: match?.productId ?? "",
@@ -2016,23 +2021,24 @@ export const getPcsSample = async (
         ExpiryDate: match?.expiryDate ? new Date(match.expiryDate).toLocaleDateString() : "",
         Description: (match as any)?.description ?? "",
       };
-    });
+    }) : [];
 
+    const headerPcs = [
+      "ProductId",
+      "ProductDescription",
+      "Barcode",
+      "PackSize",
+      "Category",
+      "PCSQuantity",
+      "PurchasePrice",
+      "SalesPrice",
+      "ExpiryDate",
+      "Description",
+    ];
     const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.json_to_sheet(rows, {
-      header: [
-        "ProductId",
-        "ProductDescription",
-        "Barcode",
-        "PackSize",
-        "Category",
-        "PCSQuantity",
-        "PurchasePrice",
-        "SalesPrice",
-        "ExpiryDate",
-        "Description",
-      ],
-    });
+    const ws = rows.length
+      ? XLSX.utils.json_to_sheet(rows, { header: headerPcs })
+      : XLSX.utils.aoa_to_sheet([headerPcs]);
     XLSX.utils.book_append_sheet(wb, ws, "PCS");
     const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
     res.setHeader(
