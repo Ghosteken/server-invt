@@ -1867,12 +1867,11 @@ exports.purgeProducts = purgeProducts;
  */
 const getImportSample = async (req, res) => {
     try {
-        // Build a sample Excel by combining current DB products with any missing
-        // items from the server/assets/barcode-products.xlsx file.
-        const products = await prisma_1.default.products.findMany({ orderBy: { name: "asc" } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const products = await prisma_1.default.products.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
         const norm = (s) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
         const keyOf = (name, packSize) => `${norm(name)}|${norm(packSize ?? null)}`;
-        const rows = products.map((p) => ({
+        let rows = products.map((p) => ({
             ProductId: p.productId,
             SKU: p.productId,
             ProductDescription: p.name,
@@ -1944,20 +1943,26 @@ const getImportSample = async (req, res) => {
                 });
             }
         }
+        const header = [
+            "ProductId",
+            "SKU",
+            "ProductDescription",
+            "Barcode",
+            "PackSize",
+            "Category",
+            "PurchasePrice",
+            "SalesPrice",
+            "Quantity",
+            "ExpiryDate",
+            "Description",
+        ];
+        if (tenantId !== "default") {
+            rows = [];
+        }
         const wb = xlsx_1.default.utils.book_new();
-        const ws = xlsx_1.default.utils.json_to_sheet(rows, { header: [
-                "ProductId",
-                "SKU",
-                "ProductDescription",
-                "Barcode",
-                "PackSize",
-                "Category",
-                "PurchasePrice",
-                "SalesPrice",
-                "Quantity",
-                "ExpiryDate",
-                "Description",
-            ] });
+        const ws = rows.length
+            ? xlsx_1.default.utils.json_to_sheet(rows, { header })
+            : xlsx_1.default.utils.aoa_to_sheet([header]);
         xlsx_1.default.utils.book_append_sheet(wb, ws, "Products");
         const buffer = xlsx_1.default.write(wb, { type: "buffer", bookType: "xlsx" });
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -1973,11 +1978,11 @@ exports.getImportSample = getImportSample;
 // Serve PCS sample Excel
 const getPcsSample = async (req, res) => {
     try {
-        // Dynamically generate PCS sample using current DB products and PCS inventory
-        const pcs = await (0, pcsInventoryService_1.readPcsInventory)();
-        const products = await prisma_1.default.products.findMany({});
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const pcs = await (0, pcsInventoryService_1.readPcsInventory)(tenantId);
+        const products = await prisma_1.default.products.findMany({ where: { tenantId } });
         const byName = new Map(products.map((p) => [String(p.name).toLowerCase(), p]));
-        const rows = pcs.map((e) => {
+        const rows = tenantId === "default" ? pcs.map((e) => {
             const match = byName.get(String(e.name).toLowerCase());
             return {
                 ProductId: match?.productId ?? "",
@@ -1991,22 +1996,23 @@ const getPcsSample = async (req, res) => {
                 ExpiryDate: match?.expiryDate ? new Date(match.expiryDate).toLocaleDateString() : "",
                 Description: match?.description ?? "",
             };
-        });
+        }) : [];
+        const headerPcs = [
+            "ProductId",
+            "ProductDescription",
+            "Barcode",
+            "PackSize",
+            "Category",
+            "PCSQuantity",
+            "PurchasePrice",
+            "SalesPrice",
+            "ExpiryDate",
+            "Description",
+        ];
         const wb = xlsx_1.default.utils.book_new();
-        const ws = xlsx_1.default.utils.json_to_sheet(rows, {
-            header: [
-                "ProductId",
-                "ProductDescription",
-                "Barcode",
-                "PackSize",
-                "Category",
-                "PCSQuantity",
-                "PurchasePrice",
-                "SalesPrice",
-                "ExpiryDate",
-                "Description",
-            ],
-        });
+        const ws = rows.length
+            ? xlsx_1.default.utils.json_to_sheet(rows, { header: headerPcs })
+            : xlsx_1.default.utils.aoa_to_sheet([headerPcs]);
         xlsx_1.default.utils.book_append_sheet(wb, ws, "PCS");
         const buf = xlsx_1.default.write(wb, { type: "buffer", bookType: "xlsx" });
         res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

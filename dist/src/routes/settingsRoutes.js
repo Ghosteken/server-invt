@@ -181,4 +181,41 @@ router.post("/banks", async (req, res) => {
         res.status(500).json({ message: "Failed to create bank account" });
     }
 });
+router.put("/banks", async (req, res) => {
+    try {
+        const Body = zod_1.z.object({
+            oldName: zod_1.z.string().min(1),
+            oldAccount: zod_1.z.string().min(1),
+            name: zod_1.z.string().min(1),
+            account: zod_1.z.string().min(1),
+        });
+        const { oldName, oldAccount, name, account } = Body.parse(req.body || {});
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const list = (0, banksService_1.updateBank)(tenantId, { name: oldName, account: oldAccount }, { name, account });
+        res.json({ banks: list });
+    }
+    catch (err) {
+        if (err instanceof zod_1.ZodError) {
+            res.status(400).json({ message: "Invalid input", errors: err.issues });
+            return;
+        }
+        res.status(500).json({ message: "Failed to update bank account" });
+    }
+});
+router.delete("/banks", async (req, res) => {
+    try {
+        const Body = zod_1.z.object({ name: zod_1.z.string().min(1), account: zod_1.z.string().min(1) });
+        const { name, account } = Body.parse(req.body || {});
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const list = (0, banksService_1.removeBank)(tenantId, { name, account });
+        res.json({ banks: list });
+    }
+    catch (err) {
+        if (err instanceof zod_1.ZodError) {
+            res.status(400).json({ message: "Invalid input", errors: err.issues });
+            return;
+        }
+        res.status(500).json({ message: "Failed to delete bank account" });
+    }
+});
 exports.default = router;

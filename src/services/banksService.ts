@@ -44,3 +44,35 @@ export function addBank(tenantId: string, bank: Bank): Bank[] {
   return list;
 }
 
+export function updateBank(
+  tenantId: string,
+  oldBank: Bank,
+  nextBank: Bank
+): Bank[] {
+  const file = readFile();
+  const list = Array.isArray(file.tenants[tenantId]) ? (file.tenants[tenantId] as Bank[]) : [];
+  const idx = list.findIndex((b) => b.name === oldBank.name && b.account === oldBank.account);
+  if (idx === -1) return list;
+  const next = { name: String(nextBank.name).trim(), account: String(nextBank.account).trim() };
+  list[idx] = next;
+  const seen = new Set<string>();
+  const deduped: Bank[] = [];
+  for (const b of list) {
+    const key = `${String(b.name).trim()}|${String(b.account).trim()}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    deduped.push({ name: String(b.name).trim(), account: String(b.account).trim() });
+  }
+  file.tenants[tenantId] = deduped;
+  writeFile(file);
+  return deduped;
+}
+
+export function removeBank(tenantId: string, bank: Bank): Bank[] {
+  const file = readFile();
+  const list = Array.isArray(file.tenants[tenantId]) ? (file.tenants[tenantId] as Bank[]) : [];
+  const filtered = list.filter((b) => !(b.name === bank.name && b.account === bank.account));
+  file.tenants[tenantId] = filtered.map((b) => ({ name: String(b.name).trim(), account: String(b.account).trim() }));
+  writeFile(file);
+  return file.tenants[tenantId];
+}

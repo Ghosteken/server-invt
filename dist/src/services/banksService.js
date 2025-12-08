@@ -5,6 +5,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.readBanks = readBanks;
 exports.addBank = addBank;
+exports.updateBank = updateBank;
+exports.removeBank = removeBank;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const BANKS_PATH = path_1.default.join(__dirname, "../../assets/banks.json");
@@ -46,4 +48,33 @@ function addBank(tenantId, bank) {
     file.tenants[tenantId] = list;
     writeFile(file);
     return list;
+}
+function updateBank(tenantId, oldBank, nextBank) {
+    const file = readFile();
+    const list = Array.isArray(file.tenants[tenantId]) ? file.tenants[tenantId] : [];
+    const idx = list.findIndex((b) => b.name === oldBank.name && b.account === oldBank.account);
+    if (idx === -1)
+        return list;
+    const next = { name: String(nextBank.name).trim(), account: String(nextBank.account).trim() };
+    list[idx] = next;
+    const seen = new Set();
+    const deduped = [];
+    for (const b of list) {
+        const key = `${String(b.name).trim()}|${String(b.account).trim()}`;
+        if (seen.has(key))
+            continue;
+        seen.add(key);
+        deduped.push({ name: String(b.name).trim(), account: String(b.account).trim() });
+    }
+    file.tenants[tenantId] = deduped;
+    writeFile(file);
+    return deduped;
+}
+function removeBank(tenantId, bank) {
+    const file = readFile();
+    const list = Array.isArray(file.tenants[tenantId]) ? file.tenants[tenantId] : [];
+    const filtered = list.filter((b) => !(b.name === bank.name && b.account === bank.account));
+    file.tenants[tenantId] = filtered.map((b) => ({ name: String(b.name).trim(), account: String(b.account).trim() }));
+    writeFile(file);
+    return file.tenants[tenantId];
 }
