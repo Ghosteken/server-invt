@@ -107,11 +107,11 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
         res.status(400).json({ message: "customerName or customerId is required" });
         return;
       }
-      const existing = await prisma.customers.findFirst({ where: { name: normalizedName } });
+      const existing = await prisma.customers.findFirst({ where: { name: normalizedName, tenantId } });
       if (existing) {
         resolvedCustomerId = existing.customerId;
       } else {
-        const created = await prisma.customers.create({ data: { customerId: randomUUID(), name: normalizedName } });
+        const created = await prisma.customers.create({ data: { customerId: randomUUID(), name: normalizedName, tenantId } });
         resolvedCustomerId = created.customerId;
       }
     }
@@ -122,7 +122,7 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
         let unitPrice = typeof it.unitPrice === "number" ? it.unitPrice : undefined;
         let displayName = it.name;
         if (it.productId) {
-          const p = await prisma.products.findUnique({ where: { productId: it.productId } });
+          const p = await prisma.products.findFirst({ where: { productId: it.productId, tenantId } });
           if (p) {
             displayName = displayName || p.name;
             if (unitPrice === undefined) {
@@ -172,7 +172,8 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
         vatAmount: totals.vatAmount,
         totalWithVAT: totals.totalWithVAT,
         notes: notes || null,
-        items: { create: hydrated.map((h) => ({ id: randomUUID(), productId: h.productId || null, name: h.name, unit: h.unit, quantity: h.quantity, unitPrice: h.unitPrice, subtotal: h.subtotal })) },
+        tenantId,
+        items: { create: hydrated.map((h) => ({ id: randomUUID(), productId: h.productId || null, name: h.name, unit: h.unit, quantity: h.quantity, unitPrice: h.unitPrice, subtotal: h.subtotal, tenantId })) },
       },
       include: { items: true, payments: true },
     });
@@ -205,13 +206,14 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
               quantity: qty,
               unitPrice,
               totalCost,
+              tenantId,
             },
           });
         }
       } else {
         // Carton unit: deduct from product stock (clamped at 0) and record purchase
         if (h.productId) {
-          const p = await prisma.products.findUnique({ where: { productId: h.productId } });
+          const p = await prisma.products.findFirst({ where: { productId: h.productId, tenantId } });
           if (p) {
             const newQty = Math.max(0, Number(p.stockQuantity) - qty);
             await prisma.products.update({ where: { productId: h.productId }, data: { stockQuantity: newQty } });
@@ -224,6 +226,7 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
                 quantity: qty,
                 unitPrice,
                 totalCost,
+                tenantId,
               },
             });
           }
@@ -270,7 +273,8 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
     const agentId = (req.query.agentId || "").toString().trim();
     const from = req.query.from ? new Date(String(req.query.from)) : undefined;
     const to = req.query.to ? new Date(String(req.query.to)) : undefined;
-    const where: any = {};
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const where: any = { tenantId };
     if (agentId) {
       where.OR = [ { salesAgentId: agentId } ];
     }
@@ -289,7 +293,7 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
     }
     const customerIds = Array.from(new Set(invoices.map((i) => i.customerId))).filter(Boolean);
     const customers = customerIds.length
-      ? await prisma.customers.findMany({ where: { customerId: { in: customerIds } } })
+      ? await prisma.customers.findMany({ where: { tenantId, customerId: { in: customerIds } } })
       : [];
     const customerMap = new Map(customers.map((c) => [c.customerId, c.name] as const));
     const list = await Promise.all(
@@ -320,7 +324,8 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
 export const getInvoiceById = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const inv = await prisma.invoices.findUnique({ where: { invoiceId: id }, include: { items: true, payments: true } });
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const inv = await prisma.invoices.findFirst({ where: { invoiceId: id, tenantId }, include: { items: true, payments: true } });
     if (!inv) {
       res.status(404).json({ message: "Invoice not found" });
       return;
@@ -453,7 +458,7 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
       changedCount += 1;
       if (k.startsWith("ctn:")) {
         const productId = k.slice(4);
-        const p = await prisma.products.findUnique({ where: { productId } });
+        const p = await prisma.products.findFirst({ where: { productId, tenantId } });
         if (p) {
           const newQty = Math.max(0, Number(p.stockQuantity) - delta); // delta>0 deduct; delta<0 add back
           await prisma.products.update({ where: { productId }, data: { stockQuantity: newQty } });
@@ -491,8 +496,9 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
 export const addPayment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const body: { customerId?: string; date?: string; amount: number; bankName: string; bankAccount: string } = req.body || ({} as any);
-    const inv = await prisma.invoices.findUnique({ where: { invoiceId: id }, include: { payments: true } });
+    const inv = await prisma.invoices.findFirst({ where: { invoiceId: id, tenantId }, include: { payments: true } });
     if (!inv) {
       res.status(404).json({ message: "Invoice not found" });
       return;
@@ -506,6 +512,7 @@ export const addPayment = async (req: Request, res: Response): Promise<void> => 
         amount: Number(body.amount) || 0,
         bankName: body.bankName,
         bankAccount: body.bankAccount,
+        tenantId,
       },
     });
     const paymentsSum = (inv.payments || []).reduce((acc, p) => acc + p.amount, 0) + payment.amount;
@@ -523,7 +530,8 @@ export const addPayment = async (req: Request, res: Response): Promise<void> => 
 export const deleteInvoice = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const inv = await prisma.invoices.findUnique({ where: { invoiceId: id }, include: { items: true, payments: true } });
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const inv = await prisma.invoices.findFirst({ where: { invoiceId: id, tenantId }, include: { items: true, payments: true } });
     if (!inv) {
       res.status(404).json({ message: "Invoice not found" });
       return;
@@ -541,7 +549,7 @@ export const deleteInvoice = async (req: Request, res: Response): Promise<void> 
       } else if (it.unit === "pcs") {
         const nameForPcs = String(it.name || "").trim();
         if (nameForPcs) {
-          await adjustPcsQuantity({ name: nameForPcs, delta: qty });
+          await adjustPcsQuantity({ name: nameForPcs, delta: qty, tenantId });
         }
       }
 
@@ -551,13 +559,14 @@ export const deleteInvoice = async (req: Request, res: Response): Promise<void> 
           customerId: inv.customerId,
           timestamp: inv.date,
           productId: it.productId ?? undefined,
+          tenantId,
         },
       });
     }
 
     // Remove dependent records first to satisfy FK constraints
-    await prisma.payments.deleteMany({ where: { invoiceId: id } });
-    await prisma.invoiceItems.deleteMany({ where: { invoiceId: id } });
+    await prisma.payments.deleteMany({ where: { invoiceId: id, tenantId } });
+    await prisma.invoiceItems.deleteMany({ where: { invoiceId: id, tenantId } });
 
     await prisma.invoices.delete({ where: { invoiceId: id } });
     // Remove meta on delete for cleanliness

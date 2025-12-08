@@ -58,7 +58,8 @@ export const requireAdmin = (
     return res.status(401).json({ message: "Authentication required" });
   }
 
-  if (req.user.role !== "admin") {
+  const role = (req.user.role || "").toLowerCase();
+  if (role !== "admin" && role !== "org_admin") {
     return res.status(403).json({ message: "Admin access required" });
   }
 

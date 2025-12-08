@@ -12,6 +12,7 @@ export const getDashboardMetrics = async (
   res: Response
 ): Promise<void> => {
   try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     // Simplified, live analytics (no dummy tables)
     // Configurable low-stock threshold: query param > env > default
     const q = req.query?.threshold;
@@ -24,24 +25,24 @@ export const getDashboardMetrics = async (
         : 5;
 
     // Total products currently in inventory (stockQuantity > 0)
-    const totalProducts = await withCache(`metrics:totalProducts:inventory`, 60, async () => prisma.products.count({ where: nonInventoryFilter }));
+    const totalProducts = await withCache(`t=${tenantId}:metrics:totalProducts:inventory`, 60, async () => prisma.products.count({ where: { tenantId, ...nonInventoryFilter } }));
     const lowStockCount = await withCache(
-      `metrics:lowStock:${LOW_STOCK_THRESHOLD}`,
+      `t=${tenantId}:metrics:lowStock:${LOW_STOCK_THRESHOLD}`,
       60,
       async () =>
         prisma.products.count({
-          where: { stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
+          where: { tenantId, stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
         })
     );
 
-    const inventoryValue = await withCache(`metrics:inventoryValue`, 60, async () => {
-      const productsBasic = await prisma.products.findMany({ where: nonInventoryFilter, select: { productId: true, name: true, price: true, stockQuantity: true } });
+    const inventoryValue = await withCache(`t=${tenantId}:metrics:inventoryValue`, 60, async () => {
+      const productsBasic = await prisma.products.findMany({ where: { tenantId, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
       return productsBasic.reduce((sum, p) => sum + (Number(p.price) * p.stockQuantity), 0);
     });
 
     const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const sales7dTotal = await withCache(`metrics:sales7d`, 60, async () => {
-      const salesAgg = await prisma.customerPurchases.aggregate({ where: { timestamp: { gte: since7 } }, _sum: { totalCost: true } });
+    const sales7dTotal = await withCache(`t=${tenantId}:metrics:sales7d`, 60, async () => {
+      const salesAgg = await prisma.customerPurchases.aggregate({ where: { tenantId, timestamp: { gte: since7 } }, _sum: { totalCost: true } });
       return Number(salesAgg._sum.totalCost || 0);
     });
 
@@ -52,7 +53,7 @@ export const getDashboardMetrics = async (
       // @ts-ignore - Prisma groupBy typing can be verbose
       popularGrouped = await prisma.customerPurchases.groupBy({
         by: ['productId'],
-        where: { timestamp: { gte: since30 } },
+        where: { tenantId, timestamp: { gte: since30 } },
         _count: { productId: true },
         orderBy: { _count: { productId: 'desc' } },
         take: 5,
@@ -65,14 +66,14 @@ export const getDashboardMetrics = async (
     let popularProducts: Array<{ productId: string; name: string; price: number; stockQuantity: number; purchaseCount: number }> = [];
     if (popularGrouped.length) {
       const ids = popularGrouped.map((g) => g.productId);
-      const details = await prisma.products.findMany({ where: { productId: { in: ids }, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
+      const details = await prisma.products.findMany({ where: { tenantId, productId: { in: ids }, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
       popularProducts = details.map((d) => ({
         ...d,
         price: Number(d.price),
         purchaseCount: popularGrouped.find((g) => g.productId === d.productId)?._count.productId || 0,
       }));
     } else {
-      const fallback = await prisma.products.findMany({ where: nonInventoryFilter, take: 5, orderBy: { stockQuantity: 'desc' }, select: { productId: true, name: true, price: true, stockQuantity: true } });
+      const fallback = await prisma.products.findMany({ where: { tenantId, ...nonInventoryFilter }, take: 5, orderBy: { stockQuantity: 'desc' }, select: { productId: true, name: true, price: true, stockQuantity: true } });
       popularProducts = fallback.map((d) => ({ ...d, price: Number(d.price), purchaseCount: 0 }));
     }
 
@@ -94,6 +95,7 @@ export const getDashboardMetrics = async (
 // Detailed low-stock list
 export const getLowStockProducts = async (req: Request, res: Response): Promise<void> => {
   try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const q = req.query?.threshold;
     const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
     const envNum = Number(process.env.LOW_STOCK_THRESHOLD);
@@ -112,9 +114,10 @@ export const getLowStockProducts = async (req: Request, res: Response): Promise<
     const offset = rawOffset ? Math.max(0, Number(rawOffset)) : (page && typeof limit === 'number' ? (page - 1) * limit : undefined);
     const search = rawSearch.trim().toLowerCase();
 
-    const products = await withCache(`lowStock:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
+    const products = await withCache(`t=${tenantId}:lowStock:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
       return prisma.products.findMany({
         where: {
+          tenantId,
           stockQuantity: { gt: 0, lte: threshold },
           ...(search ? { name: { contains: search, mode: 'insensitive' as const } } : {}),
         },
@@ -134,13 +137,14 @@ export const getLowStockProducts = async (req: Request, res: Response): Promise<
 // Products expiring within N days
 export const getExpiringProducts = async (req: Request, res: Response): Promise<void> => {
   try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const q = req.query?.days;
     const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
     const days = Number.isFinite(qNum) && qNum > 0 ? qNum : 90;
     const cutoff = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
 
     const products = await prisma.products.findMany({
-      where: { expiryDate: { lte: cutoff }, ...nonInventoryFilter },
+      where: { tenantId, expiryDate: { lte: cutoff }, ...nonInventoryFilter },
       select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true }
     });
     res.set("Cache-Control", "public, max-age=30");
@@ -153,6 +157,7 @@ export const getExpiringProducts = async (req: Request, res: Response): Promise<
 // Dead stock: no sales in the past N days
 export const getDeadStockProducts = async (req: Request, res: Response): Promise<void> => {
   try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const q = req.query?.days;
     const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
     const days = Number.isFinite(qNum) && qNum > 0 ? qNum : 90;
@@ -162,11 +167,12 @@ export const getDeadStockProducts = async (req: Request, res: Response): Promise
     // @ts-ignore Prisma groupBy typing verbosity
     const grouped = await prisma.customerPurchases.groupBy({
       by: ['productId'],
+      where: { tenantId },
       _max: { timestamp: true },
     });
     const latestByProduct = new Map<string, Date | null>(grouped.map((g: any) => [g.productId, g._max.timestamp ? new Date(g._max.timestamp) : null]));
 
-    const allProducts = await prisma.products.findMany({ where: nonInventoryFilter, select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true } });
+    const allProducts = await prisma.products.findMany({ where: { tenantId, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true } });
     const dead = allProducts.filter(p => {
       const last = latestByProduct.get(p.productId) || null;
       return !last || last < since;
@@ -181,6 +187,7 @@ export const getDeadStockProducts = async (req: Request, res: Response): Promise
 // Top customers by purchase value
 export const getTopCustomers = async (req: Request, res: Response): Promise<void> => {
   try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const q = req.query?.limit;
     const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
     const limit = Number.isFinite(qNum) && qNum > 0 ? Math.min(50, qNum) : 5;
@@ -188,12 +195,13 @@ export const getTopCustomers = async (req: Request, res: Response): Promise<void
     // @ts-ignore Prisma groupBy typing verbosity
     const grouped = await prisma.customerPurchases.groupBy({
       by: ['customerId'],
+      where: { tenantId },
       _sum: { totalCost: true },
       orderBy: { _sum: { totalCost: 'desc' } },
       take: limit,
     });
     const ids = grouped.map((g: any) => g.customerId);
-    const customers = await prisma.customers.findMany({ where: { customerId: { in: ids } }, select: { customerId: true, name: true, mobile: true, city: true, state: true, country: true } });
+    const customers = await prisma.customers.findMany({ where: { tenantId, customerId: { in: ids } }, select: { customerId: true, name: true, mobile: true, city: true, state: true, country: true } });
     const result = customers.map((c) => ({
       ...c,
       totalPurchaseValue: Number(grouped.find((g: any) => g.customerId === c.customerId)?._sum.totalCost || 0),

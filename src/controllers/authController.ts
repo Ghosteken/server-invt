@@ -251,3 +251,41 @@ export const verifyToken = async (req: Request, res: Response): Promise<void> =>
     res.status(401).json({ message: "Invalid token" });
   }
 };
+
+export const orgAdminLogin = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { email, password } = req.body || {};
+    const normalizedEmail = String(email || "").toLowerCase();
+    if (!normalizedEmail || !password) {
+      res.status(400).json({ message: "email and password are required" });
+      return;
+    }
+    const admin = await prisma.orgAdmins.findFirst({ where: { email: normalizedEmail } });
+    if (!admin) {
+      res.status(401).json({ message: "Invalid credentials" });
+      return;
+    }
+    if (admin.isBlocked) {
+      res.status(403).json({ message: "Admin account is blocked" });
+      return;
+    }
+    const org = await prisma.organizations.findUnique({ where: { id: admin.orgId } });
+    if (org && org.isBlocked) {
+      res.status(403).json({ message: "Organization is blocked" });
+      return;
+    }
+    const ok = bcrypt.compareSync(password, admin.passwordHash);
+    if (!ok) {
+      res.status(401).json({ message: "Invalid credentials" });
+      return;
+    }
+    const token = jwt.sign(
+      { userId: admin.id, email: admin.email, role: "org_admin", tenantId: admin.orgId },
+      JWT_SECRET,
+      { expiresIn: "24h" }
+    );
+    res.json({ message: "Login successful", token, user: { userId: admin.id, name: admin.name, email: admin.email, role: "org_admin" } });
+  } catch (error) {
+    res.status(500).json({ message: "Error during org admin login" });
+  }
+};

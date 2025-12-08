@@ -1,0 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const superAdminController_1 = require("../controllers/superAdminController");
+const router = (0, express_1.Router)();
+router.post("/login", superAdminController_1.superAdminLogin);
+router.get("/orgs", superAdminController_1.listOrgs);
+router.post("/orgs", superAdminController_1.createOrg);
+router.get("/orgs/:id", superAdminController_1.getOrg);
+router.delete("/orgs/:id", superAdminController_1.deleteOrg);
+router.get("/orgs/:id/admins", superAdminController_1.listOrgAdmins);
+router.post("/orgs/:id/admins", superAdminController_1.createOrgAdmin);
+router.patch("/orgs/:id/block", superAdminController_1.blockOrg);
+router.patch("/orgs/:id/unblock", superAdminController_1.unblockOrg);
+router.patch("/orgs/:orgId/admins/:adminId/block", superAdminController_1.blockOrgAdmin);
+router.patch("/orgs/:orgId/admins/:adminId/unblock", superAdminController_1.unblockOrgAdmin);
+exports.default = router;

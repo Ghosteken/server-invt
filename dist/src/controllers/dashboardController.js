@@ -12,6 +12,7 @@ const cache_1 = require("../services/cache");
 const nonInventoryFilter = { stockQuantity: { gt: 0 } };
 const getDashboardMetrics = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         // Simplified, live analytics (no dummy tables)
         // Configurable low-stock threshold: query param > env > default
         const q = req.query?.threshold;
@@ -23,17 +24,17 @@ const getDashboardMetrics = async (req, res) => {
                 ? envNum
                 : 5;
         // Total products currently in inventory (stockQuantity > 0)
-        const totalProducts = await (0, cache_1.withCache)(`metrics:totalProducts:inventory`, 60, async () => prisma_1.default.products.count({ where: nonInventoryFilter }));
-        const lowStockCount = await (0, cache_1.withCache)(`metrics:lowStock:${LOW_STOCK_THRESHOLD}`, 60, async () => prisma_1.default.products.count({
-            where: { stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
+        const totalProducts = await (0, cache_1.withCache)(`t=${tenantId}:metrics:totalProducts:inventory`, 60, async () => prisma_1.default.products.count({ where: { tenantId, ...nonInventoryFilter } }));
+        const lowStockCount = await (0, cache_1.withCache)(`t=${tenantId}:metrics:lowStock:${LOW_STOCK_THRESHOLD}`, 60, async () => prisma_1.default.products.count({
+            where: { tenantId, stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
         }));
-        const inventoryValue = await (0, cache_1.withCache)(`metrics:inventoryValue`, 60, async () => {
-            const productsBasic = await prisma_1.default.products.findMany({ where: nonInventoryFilter, select: { productId: true, name: true, price: true, stockQuantity: true } });
+        const inventoryValue = await (0, cache_1.withCache)(`t=${tenantId}:metrics:inventoryValue`, 60, async () => {
+            const productsBasic = await prisma_1.default.products.findMany({ where: { tenantId, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
             return productsBasic.reduce((sum, p) => sum + (Number(p.price) * p.stockQuantity), 0);
         });
         const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-        const sales7dTotal = await (0, cache_1.withCache)(`metrics:sales7d`, 60, async () => {
-            const salesAgg = await prisma_1.default.customerPurchases.aggregate({ where: { timestamp: { gte: since7 } }, _sum: { totalCost: true } });
+        const sales7dTotal = await (0, cache_1.withCache)(`t=${tenantId}:metrics:sales7d`, 60, async () => {
+            const salesAgg = await prisma_1.default.customerPurchases.aggregate({ where: { tenantId, timestamp: { gte: since7 } }, _sum: { totalCost: true } });
             return Number(salesAgg._sum.totalCost || 0);
         });
         const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -43,7 +44,7 @@ const getDashboardMetrics = async (req, res) => {
             // @ts-ignore - Prisma groupBy typing can be verbose
             popularGrouped = await prisma_1.default.customerPurchases.groupBy({
                 by: ['productId'],
-                where: { timestamp: { gte: since30 } },
+                where: { tenantId, timestamp: { gte: since30 } },
                 _count: { productId: true },
                 orderBy: { _count: { productId: 'desc' } },
                 take: 5,
@@ -56,7 +57,7 @@ const getDashboardMetrics = async (req, res) => {
         let popularProducts = [];
         if (popularGrouped.length) {
             const ids = popularGrouped.map((g) => g.productId);
-            const details = await prisma_1.default.products.findMany({ where: { productId: { in: ids }, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
+            const details = await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: ids }, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
             popularProducts = details.map((d) => ({
                 ...d,
                 price: Number(d.price),
@@ -64,7 +65,7 @@ const getDashboardMetrics = async (req, res) => {
             }));
         }
         else {
-            const fallback = await prisma_1.default.products.findMany({ where: nonInventoryFilter, take: 5, orderBy: { stockQuantity: 'desc' }, select: { productId: true, name: true, price: true, stockQuantity: true } });
+            const fallback = await prisma_1.default.products.findMany({ where: { tenantId, ...nonInventoryFilter }, take: 5, orderBy: { stockQuantity: 'desc' }, select: { productId: true, name: true, price: true, stockQuantity: true } });
             popularProducts = fallback.map((d) => ({ ...d, price: Number(d.price), purchaseCount: 0 }));
         }
         res.set("Cache-Control", "public, max-age=60");
@@ -85,6 +86,7 @@ exports.getDashboardMetrics = getDashboardMetrics;
 // Detailed low-stock list
 const getLowStockProducts = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const q = req.query?.threshold;
         const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
         const envNum = Number(process.env.LOW_STOCK_THRESHOLD);
@@ -101,9 +103,10 @@ const getLowStockProducts = async (req, res) => {
         const page = rawPage ? Math.max(1, Number(rawPage)) : undefined;
         const offset = rawOffset ? Math.max(0, Number(rawOffset)) : (page && typeof limit === 'number' ? (page - 1) * limit : undefined);
         const search = rawSearch.trim().toLowerCase();
-        const products = await (0, cache_1.withCache)(`lowStock:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
+        const products = await (0, cache_1.withCache)(`t=${tenantId}:lowStock:${threshold}:lim=${limit}:off=${offset}:q=${search}`, 30, async () => {
             return prisma_1.default.products.findMany({
                 where: {
+                    tenantId,
                     stockQuantity: { gt: 0, lte: threshold },
                     ...(search ? { name: { contains: search, mode: 'insensitive' } } : {}),
                 },
@@ -124,12 +127,13 @@ exports.getLowStockProducts = getLowStockProducts;
 // Products expiring within N days
 const getExpiringProducts = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const q = req.query?.days;
         const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
         const days = Number.isFinite(qNum) && qNum > 0 ? qNum : 90;
         const cutoff = new Date(Date.now() + days * 24 * 60 * 60 * 1000);
         const products = await prisma_1.default.products.findMany({
-            where: { expiryDate: { lte: cutoff }, ...nonInventoryFilter },
+            where: { tenantId, expiryDate: { lte: cutoff }, ...nonInventoryFilter },
             select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true }
         });
         res.set("Cache-Control", "public, max-age=30");
@@ -143,6 +147,7 @@ exports.getExpiringProducts = getExpiringProducts;
 // Dead stock: no sales in the past N days
 const getDeadStockProducts = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const q = req.query?.days;
         const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
         const days = Number.isFinite(qNum) && qNum > 0 ? qNum : 90;
@@ -151,10 +156,11 @@ const getDeadStockProducts = async (req, res) => {
         // @ts-ignore Prisma groupBy typing verbosity
         const grouped = await prisma_1.default.customerPurchases.groupBy({
             by: ['productId'],
+            where: { tenantId },
             _max: { timestamp: true },
         });
         const latestByProduct = new Map(grouped.map((g) => [g.productId, g._max.timestamp ? new Date(g._max.timestamp) : null]));
-        const allProducts = await prisma_1.default.products.findMany({ where: nonInventoryFilter, select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true } });
+        const allProducts = await prisma_1.default.products.findMany({ where: { tenantId, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true } });
         const dead = allProducts.filter(p => {
             const last = latestByProduct.get(p.productId) || null;
             return !last || last < since;
@@ -170,18 +176,20 @@ exports.getDeadStockProducts = getDeadStockProducts;
 // Top customers by purchase value
 const getTopCustomers = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const q = req.query?.limit;
         const qNum = typeof q === 'string' ? Number(q) : Array.isArray(q) ? Number(q[0]) : NaN;
         const limit = Number.isFinite(qNum) && qNum > 0 ? Math.min(50, qNum) : 5;
         // @ts-ignore Prisma groupBy typing verbosity
         const grouped = await prisma_1.default.customerPurchases.groupBy({
             by: ['customerId'],
+            where: { tenantId },
             _sum: { totalCost: true },
             orderBy: { _sum: { totalCost: 'desc' } },
             take: limit,
         });
         const ids = grouped.map((g) => g.customerId);
-        const customers = await prisma_1.default.customers.findMany({ where: { customerId: { in: ids } }, select: { customerId: true, name: true, mobile: true, city: true, state: true, country: true } });
+        const customers = await prisma_1.default.customers.findMany({ where: { tenantId, customerId: { in: ids } }, select: { customerId: true, name: true, mobile: true, city: true, state: true, country: true } });
         const result = customers.map((c) => ({
             ...c,
             totalPurchaseValue: Number(grouped.find((g) => g.customerId === c.customerId)?._sum.totalCost || 0),

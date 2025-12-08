@@ -43,15 +43,19 @@ export const getProducts = async (
 
     // If a search term is provided, perform a case-insensitive contains match.
     // If no search term, return all products.
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const products = await prisma.products.findMany({
-      where: search
-        ? {
-            name: {
-              contains: search,
-              mode: "insensitive",
-            },
-          }
-        : undefined,
+      where: {
+        tenantId,
+        ...(search
+          ? {
+              name: {
+                contains: search,
+                mode: "insensitive",
+              },
+            }
+          : {}),
+      },
       ...(typeahead ? { select: { productId: true, name: true } } : {}),
       ...(limit ? { take: limit } : {}),
       orderBy: {
@@ -79,6 +83,7 @@ export const createProduct = async (
       packSize: z.string().optional().nullable(),
     });
     const { name, price, stockQuantity, category, description, packSize } = Body.parse(req.body);
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const product = await prisma.products.create({
       data: {
         productId: randomUUID(),
@@ -88,6 +93,7 @@ export const createProduct = async (
         category,
         description,
         packSize,
+        tenantId,
       },
     });
     // Log notification for product creation
@@ -110,7 +116,8 @@ export const getProductById = async (
 ): Promise<void> => {
   try {
     const { productId } = req.params;
-    const product = await prisma.products.findUnique({ where: { productId } });
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const product = await prisma.products.findFirst({ where: { productId, tenantId } });
     if (!product) {
       res.status(404).json({ message: "Product not found" });
       return;
@@ -140,7 +147,8 @@ export const updateProduct = async (
     });
     const { name, price, purchasePrice, stockQuantity, expiryDate, category, description, packSize, barcode } = Body.parse(req.body);
 
-    const existing = await prisma.products.findUnique({ where: { productId } });
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const existing = await prisma.products.findFirst({ where: { productId, tenantId } });
     if (!existing) {
       res.status(404).json({ message: "Product not found" });
       return;

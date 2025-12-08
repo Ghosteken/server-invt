@@ -8,6 +8,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import path from "path";
 import compression from "compression";
+import jwt from "jsonwebtoken";
 import rateLimit from "express-rate-limit";
 import prisma from "./db/prisma";
 /* ROUTE IMPORTS */
@@ -27,6 +28,9 @@ import purchasesRoutes from "./routes/purchasesRoutes";
 import invoiceRoutes from "./routes/invoiceRoutes";
 import salesAgentRoutes from "./routes/salesAgentRoutes";
 import locationRoutes from "./routes/locationRoutes";
+import superAdminRoutes from "./routes/superAdminRoutes";
+import swaggerUi from "swagger-ui-express";
+import YAML from "yamljs";
 
 /* CONFIGURATIONS */
 dotenv.config();
@@ -56,6 +60,27 @@ app.use(morgan("common"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use(cors());
+
+// Resolve tenant for isolation: prefer 'x-tenant-id' header; else derive from JWT if present
+app.use((req, _res, next) => {
+  try {
+    const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+    if (headerTenant) {
+      (req as any).tenantId = headerTenant;
+      next();
+      return;
+    }
+    const authHeader = req.headers.authorization;
+    const token = authHeader && authHeader.split(" ")[1];
+    if (token) {
+      const decoded = jwt.decode(token) as { tenantId?: string } | null;
+      if (decoded && decoded.tenantId) {
+        (req as any).tenantId = decoded.tenantId;
+      }
+    }
+  } catch {}
+  next();
+});
 
 // Basic rate limiting to protect hot endpoints
 const limiter = rateLimit({
@@ -100,6 +125,14 @@ app.use("/invoices", invoiceRoutes); // http://localhost:8000/invoices
 app.use("/purchases", purchasesRoutes); // http://localhost:8000/purchases
 app.use("/sales-agents", salesAgentRoutes); // http://localhost:8000/sales-agents
 app.use("/locations", locationRoutes); // http://localhost:8000/locations
+app.use("/super-admin", superAdminRoutes); // http://localhost:8000/super-admin
+
+try {
+  const swaggerDocument = YAML.load(path.join(__dirname, "../swagger/swagger.yaml"));
+  app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
+} catch (e) {
+  console.warn("Swagger YAML not found or invalid; /docs disabled");
+}
 
 app.get("/health", async (_req, res) => {
   try {

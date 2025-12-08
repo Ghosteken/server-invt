@@ -13,6 +13,7 @@ const helmet_1 = __importDefault(require("helmet"));
 const morgan_1 = __importDefault(require("morgan"));
 const path_1 = __importDefault(require("path"));
 const compression_1 = __importDefault(require("compression"));
+const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
 const prisma_1 = __importDefault(require("./db/prisma"));
 /* ROUTE IMPORTS */
@@ -32,6 +33,9 @@ const purchasesRoutes_1 = __importDefault(require("./routes/purchasesRoutes"));
 const invoiceRoutes_1 = __importDefault(require("./routes/invoiceRoutes"));
 const salesAgentRoutes_1 = __importDefault(require("./routes/salesAgentRoutes"));
 const locationRoutes_1 = __importDefault(require("./routes/locationRoutes"));
+const superAdminRoutes_1 = __importDefault(require("./routes/superAdminRoutes"));
+const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
+const yamljs_1 = __importDefault(require("yamljs"));
 /* CONFIGURATIONS */
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -60,6 +64,27 @@ app.use((0, morgan_1.default)("common"));
 app.use(body_parser_1.default.json());
 app.use(body_parser_1.default.urlencoded({ extended: false }));
 app.use((0, cors_1.default)());
+// Resolve tenant for isolation: prefer 'x-tenant-id' header; else derive from JWT if present
+app.use((req, _res, next) => {
+    try {
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        if (headerTenant) {
+            req.tenantId = headerTenant;
+            next();
+            return;
+        }
+        const authHeader = req.headers.authorization;
+        const token = authHeader && authHeader.split(" ")[1];
+        if (token) {
+            const decoded = jsonwebtoken_1.default.decode(token);
+            if (decoded && decoded.tenantId) {
+                req.tenantId = decoded.tenantId;
+            }
+        }
+    }
+    catch { }
+    next();
+});
 // Basic rate limiting to protect hot endpoints
 const limiter = (0, express_rate_limit_1.default)({
     windowMs: 60 * 1000,
@@ -101,6 +126,14 @@ app.use("/invoices", invoiceRoutes_1.default); // http://localhost:8000/invoices
 app.use("/purchases", purchasesRoutes_1.default); // http://localhost:8000/purchases
 app.use("/sales-agents", salesAgentRoutes_1.default); // http://localhost:8000/sales-agents
 app.use("/locations", locationRoutes_1.default); // http://localhost:8000/locations
+app.use("/super-admin", superAdminRoutes_1.default); // http://localhost:8000/super-admin
+try {
+    const swaggerDocument = yamljs_1.default.load(path_1.default.join(__dirname, "../swagger/swagger.yaml"));
+    app.use("/docs", swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swaggerDocument));
+}
+catch (e) {
+    console.warn("Swagger YAML not found or invalid; /docs disabled");
+}
 app.get("/health", async (_req, res) => {
     try {
         await prisma_1.default.$queryRaw `SELECT 1`;

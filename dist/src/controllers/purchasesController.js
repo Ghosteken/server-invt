@@ -19,7 +19,8 @@ const getPurchases = async (req, res) => {
         // Pagination params: page (1-based) and limit (items per page)
         const page = Math.max(1, Number(req.query?.page) || 1);
         const limit = Math.max(1, Math.min(200, Number(req.query?.limit) || 20));
-        const where = {};
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const where = { tenantId };
         if (from || to) {
             where.timestamp = {
                 ...(from ? { gte: new Date(from) } : {}),
@@ -31,7 +32,7 @@ const getPurchases = async (req, res) => {
             const totalCount = await prisma_1.default.purchases.count({ where });
             const purchases = await prisma_1.default.purchases.findMany({ where, orderBy: { timestamp: "desc" }, skip: (page - 1) * limit, take: limit });
             const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
-            const products = await prisma_1.default.products.findMany({ where: { productId: { in: productIds } }, select: { productId: true, name: true } });
+            const products = await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
             const productMap = new Map(products.map((p) => [p.productId, p.name]));
             const pageList = purchases.map((p) => ({
                 purchaseId: p.purchaseId,
@@ -58,7 +59,8 @@ exports.getPurchases = getPurchases;
 const deletePurchase = async (req, res) => {
     try {
         const { id } = req.params;
-        const existing = await prisma_1.default.purchases.findUnique({ where: { purchaseId: id } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const existing = await prisma_1.default.purchases.findFirst({ where: { purchaseId: id, tenantId } });
         if (!existing) {
             res.status(404).json({ message: "Purchase not found" });
             return;
@@ -67,7 +69,7 @@ const deletePurchase = async (req, res) => {
         try {
             const meta = (0, supplierPurchasesService_1.getSupplierMetaFor)(id);
             const unit = (meta?.unit === "pcs" ? "pcs" : "ctn");
-            const p = await prisma_1.default.products.findUnique({ where: { productId: existing.productId } });
+            const p = await prisma_1.default.products.findFirst({ where: { productId: existing.productId, tenantId } });
             if (p) {
                 const qty = Math.max(0, Number(existing.quantity) || 0);
                 if (unit === "ctn") {
@@ -99,6 +101,7 @@ exports.deletePurchase = deletePurchase;
 const createPurchase = async (req, res) => {
     try {
         const body = req.body || {};
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const date = body.date ? new Date(body.date) : new Date();
         const supplierName = body.supplierName ? String(body.supplierName) : undefined;
         const supplierMobile = body.supplierMobile ? String(body.supplierMobile) : undefined;
@@ -116,7 +119,7 @@ const createPurchase = async (req, res) => {
             let productId = it.productId || "";
             let name = it.name || "";
             if (!productId && name) {
-                const p = await prisma_1.default.products.findFirst({ where: { name }, select: { productId: true } });
+                const p = await prisma_1.default.products.findFirst({ where: { tenantId, name }, select: { productId: true } });
                 if (p)
                     productId = p.productId;
             }
@@ -124,7 +127,7 @@ const createPurchase = async (req, res) => {
                 res.status(400).json({ message: "Missing productId for an item" });
                 return;
             }
-            const p = await prisma_1.default.products.findUnique({ where: { productId } });
+            const p = await prisma_1.default.products.findFirst({ where: { productId, tenantId } });
             if (!p) {
                 res.status(404).json({ message: `Product not found: ${productId}` });
                 return;
@@ -144,7 +147,7 @@ const createPurchase = async (req, res) => {
             }
             const purchaseId = (0, crypto_1.randomUUID)();
             const totalCost = unitCost * quantity;
-            await prisma_1.default.purchases.create({ data: { purchaseId, productId, timestamp: date, quantity, unitCost, totalCost } });
+            await prisma_1.default.purchases.create({ data: { purchaseId, productId, timestamp: date, quantity, unitCost, totalCost, tenantId } });
             // Persist supplier-side metadata for UI enrichment
             (0, supplierPurchasesService_1.upsertSupplierMeta)({
                 purchaseId,
@@ -247,7 +250,8 @@ exports.updatePurchaseMeta = updatePurchaseMeta;
 const updatePurchase = async (req, res) => {
     try {
         const { id } = req.params;
-        const existing = await prisma_1.default.purchases.findUnique({ where: { purchaseId: id } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const existing = await prisma_1.default.purchases.findFirst({ where: { purchaseId: id, tenantId } });
         if (!existing) {
             res.status(404).json({ message: "Purchase not found" });
             return;
@@ -263,13 +267,13 @@ const updatePurchase = async (req, res) => {
         const meta = (0, supplierPurchasesService_1.getSupplierMetaFor)(id);
         const oldUnit = (meta?.unit === "pcs" ? "pcs" : "ctn");
         // Fetch product records for inventory adjustments
-        const oldProduct = await prisma_1.default.products.findUnique({ where: { productId: existing.productId } });
+        const oldProduct = await prisma_1.default.products.findFirst({ where: { productId: existing.productId, tenantId } });
         if (!oldProduct) {
             res.status(404).json({ message: `Product not found: ${existing.productId}` });
             return;
         }
         const newProductId = nextProductId || existing.productId;
-        const newProduct = await prisma_1.default.products.findUnique({ where: { productId: newProductId } });
+        const newProduct = await prisma_1.default.products.findFirst({ where: { productId: newProductId, tenantId } });
         if (!newProduct) {
             res.status(404).json({ message: `Product not found: ${newProductId}` });
             return;
@@ -334,7 +338,8 @@ exports.updatePurchase = updatePurchase;
 const getPurchasePrintOptions = async (req, res) => {
     try {
         const { id } = req.params;
-        const existing = await prisma_1.default.purchases.findUnique({ where: { purchaseId: id } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const existing = await prisma_1.default.purchases.findFirst({ where: { purchaseId: id, tenantId } });
         if (!existing) {
             res.status(404).json({ message: "Purchase not found" });
             return;

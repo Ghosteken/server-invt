@@ -22,6 +22,7 @@ model Users {
   password  String
   role      String  @default("user") // "admin" or "user"
   isBlocked Boolean @default(false)
+  tenantId  String  @default("default")
 }
 
 model Products {
@@ -39,6 +40,7 @@ model Products {
   barcode           String?
   // Optional purchase price (cost) from supplier/import sheet
   purchasePrice     Float?
+  tenantId          String              @default("default")
   Sales             Sales[]
   Purchases         Purchases[]
   CustomerPurchases CustomerPurchases[]
@@ -48,6 +50,7 @@ model Products {
   @@index([category])
   @@index([packSize])
   @@index([barcode])
+  @@index([tenantId])
 }
 
 model Sales {
@@ -57,6 +60,7 @@ model Sales {
   quantity    Int
   unitPrice   Float
   totalAmount Float
+  tenantId    String   @default("default")
   product     Products @relation(fields: [productId], references: [productId])
 }
 
@@ -67,6 +71,7 @@ model Purchases {
   quantity   Int
   unitCost   Float
   totalCost  Float
+  tenantId   String   @default("default")
   product    Products @relation(fields: [productId], references: [productId])
 }
 
@@ -75,6 +80,7 @@ model Expenses {
   category  String
   amount    Float
   timestamp DateTime
+  tenantId  String   @default("default")
 }
 
 model SalesSummary {
@@ -82,6 +88,7 @@ model SalesSummary {
   totalValue       Float
   changePercentage Float?
   date             DateTime
+  tenantId         String   @default("default")
 }
 
 model PurchaseSummary {
@@ -89,12 +96,14 @@ model PurchaseSummary {
   totalPurchased    Float
   changePercentage  Float?
   date              DateTime
+  tenantId          String   @default("default")
 }
 
 model ExpenseSummary {
   expenseSummaryId  String              @id
   totalExpenses     Float
   date              DateTime
+  tenantId          String              @default("default")
   ExpenseByCategory ExpenseByCategory[]
 }
 
@@ -104,6 +113,7 @@ model ExpenseByCategory {
   category            String
   amount              BigInt
   date                DateTime
+  tenantId            String         @default("default")
   expenseSummary      ExpenseSummary @relation(fields: [expenseSummaryId], references: [expenseSummaryId])
 }
 
@@ -117,9 +127,11 @@ model Customers {
   state      String?
   country    String?
   createdAt  DateTime            @default(now())
+  tenantId   String              @default("default")
   purchases  CustomerPurchases[]
   invoices   Invoices[]
   payments   Payments[]
+  @@index([tenantId])
 }
 
 model CustomerPurchases {
@@ -130,6 +142,7 @@ model CustomerPurchases {
   quantity   Int
   unitPrice  Float
   totalCost  Float
+  tenantId   String    @default("default")
   customer   Customers @relation(fields: [customerId], references: [customerId])
   product    Products  @relation(fields: [productId], references: [productId])
 }
@@ -165,6 +178,7 @@ model Invoices {
   totalWithVAT      Float           @default(0)
   notes             String?
   dueSoonNotifiedAt DateTime?
+  tenantId          String          @default("default")
 
   customer Customers      @relation(fields: [customerId], references: [customerId])
   items    InvoiceItems[]
@@ -181,6 +195,7 @@ model Invoices {
   @@index([status])
   @@index([salesAgentId])
   @@index([locationId])
+  @@index([tenantId])
 }
 
 model InvoiceItems {
@@ -192,6 +207,7 @@ model InvoiceItems {
   quantity  Int
   unitPrice Float
   subtotal  Float
+  tenantId  String  @default("default")
 
   invoice Invoices  @relation(fields: [invoiceId], references: [invoiceId])
   product Products? @relation(fields: [productId], references: [productId])
@@ -205,12 +221,14 @@ model Payments {
   amount      Float
   bankName    String
   bankAccount String
+  tenantId    String   @default("default")
 
   invoice  Invoices  @relation(fields: [invoiceId], references: [invoiceId])
   customer Customers @relation(fields: [customerId], references: [customerId])
 
   @@index([invoiceId])
   @@index([customerId])
+  @@index([tenantId])
 }
 
 // Normalized entities for sales agents and invoice locations
@@ -323,4 +341,32 @@ model SupportMessages {
 
   @@index([tenantId, status])
   @@map("support_messages")
+}
+
+// Super-admin managed organizations (multi-tenant registry)
+model Organizations {
+  id               String   @id
+  name             String   @unique
+  apiBaseUrl       String?
+  adminEmail       String
+  adminPasswordHash String
+  isBlocked        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  admins           OrgAdmins[]
+
+  @@index([name])
+}
+
+model OrgAdmins {
+  id        String   @id
+  orgId     String
+  name      String
+  email     String
+  passwordHash String
+  isBlocked Boolean  @default(false)
+  createdAt DateTime @default(now())
+  org       Organizations @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
+  @@unique([orgId, email])
 }

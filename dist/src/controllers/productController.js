@@ -40,15 +40,19 @@ const getProducts = async (req, res) => {
         }
         // If a search term is provided, perform a case-insensitive contains match.
         // If no search term, return all products.
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const products = await prisma_1.default.products.findMany({
-            where: search
-                ? {
-                    name: {
-                        contains: search,
-                        mode: "insensitive",
-                    },
-                }
-                : undefined,
+            where: {
+                tenantId,
+                ...(search
+                    ? {
+                        name: {
+                            contains: search,
+                            mode: "insensitive",
+                        },
+                    }
+                    : {}),
+            },
             ...(typeahead ? { select: { productId: true, name: true } } : {}),
             ...(limit ? { take: limit } : {}),
             orderBy: {
@@ -74,6 +78,7 @@ const createProduct = async (req, res) => {
             packSize: zod_1.z.string().optional().nullable(),
         });
         const { name, price, stockQuantity, category, description, packSize } = Body.parse(req.body);
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const product = await prisma_1.default.products.create({
             data: {
                 productId: (0, crypto_1.randomUUID)(),
@@ -83,6 +88,7 @@ const createProduct = async (req, res) => {
                 category,
                 description,
                 packSize,
+                tenantId,
             },
         });
         // Log notification for product creation
@@ -103,7 +109,8 @@ exports.createProduct = createProduct;
 const getProductById = async (req, res) => {
     try {
         const { productId } = req.params;
-        const product = await prisma_1.default.products.findUnique({ where: { productId } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const product = await prisma_1.default.products.findFirst({ where: { productId, tenantId } });
         if (!product) {
             res.status(404).json({ message: "Product not found" });
             return;
@@ -130,7 +137,8 @@ const updateProduct = async (req, res) => {
             barcode: zod_1.z.string().nullable().optional(),
         });
         const { name, price, purchasePrice, stockQuantity, expiryDate, category, description, packSize, barcode } = Body.parse(req.body);
-        const existing = await prisma_1.default.products.findUnique({ where: { productId } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const existing = await prisma_1.default.products.findFirst({ where: { productId, tenantId } });
         if (!existing) {
             res.status(404).json({ message: "Product not found" });
             return;
