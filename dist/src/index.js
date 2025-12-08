@@ -89,11 +89,6 @@ app.use((req, _res, next) => {
 const limiter = (0, express_rate_limit_1.default)({
     windowMs: 60 * 1000,
     max: Number(process.env.RATE_LIMIT_MAX || 300),
-    keyGenerator: (req) => {
-        const tid = req.tenantId || req.user?.tenantId || "default";
-        const uid = req.user?.userId || req.ip;
-        return `${tid}:${uid}`;
-    },
     skip: (req) => req.method === 'GET' && req.path.startsWith('/users'),
 });
 app.use(limiter);

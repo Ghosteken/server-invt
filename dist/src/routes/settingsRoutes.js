@@ -145,4 +145,22 @@ router.put("/financial-layout", async (req, res) => {
         res.status(500).json({ message: "Failed to save financial layout" });
     }
 });
+// Tenant-scoped bank accounts list
+router.get("/banks", async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const banksDefault = [
+            { name: "Amagzy global vic limited(Zenith bank) FOR SUPPLIES", account: "1017679715" },
+            { name: "Amagzy global vic limited FCMB(FOR SUPPLIES)", account: "2002076509" },
+            { name: "Amagzy global ventures(Sterling bank) FOR CHEQUES", account: "0501928477" },
+            { name: "Amagzy global ventures(Stanbic bank) FOR OPERATIONS", account: "0034297097" },
+            { name: "Amagzy global ventures(GTbank)FOR MANUFACTURING", account: "0240198526" },
+        ];
+        const list = tenantId === "default" ? banksDefault : [];
+        res.json({ banks: list });
+    }
+    catch {
+        res.status(500).json({ banks: [] });
+    }
+});
 exports.default = router;

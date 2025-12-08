@@ -29,6 +29,7 @@ const signup = async (req, res) => {
         // Hash password (using bcryptjs sync to avoid native bindings)
         const hashedPassword = bcryptjs_1.default.hashSync(password, 10);
         // Create new user
+        const tenantIdBody = req.body?.tenantId ? String(req.body.tenantId).trim() : undefined;
         const newUser = await prisma_1.default.users.create({
             data: {
                 userId: (0, crypto_1.randomUUID)(),
@@ -36,10 +37,11 @@ const signup = async (req, res) => {
                 email: normalizedEmail,
                 password: hashedPassword,
                 role: "user", // Default role
+                ...(tenantIdBody ? { tenantId: tenantIdBody } : {}),
             },
         });
         // Generate JWT token
-        const token = jsonwebtoken_1.default.sign({ userId: newUser.userId, email: newUser.email, role: newUser.role }, JWT_SECRET, { expiresIn: "24h" });
+        const token = jsonwebtoken_1.default.sign({ userId: newUser.userId, email: newUser.email, role: newUser.role, tenantId: newUser.tenantId }, JWT_SECRET, { expiresIn: "24h" });
         console.log(`auth: signup success for email=${email} userId=${newUser.userId}`);
         res.status(201).json({
             message: "User created successfully",
@@ -49,6 +51,7 @@ const signup = async (req, res) => {
                 name: newUser.name,
                 email: newUser.email,
                 role: newUser.role,
+                tenantId: newUser.tenantId,
             },
         });
     }
@@ -92,7 +95,7 @@ const login = async (req, res) => {
         }
         // No role elevation on the regular login route
         // Generate JWT token
-        const token = jsonwebtoken_1.default.sign({ userId: user.userId, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: "24h" });
+        const token = jsonwebtoken_1.default.sign({ userId: user.userId, email: user.email, role: user.role, tenantId: user.tenantId }, JWT_SECRET, { expiresIn: "24h" });
         console.log(`auth: login successful for ${email}`);
         res.json({
             message: "Login successful",
@@ -102,6 +105,7 @@ const login = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                tenantId: user.tenantId,
             },
         });
     }

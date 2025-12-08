@@ -8,8 +8,9 @@ export const getLocations = async (_req: Request, res: Response): Promise<void> 
     const tenantId = reqAny.tenantId || _req.user?.tenantId || "default";
     const invs = await prisma.invoices.findMany({ where: { tenantId }, select: { locationId: true } });
     const ids = Array.from(new Set(invs.map((i) => i.locationId).filter(Boolean))) as string[];
-    if (!ids.length) { res.json({ locations: [] }); return; }
-    const locations = await prisma.locations.findMany({ where: { id: { in: ids } }, orderBy: { name: "asc" } });
+    const locations = ids.length
+      ? await prisma.locations.findMany({ where: { id: { in: ids } }, orderBy: { name: "asc" } })
+      : await prisma.locations.findMany({ orderBy: { name: "asc" } });
     res.json({ locations: locations.map((l) => ({ id: l.id, name: l.name })) });
   } catch (err) {
     console.error("getLocations error:", err);

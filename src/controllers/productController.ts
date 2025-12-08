@@ -210,7 +210,8 @@ export const exportProducts = async (
   res: Response
 ): Promise<void> => {
   try {
-    const products = await prisma.products.findMany({ orderBy: { name: "asc" } });
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const products = await prisma.products.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
     const json = JSON.stringify(products, null, 2);
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Content-Disposition", "attachment; filename=products.json");
@@ -227,7 +228,8 @@ export const exportProductsExcel = async (
   res: Response
 ): Promise<void> => {
   try {
-    const products = await prisma.products.findMany({ orderBy: { name: "asc" } });
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const products = await prisma.products.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
     const rows = products.map((p) => ({
       ProductId: p.productId,
       SKU: p.productId, // use ProductId as SKU for export (no separate sku field)

@@ -2,9 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const storeSalesController_1 = require("../controllers/storeSalesController");
+const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = (0, express_1.Router)();
-router.get("/stores", storeSalesController_1.getStores);
-router.get("/branch-sales", storeSalesController_1.getStoreBranchSales);
-router.post("/stores/import", storeSalesController_1.upload.single("file"), storeSalesController_1.importStoresBranches);
-router.post("/stores/import/sample", storeSalesController_1.importStoresBranchesSample);
+router.get("/stores", authMiddleware_1.authenticateToken, storeSalesController_1.getStores);
+router.get("/branch-sales", authMiddleware_1.authenticateToken, storeSalesController_1.getStoreBranchSales);
+router.post("/stores/import", authMiddleware_1.authenticateToken, storeSalesController_1.upload.single("file"), storeSalesController_1.importStoresBranches);
+router.post("/stores/import/sample", authMiddleware_1.authenticateToken, storeSalesController_1.importStoresBranchesSample);
 exports.default = router;

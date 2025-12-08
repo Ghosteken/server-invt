@@ -5,10 +5,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPurchasesReport = exports.getFinancialReport = exports.getSalesReport = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
-const expensesService_1 = require("../services/expensesService");
 const supplierPurchasesService_1 = require("../services/supplierPurchasesService");
 const getSalesReport = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const fromRaw = req.query?.from;
         const toRaw = req.query?.to;
         const from = fromRaw ? new Date(fromRaw) : undefined;
@@ -19,8 +19,8 @@ const getSalesReport = async (req, res) => {
         if (to)
             timestampFilter = { ...(timestampFilter || {}), lte: to };
         const where = timestampFilter
-            ? { timestamp: timestampFilter }
-            : {};
+            ? { tenantId, timestamp: timestampFilter }
+            : { tenantId };
         const purchases = await prisma_1.default.customerPurchases.findMany({
             where,
             orderBy: { timestamp: "desc" },
@@ -29,10 +29,10 @@ const getSalesReport = async (req, res) => {
         const productIds = Array.from(new Set(purchases.map((p) => p.productId).filter(Boolean)));
         const customerIds = Array.from(new Set(purchases.map((p) => p.customerId).filter(Boolean)));
         const products = productIds.length
-            ? await prisma_1.default.products.findMany({ where: { productId: { in: productIds } }, select: { productId: true, name: true } })
+            ? await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } })
             : [];
         const customers = customerIds.length
-            ? await prisma_1.default.customers.findMany({ where: { customerId: { in: customerIds } }, select: { customerId: true, name: true } })
+            ? await prisma_1.default.customers.findMany({ where: { tenantId, customerId: { in: customerIds } }, select: { customerId: true, name: true } })
             : [];
         const productNameMap = new Map(products.map((p) => [p.productId, p.name]));
         const customerNameMap = new Map(customers.map((c) => [c.customerId, c.name]));
@@ -66,6 +66,7 @@ const getSalesReport = async (req, res) => {
 exports.getSalesReport = getSalesReport;
 const getFinancialReport = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const fromRaw = req.query?.from;
         const toRaw = req.query?.to;
         const from = fromRaw ? new Date(fromRaw) : undefined;
@@ -77,16 +78,16 @@ const getFinancialReport = async (req, res) => {
             timestampFilter = { ...(timestampFilter || {}), lte: to };
         // Sales from customer purchases (total and detailed items)
         const salesWhere = timestampFilter
-            ? { timestamp: timestampFilter }
-            : {};
+            ? { tenantId, timestamp: timestampFilter }
+            : { tenantId };
         const salesRowsFull = await prisma_1.default.customerPurchases.findMany({ where: salesWhere, orderBy: { timestamp: "desc" } });
         const salesProductIds = Array.from(new Set(salesRowsFull.map((p) => p.productId).filter(Boolean)));
         const salesCustomerIds = Array.from(new Set(salesRowsFull.map((p) => p.customerId).filter(Boolean)));
         const salesProducts = salesProductIds.length
-            ? await prisma_1.default.products.findMany({ where: { productId: { in: salesProductIds } }, select: { productId: true, name: true } })
+            ? await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: salesProductIds } }, select: { productId: true, name: true } })
             : [];
         const salesCustomers = salesCustomerIds.length
-            ? await prisma_1.default.customers.findMany({ where: { customerId: { in: salesCustomerIds } }, select: { customerId: true, name: true } })
+            ? await prisma_1.default.customers.findMany({ where: { tenantId, customerId: { in: salesCustomerIds } }, select: { customerId: true, name: true } })
             : [];
         const salesProductNameMap = new Map(salesProducts.map((p) => [p.productId, p.name]));
         const salesCustomerNameMap = new Map(salesCustomers.map((c) => [c.customerId, c.name]));
@@ -104,12 +105,12 @@ const getFinancialReport = async (req, res) => {
         const salesTotal = salesItems.reduce((sum, r) => sum + Number(r.totalCost || 0), 0);
         // Purchases from procurement purchases (total and detailed items)
         const purchasesWhere = timestampFilter
-            ? { timestamp: timestampFilter }
-            : {};
+            ? { tenantId, timestamp: timestampFilter }
+            : { tenantId };
         const purchaseRowsFull = await prisma_1.default.purchases.findMany({ where: purchasesWhere, orderBy: { timestamp: "desc" } });
         const purchaseProductIds = Array.from(new Set(purchaseRowsFull.map((p) => p.productId).filter(Boolean)));
         const purchaseProducts = purchaseProductIds.length
-            ? await prisma_1.default.products.findMany({ where: { productId: { in: purchaseProductIds } }, select: { productId: true, name: true } })
+            ? await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: purchaseProductIds } }, select: { productId: true, name: true } })
             : [];
         const purchaseProductNameMap = new Map(purchaseProducts.map((p) => [p.productId, p.name]));
         const purchaseItems = purchaseRowsFull.map((p) => ({
@@ -124,16 +125,8 @@ const getFinancialReport = async (req, res) => {
         }));
         const purchasesTotal = purchaseItems.reduce((sum, r) => sum + Number(r.totalCost || 0), 0);
         // Expenses total from JSON store
-        const expenses = (0, expensesService_1.readExpenses)();
-        const expensesFiltered = expenses.filter((e) => {
-            const d = new Date(e.date);
-            if (from && d < from)
-                return false;
-            if (to && d > to)
-                return false;
-            return true;
-        });
-        const expenseItems = expensesFiltered.map((e) => ({ id: e.id, name: e.name, category: e.category, amount: Number(e.amount || 0), date: e.date }));
+        const expensesRows = await prisma_1.default.expenses.findMany({ where: { tenantId, ...(from || to ? { timestamp: { ...(from ? { gte: from } : {}), ...(to ? { lte: to } : {}) } } : {}) }, orderBy: { timestamp: "desc" } });
+        const expenseItems = expensesRows.map((e) => ({ id: e.expenseId, name: e.category, category: e.category, amount: Number(e.amount || 0), date: e.timestamp.toISOString() }));
         const expensesTotal = expenseItems.reduce((sum, e) => sum + Number(e.amount || 0), 0);
         const net = salesTotal - purchasesTotal - expensesTotal;
         res.json({ salesTotal, purchasesTotal, expensesTotal, net, from: fromRaw || null, to: toRaw || null, salesItems, purchaseItems, expenseItems });
@@ -147,6 +140,7 @@ exports.getFinancialReport = getFinancialReport;
 // Purchases report (similar to sales, but for procurement purchases)
 const getPurchasesReport = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const fromRaw = req.query?.from;
         const toRaw = req.query?.to;
         const from = fromRaw ? new Date(fromRaw) : undefined;
@@ -157,8 +151,8 @@ const getPurchasesReport = async (req, res) => {
         if (to)
             timestampFilter = { ...(timestampFilter || {}), lte: to };
         const where = timestampFilter
-            ? { timestamp: timestampFilter }
-            : {};
+            ? { tenantId, timestamp: timestampFilter }
+            : { tenantId };
         const purchases = await prisma_1.default.purchases.findMany({
             where,
             orderBy: { timestamp: "desc" },
@@ -166,7 +160,7 @@ const getPurchasesReport = async (req, res) => {
         // Preload product names
         const productIds = Array.from(new Set(purchases.map((p) => p.productId).filter(Boolean)));
         const products = productIds.length
-            ? await prisma_1.default.products.findMany({ where: { productId: { in: productIds } }, select: { productId: true, name: true } })
+            ? await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } })
             : [];
         const productNameMap = new Map(products.map((p) => [p.productId, p.name]));
         const items = purchases.map((p) => ({

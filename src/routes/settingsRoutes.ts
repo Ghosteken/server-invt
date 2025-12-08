@@ -4,6 +4,7 @@ import prisma from "../db/prisma";
 import { readFlags, writeFlags } from "../services/featureFlagsService";
 import { readInvoiceLayout, writeInvoiceLayout } from "../services/invoiceLayoutService";
 import { readFinancialLayout, writeFinancialLayout } from "../services/financialLayoutService";
+import { Request, Response } from "express";
 
 const router = Router();
 // Use shared Prisma client
@@ -139,6 +140,24 @@ router.put("/financial-layout", async (req, res) => {
       return;
     }
     res.status(500).json({ message: "Failed to save financial layout" });
+  }
+});
+
+// Tenant-scoped bank accounts list
+router.get("/banks", async (req: Request, res: Response) => {
+  try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const banksDefault = [
+      { name: "Amagzy global vic limited(Zenith bank) FOR SUPPLIES", account: "1017679715" },
+      { name: "Amagzy global vic limited FCMB(FOR SUPPLIES)", account: "2002076509" },
+      { name: "Amagzy global ventures(Sterling bank) FOR CHEQUES", account: "0501928477" },
+      { name: "Amagzy global ventures(Stanbic bank) FOR OPERATIONS", account: "0034297097" },
+      { name: "Amagzy global ventures(GTbank)FOR MANUFACTURING", account: "0240198526" },
+    ];
+    const list = tenantId === "default" ? banksDefault : [];
+    res.json({ banks: list });
+  } catch {
+    res.status(500).json({ banks: [] });
   }
 });
 

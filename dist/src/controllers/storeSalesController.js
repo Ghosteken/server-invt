@@ -194,18 +194,19 @@ const getStoreBranchSales = async (req, res) => {
             return;
         }
         // Find the customer that matches this branch name
-        const customer = await prisma_1.default.customers.findFirst({ where: { name: branch } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const customer = await prisma_1.default.customers.findFirst({ where: { tenantId, name: branch } });
         if (!customer) {
             res.json({ sales: [] });
             return;
         }
         const purchases = await prisma_1.default.customerPurchases.findMany({
-            where: { customerId: customer.customerId },
+            where: { tenantId, customerId: customer.customerId },
             orderBy: { timestamp: "desc" },
         });
         const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
         const products = await prisma_1.default.products.findMany({
-            where: { productId: { in: productIds } },
+            where: { tenantId, productId: { in: productIds } },
             select: { productId: true, name: true, expiryDate: true },
         });
         const productMap = new Map(products.map((p) => [p.productId, p]));

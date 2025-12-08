@@ -208,7 +208,8 @@ const updateProduct = async (req, res) => {
 exports.updateProduct = updateProduct;
 const exportProducts = async (req, res) => {
     try {
-        const products = await prisma_1.default.products.findMany({ orderBy: { name: "asc" } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const products = await prisma_1.default.products.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
         const json = JSON.stringify(products, null, 2);
         res.setHeader("Content-Type", "application/json");
         res.setHeader("Content-Disposition", "attachment; filename=products.json");
@@ -223,7 +224,8 @@ exports.exportProducts = exportProducts;
 // Export products as Excel
 const exportProductsExcel = async (req, res) => {
     try {
-        const products = await prisma_1.default.products.findMany({ orderBy: { name: "asc" } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const products = await prisma_1.default.products.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
         const rows = products.map((p) => ({
             ProductId: p.productId,
             SKU: p.productId, // use ProductId as SKU for export (no separate sku field)

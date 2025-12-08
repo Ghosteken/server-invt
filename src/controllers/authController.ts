@@ -30,6 +30,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
   const hashedPassword = bcrypt.hashSync(password, 10);
 
     // Create new user
+    const tenantIdBody = req.body?.tenantId ? String(req.body.tenantId).trim() : undefined;
     const newUser = await prisma.users.create({
       data: {
         userId: randomUUID(),
@@ -37,12 +38,13 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         email: normalizedEmail,
         password: hashedPassword,
         role: "user", // Default role
+        ...(tenantIdBody ? { tenantId: tenantIdBody } : {}),
       },
     });
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: newUser.userId, email: newUser.email, role: newUser.role },
+      { userId: newUser.userId, email: newUser.email, role: newUser.role, tenantId: newUser.tenantId },
       JWT_SECRET,
       { expiresIn: "24h" }
     );
@@ -56,6 +58,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,
+        tenantId: newUser.tenantId,
       },
     });
   } catch (error) {
@@ -106,7 +109,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.userId, email: user.email, role: user.role },
+      { userId: user.userId, email: user.email, role: user.role, tenantId: user.tenantId },
       JWT_SECRET,
       { expiresIn: "24h" }
     );
@@ -120,6 +123,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         name: user.name,
         email: user.email,
         role: user.role,
+        tenantId: user.tenantId,
       },
     });
   } catch (error) {
