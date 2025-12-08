@@ -2,7 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = require("express");
 const locationController_1 = require("../controllers/locationController");
+const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = (0, express_1.Router)();
-router.get("/", locationController_1.getLocations);
-router.post("/", locationController_1.createLocation);
+router.get("/", authMiddleware_1.authenticateToken, locationController_1.getLocations);
+router.post("/", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, locationController_1.createLocation);
+router.put("/:id", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, locationController_1.updateLocation);
+router.delete("/:id", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, locationController_1.deleteLocation);
 exports.default = router;

@@ -39,3 +39,11 @@ export function getTenantLocations(tenantId: string): string[] {
   return current;
 }
 
+export function removeTenantLocation(tenantId: string, locationId: string): string[] {
+  const file = readFile();
+  const current = Array.isArray(file.tenants[tenantId]) ? file.tenants[tenantId] : [];
+  const next = current.filter((id) => id !== locationId);
+  file.tenants[tenantId] = next;
+  writeFile(file);
+  return next;
+}

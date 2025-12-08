@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.addTenantLocation = addTenantLocation;
 exports.getTenantLocations = getTenantLocations;
+exports.removeTenantLocation = removeTenantLocation;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const MAP_PATH = path_1.default.join(__dirname, "../../assets/tenant_locations.json");
@@ -43,4 +44,12 @@ function getTenantLocations(tenantId) {
     const file = readFile();
     const current = Array.isArray(file.tenants[tenantId]) ? file.tenants[tenantId] : [];
     return current;
+}
+function removeTenantLocation(tenantId, locationId) {
+    const file = readFile();
+    const current = Array.isArray(file.tenants[tenantId]) ? file.tenants[tenantId] : [];
+    const next = current.filter((id) => id !== locationId);
+    file.tenants[tenantId] = next;
+    writeFile(file);
+    return next;
 }

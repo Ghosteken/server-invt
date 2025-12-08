@@ -227,3 +227,56 @@ export const unblockUser = async (req: Request, res: Response): Promise<void> =>
     res.status(500).json({ message: "Error unblocking user" });
   }
 };
+
+export const updateUser = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params as { userId: string };
+    const Body = (req.body || {}) as { email?: string; password?: string };
+    const target = await prisma.users.findUnique({ where: { userId } });
+    if (!target) { res.status(404).json({ message: "User not found" }); return; }
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    if (target.tenantId !== tenantId) { res.status(404).json({ message: "User not found" }); return; }
+    const data: any = {};
+    let newEmail: string | null = null;
+    if (typeof Body.email === "string" && Body.email.trim()) {
+      const normalized = Body.email.trim().toLowerCase();
+      const exists = await prisma.users.findFirst({ where: { tenantId, email: normalized, NOT: { userId } } });
+      if (exists) { res.status(400).json({ message: "Email already in use" }); return; }
+      data.email = normalized;
+      newEmail = normalized;
+    }
+    if (typeof Body.password === "string" && Body.password.trim()) {
+      const hashed = bcrypt.hashSync(Body.password.trim(), 10);
+      data.password = hashed;
+    }
+    if (Object.keys(data).length === 0) { res.status(400).json({ message: "No changes provided" }); return; }
+    const updated = await prisma.users.update({ where: { userId }, data, select: { userId: true, name: true, email: true, role: true, isBlocked: true, tenantId: true } });
+
+    if ((target.role || "").toLowerCase() === "admin") {
+      try {
+        // Update primary admin email for organization
+        if (newEmail) {
+          await prisma.organizations.updateMany({ where: { id: tenantId }, data: { adminEmail: newEmail } });
+        }
+        // Sync orgAdmins record
+        const oldEmail = target.email;
+        const orgAdmin = await prisma.orgAdmins.findFirst({ where: { orgId: tenantId, email: oldEmail } });
+        if (orgAdmin) {
+          const changes: any = {};
+          if (newEmail) changes.email = newEmail;
+          if (data.password) changes.passwordHash = data.password;
+          if (Object.keys(changes).length) await prisma.orgAdmins.update({ where: { id: orgAdmin.id }, data: changes });
+        } else if (newEmail || data.password) {
+          await prisma.orgAdmins.create({ data: { id: randomUUID(), orgId: tenantId, name: target.name, email: newEmail || oldEmail, passwordHash: data.password || bcrypt.hashSync("changeme", 10) } });
+        }
+      } catch (syncErr) {
+        console.warn("updateUser: failed to sync super-admin org admin record", syncErr);
+      }
+    }
+
+    res.json(updated);
+  } catch (error) {
+    console.error("updateUser error:", error);
+    res.status(500).json({ message: "Error updating user" });
+  }
+};

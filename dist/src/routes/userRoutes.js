@@ -14,4 +14,5 @@ router.delete("/purge", authMiddleware_1.authenticateToken, authMiddleware_1.req
 router.delete("/:userId", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, userController_1.deleteUser);
 router.patch("/:userId/block", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, userController_1.blockUser);
 router.patch("/:userId/unblock", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, userController_1.unblockUser);
+router.patch("/:userId", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, userController_1.updateUser);
 exports.default = router;

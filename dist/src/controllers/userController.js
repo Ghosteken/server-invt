@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.unblockUser = exports.blockUser = exports.deleteUser = exports.purgeNonAdminUsers = exports.createUser = exports.getUsers = void 0;
+exports.updateUser = exports.unblockUser = exports.blockUser = exports.deleteUser = exports.purgeNonAdminUsers = exports.createUser = exports.getUsers = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const crypto_1 = require("crypto");
@@ -226,3 +226,72 @@ const unblockUser = async (req, res) => {
     }
 };
 exports.unblockUser = unblockUser;
+const updateUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const Body = (req.body || {});
+        const target = await prisma_1.default.users.findUnique({ where: { userId } });
+        if (!target) {
+            res.status(404).json({ message: "User not found" });
+            return;
+        }
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        if (target.tenantId !== tenantId) {
+            res.status(404).json({ message: "User not found" });
+            return;
+        }
+        const data = {};
+        let newEmail = null;
+        if (typeof Body.email === "string" && Body.email.trim()) {
+            const normalized = Body.email.trim().toLowerCase();
+            const exists = await prisma_1.default.users.findFirst({ where: { tenantId, email: normalized, NOT: { userId } } });
+            if (exists) {
+                res.status(400).json({ message: "Email already in use" });
+                return;
+            }
+            data.email = normalized;
+            newEmail = normalized;
+        }
+        if (typeof Body.password === "string" && Body.password.trim()) {
+            const hashed = bcryptjs_1.default.hashSync(Body.password.trim(), 10);
+            data.password = hashed;
+        }
+        if (Object.keys(data).length === 0) {
+            res.status(400).json({ message: "No changes provided" });
+            return;
+        }
+        const updated = await prisma_1.default.users.update({ where: { userId }, data, select: { userId: true, name: true, email: true, role: true, isBlocked: true, tenantId: true } });
+        if ((target.role || "").toLowerCase() === "admin") {
+            try {
+                // Update primary admin email for organization
+                if (newEmail) {
+                    await prisma_1.default.organizations.updateMany({ where: { id: tenantId }, data: { adminEmail: newEmail } });
+                }
+                // Sync orgAdmins record
+                const oldEmail = target.email;
+                const orgAdmin = await prisma_1.default.orgAdmins.findFirst({ where: { orgId: tenantId, email: oldEmail } });
+                if (orgAdmin) {
+                    const changes = {};
+                    if (newEmail)
+                        changes.email = newEmail;
+                    if (data.password)
+                        changes.passwordHash = data.password;
+                    if (Object.keys(changes).length)
+                        await prisma_1.default.orgAdmins.update({ where: { id: orgAdmin.id }, data: changes });
+                }
+                else if (newEmail || data.password) {
+                    await prisma_1.default.orgAdmins.create({ data: { id: (0, crypto_1.randomUUID)(), orgId: tenantId, name: target.name, email: newEmail || oldEmail, passwordHash: data.password || bcryptjs_1.default.hashSync("changeme", 10) } });
+                }
+            }
+            catch (syncErr) {
+                console.warn("updateUser: failed to sync super-admin org admin record", syncErr);
+            }
+        }
+        res.json(updated);
+    }
+    catch (error) {
+        console.error("updateUser error:", error);
+        res.status(500).json({ message: "Error updating user" });
+    }
+};
+exports.updateUser = updateUser;

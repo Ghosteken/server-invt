@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createLocation = exports.getLocations = void 0;
+exports.deleteLocation = exports.updateLocation = exports.createLocation = exports.getLocations = void 0;
 const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../db/prisma"));
 const tenantLocationsService_1 = require("../services/tenantLocationsService");
@@ -48,3 +48,51 @@ const createLocation = async (req, res) => {
     }
 };
 exports.createLocation = createLocation;
+const updateLocation = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const name = String(req.body?.name || '').trim();
+        if (!name) {
+            res.status(400).json({ message: "Location name is required" });
+            return;
+        }
+        const existing = await prisma_1.default.locations.findUnique({ where: { id } });
+        if (!existing) {
+            res.status(404).json({ message: "Location not found" });
+            return;
+        }
+        const updated = await prisma_1.default.locations.update({ where: { id }, data: { name } });
+        res.json({ id: updated.id, name: updated.name });
+    }
+    catch (err) {
+        const msg = err?.code === 'P2002' ? 'Location name must be unique' : (err instanceof Error ? err.message : 'Failed to update location');
+        res.status(500).json({ message: msg });
+    }
+};
+exports.updateLocation = updateLocation;
+const deleteLocation = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const existing = await prisma_1.default.locations.findUnique({ where: { id } });
+        if (!existing) {
+            res.status(404).json({ message: "Location not found" });
+            return;
+        }
+        const invCount = await prisma_1.default.invoices.count({ where: { locationId: id } });
+        if (invCount > 0) {
+            res.status(400).json({ message: "Cannot delete a location used by invoices" });
+            return;
+        }
+        await prisma_1.default.locations.delete({ where: { id } });
+        try {
+            const tenantId = req.tenantId || req.user?.tenantId || "default";
+            (0, tenantLocationsService_1.removeTenantLocation)(tenantId, id);
+        }
+        catch { }
+        res.json({ success: true });
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to delete location" });
+    }
+};
+exports.deleteLocation = deleteLocation;
