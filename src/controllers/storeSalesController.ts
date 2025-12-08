@@ -128,13 +128,23 @@ function aggregateBranchesByToken(token: string): string[] {
   return Array.from(branchesSet.values());
 }
 
-export const getStores = async (_req: Request, res: Response): Promise<void> => {
+export const getStores = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Return only canonical chains with aggregated branches, deduped by token
-    const uniqueTokens = Array.from(new Set(CANONICAL_CHAINS.map((c) => c.token)));
-    const stores = uniqueTokens.map((token) => ({
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const customers = await prisma.customers.findMany({ where: { tenantId }, select: { name: true } });
+    const grouped = new Map<string, Set<string>>();
+    for (const c of customers) {
+      const branch = String(c.name || '').trim();
+      if (!branch) continue;
+      const token = normalizeStoreTokenFromName(branch);
+      const set = grouped.get(token) || new Set<string>();
+      set.add(branch);
+      grouped.set(token, set);
+    }
+    const tokens = Array.from(grouped.keys());
+    const stores = tokens.map((token) => ({
       store: PRIMARY_DISPLAY_BY_TOKEN[token] || token.toUpperCase(),
-      branches: aggregateBranchesByToken(token),
+      branches: Array.from((grouped.get(token) || new Set<string>()).values()),
     }));
     res.json({ stores });
   } catch (err) {

@@ -6,15 +6,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.createLocation = exports.getLocations = void 0;
 const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../db/prisma"));
+const tenantLocationsService_1 = require("../services/tenantLocationsService");
 const getLocations = async (_req, res) => {
     try {
         const reqAny = _req;
         const tenantId = reqAny.tenantId || _req.user?.tenantId || "default";
         const invs = await prisma_1.default.invoices.findMany({ where: { tenantId }, select: { locationId: true } });
-        const ids = Array.from(new Set(invs.map((i) => i.locationId).filter(Boolean)));
+        const idsFromInvoices = Array.from(new Set(invs.map((i) => i.locationId).filter(Boolean)));
+        const idsFromMapping = (0, tenantLocationsService_1.getTenantLocations)(tenantId);
+        const ids = Array.from(new Set([...(idsFromInvoices || []), ...(idsFromMapping || [])]));
         const locations = ids.length
             ? await prisma_1.default.locations.findMany({ where: { id: { in: ids } }, orderBy: { name: "asc" } })
-            : await prisma_1.default.locations.findMany({ orderBy: { name: "asc" } });
+            : [];
         res.json({ locations: locations.map((l) => ({ id: l.id, name: l.name })) });
     }
     catch (err) {
@@ -31,6 +34,11 @@ const createLocation = async (req, res) => {
             return;
         }
         const created = await prisma_1.default.locations.create({ data: { id: (0, crypto_1.randomUUID)(), name } });
+        try {
+            const tenantId = req.tenantId || req.user?.tenantId || "default";
+            (0, tenantLocationsService_1.addTenantLocation)(tenantId, created.id);
+        }
+        catch { }
         res.status(201).json(created);
     }
     catch (err) {

@@ -9,6 +9,7 @@ const prisma_1 = __importDefault(require("../db/prisma"));
 const featureFlagsService_1 = require("../services/featureFlagsService");
 const invoiceLayoutService_1 = require("../services/invoiceLayoutService");
 const financialLayoutService_1 = require("../services/financialLayoutService");
+const banksService_1 = require("../services/banksService");
 const router = (0, express_1.Router)();
 // Use shared Prisma client
 // Set features by email for convenience in admin UI
@@ -156,11 +157,28 @@ router.get("/banks", async (req, res) => {
             { name: "Amagzy global ventures(Stanbic bank) FOR OPERATIONS", account: "0034297097" },
             { name: "Amagzy global ventures(GTbank)FOR MANUFACTURING", account: "0240198526" },
         ];
-        const list = tenantId === "default" ? banksDefault : [];
+        const tenantBanks = (0, banksService_1.readBanks)(tenantId);
+        const list = tenantId === "default" ? [...banksDefault, ...tenantBanks] : tenantBanks;
         res.json({ banks: list });
     }
     catch {
         res.status(500).json({ banks: [] });
+    }
+});
+router.post("/banks", async (req, res) => {
+    try {
+        const Body = zod_1.z.object({ name: zod_1.z.string().min(1), account: zod_1.z.string().min(1) });
+        const { name, account } = Body.parse(req.body || {});
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const list = (0, banksService_1.addBank)(tenantId, { name, account });
+        res.status(201).json({ banks: list });
+    }
+    catch (err) {
+        if (err instanceof zod_1.ZodError) {
+            res.status(400).json({ message: "Invalid input", errors: err.issues });
+            return;
+        }
+        res.status(500).json({ message: "Failed to create bank account" });
     }
 });
 exports.default = router;

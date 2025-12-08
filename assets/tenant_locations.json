@@ -1,0 +1,10 @@
+{
+  "tenants": {
+    "default": [
+      "d32ebae6-448b-4ad3-968e-591713ef525f",
+      "982db107-72d1-45d4-bcdc-a4a17471dbaa",
+      "4e6c5dc1-8959-48ee-9563-267e8c0bd0ba",
+      "c9af1096-98ed-45ab-a5b2-a34bcb1b4d9d"
+    ]
+  }
+}

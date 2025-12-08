@@ -5,6 +5,7 @@ import { readFlags, writeFlags } from "../services/featureFlagsService";
 import { readInvoiceLayout, writeInvoiceLayout } from "../services/invoiceLayoutService";
 import { readFinancialLayout, writeFinancialLayout } from "../services/financialLayoutService";
 import { Request, Response } from "express";
+import { readBanks, addBank } from "../services/banksService";
 
 const router = Router();
 // Use shared Prisma client
@@ -154,10 +155,27 @@ router.get("/banks", async (req: Request, res: Response) => {
       { name: "Amagzy global ventures(Stanbic bank) FOR OPERATIONS", account: "0034297097" },
       { name: "Amagzy global ventures(GTbank)FOR MANUFACTURING", account: "0240198526" },
     ];
-    const list = tenantId === "default" ? banksDefault : [];
+    const tenantBanks = readBanks(tenantId);
+    const list = tenantId === "default" ? [...banksDefault, ...tenantBanks] : tenantBanks;
     res.json({ banks: list });
   } catch {
     res.status(500).json({ banks: [] });
+  }
+});
+
+router.post("/banks", async (req: Request, res: Response) => {
+  try {
+    const Body = z.object({ name: z.string().min(1), account: z.string().min(1) });
+    const { name, account } = Body.parse(req.body || {});
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const list = addBank(tenantId, { name, account });
+    res.status(201).json({ banks: list });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(400).json({ message: "Invalid input", errors: err.issues });
+      return;
+    }
+    res.status(500).json({ message: "Failed to create bank account" });
   }
 });
 
