@@ -10,6 +10,7 @@ import { appendNotification } from "../services/notificationService";
 
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const users = await prisma.users.findMany({
       select: {
         userId: true,
@@ -18,6 +19,7 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
         role: true,
         isBlocked: true,
       },
+      where: { tenantId },
       orderBy: { name: "asc" },
     });
     res.json(users);
@@ -42,7 +44,8 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
     }
 
     const normalizedEmail = String(email).trim().toLowerCase();
-    const existing = await prisma.users.findFirst({ where: { email: normalizedEmail } });
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const existing = await prisma.users.findFirst({ where: { tenantId, email: normalizedEmail } });
     if (existing) {
       res.status(400).json({ message: "User with this email already exists" });
       return;
@@ -57,6 +60,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         email: normalizedEmail,
         password: hashedPassword,
         role: (role || "user").toLowerCase(),
+        tenantId,
       },
     });
 
@@ -103,8 +107,9 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
 
 export const purgeNonAdminUsers = async (req: Request, res: Response): Promise<void> => {
   try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const result = await prisma.users.deleteMany({
-      where: { NOT: { role: "admin" } },
+      where: { tenantId, NOT: { role: "admin" } },
     });
     res.json({ message: "Purged non-admin users", deletedCount: result.count });
     appendNotification({
@@ -122,8 +127,13 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
   try {
     const { userId } = req.params;
 
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const target = await prisma.users.findUnique({ where: { userId } });
     if (!target) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    if (target.tenantId !== tenantId) {
       res.status(404).json({ message: "User not found" });
       return;
     }
@@ -153,8 +163,13 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
 export const blockUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const target = await prisma.users.findUnique({ where: { userId } });
     if (!target) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    if (target.tenantId !== tenantId) {
       res.status(404).json({ message: "User not found" });
       return;
     }
@@ -186,8 +201,13 @@ export const blockUser = async (req: Request, res: Response): Promise<void> => {
 export const unblockUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const target = await prisma.users.findUnique({ where: { userId } });
     if (!target) {
+      res.status(404).json({ message: "User not found" });
+      return;
+    }
+    if (target.tenantId !== tenantId) {
       res.status(404).json({ message: "User not found" });
       return;
     }

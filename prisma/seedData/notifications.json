@@ -299,5 +299,143 @@
     "type": "expense",
     "message": "Deleted expense fdc82fba-39d4-468e-bc79-fc732d18de03",
     "timestamp": "2025-12-07T22:43:48.853Z"
+  },
+  {
+    "id": "1765156643722-1eyr8x",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-08T01:17:23.722Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765156643737-ejifr4",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-08T01:17:23.737Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765156968626-mykkqf",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-08T01:22:48.626Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765156968690-k0dljy",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-08T01:22:48.690Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765157126271-lmf0z2",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-08T01:25:26.271Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765157126282-1kw0ys",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-08T01:25:26.282Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765157259684-qpv411",
+    "type": "expense",
+    "message": "Deleted expense d9b3a724-95ac-4108-81d5-6db1ef98ecb2",
+    "timestamp": "2025-12-08T01:27:39.684Z"
+  },
+  {
+    "id": "1765157260729-5v6xze",
+    "type": "expense",
+    "message": "Deleted expense 34de9517-153e-4505-9af8-dc8440e28dd9",
+    "timestamp": "2025-12-08T01:27:40.729Z"
+  },
+  {
+    "id": "1765157261211-l84qcr",
+    "type": "expense",
+    "message": "Deleted expense 5c1121d7-20c8-4890-81c0-949bd60523a3",
+    "timestamp": "2025-12-08T01:27:41.211Z"
+  },
+  {
+    "id": "1765157262590-pf3p8o",
+    "type": "expense",
+    "message": "Deleted expense c68ccd7e-601c-4b09-b76f-c5a19308e526",
+    "timestamp": "2025-12-08T01:27:42.590Z"
+  },
+  {
+    "id": "1765157262981-upbnh6",
+    "type": "expense",
+    "message": "Deleted expense 39e86828-36f4-4282-9599-bc4c42bae3a1",
+    "timestamp": "2025-12-08T01:27:42.981Z"
+  },
+  {
+    "id": "1765157263454-wcomrb",
+    "type": "expense",
+    "message": "Deleted expense cfbd98f2-c6ed-4bcc-b604-f3d330c5f31e",
+    "timestamp": "2025-12-08T01:27:43.454Z"
+  },
+  {
+    "id": "1765157263902-g8ejau",
+    "type": "expense",
+    "message": "Deleted expense ba5ded78-639c-46ce-80bf-7d50642a1438",
+    "timestamp": "2025-12-08T01:27:43.902Z"
+  },
+  {
+    "id": "1765157264278-bkfkgs",
+    "type": "expense",
+    "message": "Deleted expense 66a3d687-05b0-4796-9b09-14941aa73031",
+    "timestamp": "2025-12-08T01:27:44.278Z"
+  },
+  {
+    "id": "1765157264526-wa7sec",
+    "type": "expense",
+    "message": "Deleted expense fca4f2d0-c3d7-4246-a04e-626ab4045c40",
+    "timestamp": "2025-12-08T01:27:44.526Z"
+  },
+  {
+    "id": "1765157264941-qpezqk",
+    "type": "expense",
+    "message": "Deleted expense 3f19431c-3403-468b-9421-c9f54d466052",
+    "timestamp": "2025-12-08T01:27:44.941Z"
+  },
+  {
+    "id": "1765157265362-m7zo4h",
+    "type": "expense",
+    "message": "Deleted expense 36764f05-d204-4f71-bbd3-9d0263ea6863",
+    "timestamp": "2025-12-08T01:27:45.362Z"
+  },
+  {
+    "id": "1765157265591-fnyq80",
+    "type": "expense",
+    "message": "Deleted expense c2f642b5-399b-48d7-9deb-e6a4eed0b9fa",
+    "timestamp": "2025-12-08T01:27:45.591Z"
+  },
+  {
+    "id": "1765157265830-lqfkdy",
+    "type": "expense",
+    "message": "Deleted expense fc8b38d8-388a-4898-9ca5-b942bbbec035",
+    "timestamp": "2025-12-08T01:27:45.830Z"
+  },
+  {
+    "id": "1765157266386-pu8i7c",
+    "type": "expense",
+    "message": "Deleted expense 4529aaef-39d0-4188-9256-8c8fd5bad7ca",
+    "timestamp": "2025-12-08T01:27:46.386Z"
+  },
+  {
+    "id": "1765157267010-doq337",
+    "type": "expense",
+    "message": "Deleted expense fb2dba2d-c186-4165-ab7d-66ce276041a4",
+    "timestamp": "2025-12-08T01:27:47.010Z"
+  },
+  {
+    "id": "1765157267633-c0qi1n",
+    "type": "expense",
+    "message": "Deleted expense c21c08e8-51b9-40f1-be37-b5116cd8d174",
+    "timestamp": "2025-12-08T01:27:47.633Z"
   }
 ]

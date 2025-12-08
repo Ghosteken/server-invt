@@ -296,7 +296,7 @@ async function main() {
                 const store = await prisma.stores.upsert({
                     where: { name: storeName },
                     update: {},
-                    create: { id: storeId, name: storeName },
+                    create: { id: storeId, name: storeName, tenantId: "default" },
                 });
                 seededStores += 1;
                 // Seed branches under this store
@@ -309,7 +309,7 @@ async function main() {
                         await prisma.branches.upsert({
                             where: { storeId_name: { storeId: store.id, name: branchName } },
                             update: {},
-                            create: { id: (0, node_crypto_1.randomUUID)(), storeId: store.id, name: branchName },
+                            create: { id: (0, node_crypto_1.randomUUID)(), storeId: store.id, name: branchName, tenantId: "default" },
                         });
                         seededBranches += 1;
                     }

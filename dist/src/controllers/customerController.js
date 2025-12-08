@@ -46,26 +46,24 @@ const storeService_1 = require("../services/storeService");
 // Use shared Prisma client
 const getCustomers = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const search = String(req.query.search || "").trim();
-        const customers = await prisma_1.default.customers.findMany({
-            where: search
-                ? {
-                    OR: [
-                        { name: { contains: search, mode: "insensitive" } },
-                        { mobile: { contains: search, mode: "insensitive" } },
-                        { address: { contains: search, mode: "insensitive" } },
-                        { city: { contains: search, mode: "insensitive" } },
-                        { state: { contains: search, mode: "insensitive" } },
-                        { country: { contains: search, mode: "insensitive" } },
-                    ],
-                }
-                : undefined,
-            orderBy: { createdAt: "desc" },
-        });
+        const where = { tenantId };
+        if (search) {
+            where.OR = [
+                { name: { contains: search, mode: "insensitive" } },
+                { mobile: { contains: search, mode: "insensitive" } },
+                { address: { contains: search, mode: "insensitive" } },
+                { city: { contains: search, mode: "insensitive" } },
+                { state: { contains: search, mode: "insensitive" } },
+                { country: { contains: search, mode: "insensitive" } },
+            ];
+        }
+        const customers = await prisma_1.default.customers.findMany({ where, orderBy: { createdAt: "desc" } });
         // Fetch purchases grouped by customer
-        const purchases = await prisma_1.default.customerPurchases.findMany({});
+        const purchases = await prisma_1.default.customerPurchases.findMany({ where: { tenantId } });
         const productIds = Array.from(new Set(purchases.map(p => p.productId)));
-        const products = await prisma_1.default.products.findMany({ where: { productId: { in: productIds } }, select: { productId: true, name: true } });
+        const products = await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
         const nameById = new Map(products.map(p => [p.productId, p.name]));
         const byCustomer = new Map();
         for (const p of purchases) {
@@ -96,8 +94,13 @@ exports.getCustomers = getCustomers;
 const deleteCustomerPurchase = async (req, res) => {
     try {
         const { id } = req.params;
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const existing = await prisma_1.default.customerPurchases.findUnique({ where: { id } });
         if (!existing) {
+            res.status(404).json({ message: "Customer purchase not found" });
+            return;
+        }
+        if (existing.tenantId !== tenantId) {
             res.status(404).json({ message: "Customer purchase not found" });
             return;
         }
@@ -119,13 +122,14 @@ const createCustomer = async (req, res) => {
             res.status(400).json({ message: "Name is required" });
             return;
         }
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const normName = trimmedName.toLowerCase();
         const normMobile = mobile ? String(mobile).trim() : "";
         // Check duplicates by mobile or case-insensitive name
         const existing = await prisma_1.default.customers.findFirst({
             where: normMobile
-                ? { OR: [{ mobile: normMobile }, { name: { equals: normName, mode: "insensitive" } }] }
-                : { name: { equals: normName, mode: "insensitive" } },
+                ? { tenantId, OR: [{ mobile: normMobile }, { name: { equals: normName, mode: "insensitive" } }] }
+                : { tenantId, name: { equals: normName, mode: "insensitive" } },
         });
         if (existing) {
             res.status(409).json({ message: "Customer already exists" });
@@ -140,6 +144,7 @@ const createCustomer = async (req, res) => {
                 city: city ? String(city).trim() : null,
                 state: state ? String(state).trim() : null,
                 country: country ? String(country).trim() : null,
+                tenantId,
             },
         });
         res.status(201).json({
@@ -162,7 +167,8 @@ const createCustomer = async (req, res) => {
 exports.createCustomer = createCustomer;
 const purgeCustomerPurchases = async (req, res) => {
     try {
-        const result = await prisma_1.default.customerPurchases.deleteMany({});
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const result = await prisma_1.default.customerPurchases.deleteMany({ where: { tenantId } });
         res.json({ message: "Purged customer purchases", deletedCount: result.count });
     }
     catch (error) {
@@ -176,7 +182,8 @@ const updateCustomer = async (req, res) => {
     try {
         const { id } = req.params;
         const { name, mobile, address, city, state, country, } = req.body || {};
-        const existing = await prisma_1.default.customers.findUnique({ where: { customerId: id } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const existing = await prisma_1.default.customers.findFirst({ where: { customerId: id, tenantId } });
         if (!existing) {
             res.status(404).json({ message: "Customer not found" });
             return;
@@ -190,7 +197,7 @@ const updateCustomer = async (req, res) => {
             }
             // prevent duplicate name on another record (case-insensitive)
             const dup = await prisma_1.default.customers.findFirst({
-                where: { AND: [{ name: { equals: trimmed.toLowerCase(), mode: "insensitive" } }, { NOT: { customerId: id } }] },
+                where: { tenantId, name: { equals: trimmed.toLowerCase(), mode: "insensitive" }, NOT: { customerId: id } },
             });
             if (dup) {
                 res.status(409).json({ message: "Another customer already uses this name" });
@@ -201,7 +208,7 @@ const updateCustomer = async (req, res) => {
         if (typeof mobile === "string") {
             const mv = mobile.trim();
             if (mv) {
-                const dupMobile = await prisma_1.default.customers.findFirst({ where: { AND: [{ mobile: mv }, { NOT: { customerId: id } }] } });
+                const dupMobile = await prisma_1.default.customers.findFirst({ where: { tenantId, mobile: mv, NOT: { customerId: id } } });
                 if (dupMobile) {
                     res.status(409).json({ message: "Another customer already uses this mobile" });
                     return;
@@ -243,7 +250,8 @@ exports.updateCustomer = updateCustomer;
 const deleteCustomer = async (req, res) => {
     try {
         const { id } = req.params;
-        const existing = await prisma_1.default.customers.findUnique({ where: { customerId: id } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const existing = await prisma_1.default.customers.findFirst({ where: { customerId: id, tenantId } });
         if (!existing) {
             res.status(404).json({ message: "Customer not found" });
             return;
@@ -261,6 +269,7 @@ const deleteCustomer = async (req, res) => {
 exports.deleteCustomer = deleteCustomer;
 const importCustomers = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const file = req.file;
         if (!file) {
             res.status(400).json({ message: "No file uploaded. Use field name 'file'." });
@@ -314,8 +323,8 @@ const importCustomers = async (req, res) => {
             // Try to find existing by mobile first, else by name
             const existing = await prisma_1.default.customers.findFirst({
                 where: normMobile
-                    ? { OR: [{ mobile: normMobile }, { name: { equals: normName, mode: "insensitive" } }] }
-                    : { name: { equals: normName, mode: "insensitive" } },
+                    ? { tenantId, OR: [{ mobile: normMobile }, { name: { equals: normName, mode: "insensitive" } }] }
+                    : { tenantId, name: { equals: normName, mode: "insensitive" } },
             });
             if (existing) {
                 // Skip duplicates in DB: do not update existing customers
@@ -331,6 +340,7 @@ const importCustomers = async (req, res) => {
                         city: city ? String(city).trim() : null,
                         state: state ? String(state).trim() : null,
                         country: country ? String(country).trim() : null,
+                        tenantId,
                     },
                 });
                 created += 1;
@@ -419,6 +429,7 @@ exports.importCustomers = importCustomers;
  */
 const importCustomersSample = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const samplePath = node_path_1.default.join(__dirname, "../../assets/Customers1.xlsx");
         if (!node_fs_1.default.existsSync(samplePath)) {
             res.status(404).json({ message: "Sample Customers1.xlsx not found in server/assets" });
@@ -457,8 +468,8 @@ const importCustomersSample = async (req, res) => {
             seenKeys.add(key);
             const existing = await prisma_1.default.customers.findFirst({
                 where: normMobile
-                    ? { OR: [{ mobile: normMobile }, { name: { equals: normName, mode: "insensitive" } }] }
-                    : { name: { equals: normName, mode: "insensitive" } },
+                    ? { tenantId, OR: [{ mobile: normMobile }, { name: { equals: normName, mode: "insensitive" } }] }
+                    : { tenantId, name: { equals: normName, mode: "insensitive" } },
             });
             if (existing) {
                 // Skip duplicates in DB: do not update existing customers
@@ -474,6 +485,7 @@ const importCustomersSample = async (req, res) => {
                         city: city ? String(city).trim() : null,
                         state: state ? String(state).trim() : null,
                         country: country ? String(country).trim() : null,
+                        tenantId,
                     },
                 });
                 created += 1;
@@ -492,10 +504,11 @@ exports.importCustomersSample = importCustomersSample;
  */
 const exportCustomersExcel = async (req, res) => {
     try {
-        const customers = await prisma_1.default.customers.findMany({ orderBy: { name: "asc" } });
-        const purchases = await prisma_1.default.customerPurchases.findMany({ orderBy: { timestamp: "desc" } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const customers = await prisma_1.default.customers.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+        const purchases = await prisma_1.default.customerPurchases.findMany({ where: { tenantId }, orderBy: { timestamp: "desc" } });
         const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
-        const products = await prisma_1.default.products.findMany({ where: { productId: { in: productIds } }, select: { productId: true, name: true } });
+        const products = await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
         const nameById = new Map(products.map((p) => [p.productId, p.name]));
         const customersSheetRows = customers.map((c) => ({
             CustomerId: c.customerId,

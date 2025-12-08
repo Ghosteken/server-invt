@@ -39,15 +39,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.importExpenseCategories = exports.getExpenseCategories = exports.deleteExpenseController = exports.updateExpenseController = exports.createExpense = exports.listExpenses = exports.getExpensesByCategory = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const XLSX = __importStar(require("xlsx"));
-const node_fs_1 = __importDefault(require("node:fs"));
-const node_path_1 = __importDefault(require("node:path"));
 const crypto_1 = require("crypto");
-const expensesService_1 = require("../services/expensesService");
 const notificationService_1 = require("../services/notificationService");
 // Use shared Prisma client
 const getExpensesByCategory = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const expenseByCategorySummaryRaw = await prisma_1.default.expenseByCategory.findMany({
+            where: { tenantId },
             orderBy: {
                 date: "desc",
             },
@@ -69,21 +68,23 @@ exports.getExpensesByCategory = getExpensesByCategory;
  */
 const listExpenses = async (req, res) => {
     try {
-        const category = String(req.query.category || "").trim().toLowerCase();
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const category = String(req.query.category || "").trim();
         const from = req.query.from ? new Date(String(req.query.from)) : undefined;
         const to = req.query.to ? new Date(String(req.query.to)) : undefined;
-        const all = (0, expensesService_1.readExpenses)();
-        const filtered = all.filter((e) => {
-            if (category && e.category.toLowerCase() !== category)
-                return false;
-            const d = new Date(e.date);
-            if (from && d < from)
-                return false;
-            if (to && d > to)
-                return false;
-            return true;
-        });
-        res.json({ expenses: filtered });
+        const where = { tenantId };
+        if (category)
+            where.category = { contains: category, mode: "insensitive" };
+        if (from || to) {
+            where.timestamp = {};
+            if (from)
+                where.timestamp.gte = from;
+            if (to)
+                where.timestamp.lte = to;
+        }
+        const rows = await prisma_1.default.expenses.findMany({ where, orderBy: { timestamp: "desc" } });
+        const expenses = rows.map((r) => ({ id: r.expenseId, category: r.category, name: r.category, amount: r.amount, date: r.timestamp.toISOString().slice(0, 10) }));
+        res.json({ expenses });
     }
     catch (err) {
         res.status(500).json({ message: "Error retrieving expenses" });
@@ -96,21 +97,19 @@ exports.listExpenses = listExpenses;
  */
 const createExpense = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const body = req.body || {};
         const category = String(body.category || "").trim();
         const name = String(body.name || "").trim();
         const amount = Number(body.amount) || 0;
-        // Ensure date is always a string to satisfy type requirements
-        // If not provided, default to today's date (YYYY-MM-DD)
-        const date = body.date ? String(body.date) : new Date().toISOString().slice(0, 10);
+        const date = body.date ? new Date(String(body.date)) : new Date();
         if (!category || !name || !amount) {
             res.status(400).json({ message: "category, name, and amount are required" });
             return;
         }
-        const saved = (0, expensesService_1.appendExpense)({ category, name, amount, date });
-        // Notify: expense created
+        const created = await prisma_1.default.expenses.create({ data: { expenseId: (0, crypto_1.randomUUID)(), category, amount, timestamp: date, tenantId } });
         (0, notificationService_1.appendNotification)({ type: "expense", message: `Created expense '${name}' (${category}) ₦${amount.toLocaleString("en")}` });
-        res.status(201).json({ expense: saved });
+        res.status(201).json({ expense: { id: created.expenseId, category, name, amount, date: date.toISOString().slice(0, 10) } });
     }
     catch (err) {
         res.status(500).json({ message: "Failed to create expense" });
@@ -124,20 +123,28 @@ exports.createExpense = createExpense;
  */
 const updateExpenseController = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const id = String(req.params.id || "").trim();
         if (!id) {
             res.status(400).json({ message: "Missing expense id" });
             return;
         }
-        const changes = req.body || {};
-        const updated = (0, expensesService_1.updateExpense)(id, changes);
-        if (!updated) {
+        const existing = await prisma_1.default.expenses.findFirst({ where: { expenseId: id, tenantId } });
+        if (!existing) {
             res.status(404).json({ message: "Expense not found" });
             return;
         }
-        // Notify: expense updated
-        (0, notificationService_1.appendNotification)({ type: "expense", message: `Updated expense '${updated.name}' (${updated.category}) to ₦${Number(updated.amount || 0).toLocaleString("en")}` });
-        res.json({ expense: updated });
+        const changes = req.body || {};
+        const data = {};
+        if (changes.category !== undefined)
+            data.category = String(changes.category).trim();
+        if (changes.amount !== undefined)
+            data.amount = Number(changes.amount) || 0;
+        if (changes.date !== undefined)
+            data.timestamp = new Date(String(changes.date));
+        const next = await prisma_1.default.expenses.update({ where: { expenseId: id }, data });
+        (0, notificationService_1.appendNotification)({ type: "expense", message: `Updated expense '${existing.category}' (${next.category}) to ₦${Number(next.amount || 0).toLocaleString("en")}` });
+        res.json({ expense: { id: next.expenseId, category: next.category, name: next.category, amount: next.amount, date: next.timestamp.toISOString().slice(0, 10) } });
     }
     catch (err) {
         res.status(500).json({ message: "Failed to update expense" });
@@ -150,17 +157,18 @@ exports.updateExpenseController = updateExpenseController;
  */
 const deleteExpenseController = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const id = String(req.params.id || "").trim();
         if (!id) {
             res.status(400).json({ message: "Missing expense id" });
             return;
         }
-        const ok = (0, expensesService_1.deleteExpense)(id);
-        if (!ok) {
+        const existing = await prisma_1.default.expenses.findFirst({ where: { expenseId: id, tenantId } });
+        if (!existing) {
             res.status(404).json({ message: "Expense not found" });
             return;
         }
-        // Notify: expense deleted
+        await prisma_1.default.expenses.delete({ where: { expenseId: id } });
         (0, notificationService_1.appendNotification)({ type: "expense", message: `Deleted expense ${id}` });
         res.json({ success: true });
     }
@@ -174,8 +182,11 @@ exports.deleteExpenseController = deleteExpenseController;
  */
 const getExpenseCategories = async (_req, res) => {
     try {
-        const cats = (0, expensesService_1.readExpenseCategories)();
-        res.json({ categories: cats.map((c) => c.name) });
+        const reqAny = _req;
+        const tenantId = reqAny.tenantId || _req.user?.tenantId || "default";
+        const rows = await prisma_1.default.expenseByCategory.findMany({ where: { tenantId }, select: { category: true } });
+        const set = Array.from(new Set(rows.map((r) => (r.category || "").toLowerCase()).filter(Boolean)));
+        res.json({ categories: set });
     }
     catch (err) {
         res.status(500).json({ message: "Failed to load expense categories" });
@@ -189,6 +200,7 @@ exports.getExpenseCategories = getExpenseCategories;
  */
 const importExpenseCategories = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const file = req.file;
         if (!file) {
             res.status(400).json({ message: "No file uploaded. Use field name 'file'." });
@@ -213,21 +225,10 @@ const importExpenseCategories = async (req, res) => {
             categories.push(cleaned);
         }
         const unique = Array.from(new Set(categories.map((c) => c.toLowerCase())));
-        // Persist to seed JSON
-        try {
-            const seedDir = node_path_1.default.join(__dirname, "../../prisma/seedData");
-            const outPath = node_path_1.default.join(seedDir, "expenseCategories.json");
-            if (!node_fs_1.default.existsSync(seedDir))
-                node_fs_1.default.mkdirSync(seedDir, { recursive: true });
-            node_fs_1.default.writeFileSync(outPath, JSON.stringify(unique.map((c) => ({ name: c })), null, 2), "utf-8");
-        }
-        catch (persistErr) {
-            console.warn("Failed to persist expense categories to JSON:", persistErr);
-        }
         // Upsert a zero-amount summary and related category entries in DB
         const summaryId = (0, crypto_1.randomUUID)();
         const now = new Date();
-        await prisma_1.default.expenseSummary.create({ data: { expenseSummaryId: summaryId, totalExpenses: 0, date: now } });
+        await prisma_1.default.expenseSummary.create({ data: { expenseSummaryId: summaryId, totalExpenses: 0, date: now, tenantId } });
         for (const catLower of unique) {
             try {
                 await prisma_1.default.expenseByCategory.create({
@@ -237,6 +238,7 @@ const importExpenseCategories = async (req, res) => {
                         category: catLower,
                         amount: BigInt(0),
                         date: now,
+                        tenantId,
                     },
                 });
             }

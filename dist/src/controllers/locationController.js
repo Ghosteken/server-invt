@@ -8,24 +8,16 @@ const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../db/prisma"));
 const getLocations = async (_req, res) => {
     try {
-        const locations = await prisma_1.default.locations.findMany({ orderBy: { name: "asc" } });
-        // Deduplicate by case-insensitive name and normalize display casing
-        const toTitle = (s) => s
-            .trim()
-            .split(/\s+/)
-            .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
-            .join(" ");
-        const byKey = new Map();
-        for (const loc of locations) {
-            const key = (loc.name || "").trim().toLowerCase();
-            if (!key)
-                continue;
-            if (!byKey.has(key)) {
-                byKey.set(key, { id: loc.id, name: toTitle(loc.name) });
-            }
+        const reqAny = _req;
+        const tenantId = reqAny.tenantId || _req.user?.tenantId || "default";
+        const invs = await prisma_1.default.invoices.findMany({ where: { tenantId }, select: { locationId: true } });
+        const ids = Array.from(new Set(invs.map((i) => i.locationId).filter(Boolean)));
+        if (!ids.length) {
+            res.json({ locations: [] });
+            return;
         }
-        const unique = Array.from(byKey.values()).sort((a, b) => a.name.localeCompare(b.name));
-        res.json({ locations: unique });
+        const locations = await prisma_1.default.locations.findMany({ where: { id: { in: ids } }, orderBy: { name: "asc" } });
+        res.json({ locations: locations.map((l) => ({ id: l.id, name: l.name })) });
     }
     catch (err) {
         console.error("getLocations error:", err);

@@ -4,23 +4,13 @@ import prisma from "../db/prisma";
 
 export const getLocations = async (_req: Request, res: Response): Promise<void> => {
   try {
-    const locations = await prisma.locations.findMany({ orderBy: { name: "asc" } });
-    // Deduplicate by case-insensitive name and normalize display casing
-    const toTitle = (s: string) => s
-      .trim()
-      .split(/\s+/)
-      .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
-      .join(" ");
-    const byKey = new Map<string, { id: string; name: string }>();
-    for (const loc of locations) {
-      const key = (loc.name || "").trim().toLowerCase();
-      if (!key) continue;
-      if (!byKey.has(key)) {
-        byKey.set(key, { id: loc.id, name: toTitle(loc.name) });
-      }
-    }
-    const unique = Array.from(byKey.values()).sort((a, b) => a.name.localeCompare(b.name));
-    res.json({ locations: unique });
+    const reqAny = _req as any;
+    const tenantId = reqAny.tenantId || _req.user?.tenantId || "default";
+    const invs = await prisma.invoices.findMany({ where: { tenantId }, select: { locationId: true } });
+    const ids = Array.from(new Set(invs.map((i) => i.locationId).filter(Boolean))) as string[];
+    if (!ids.length) { res.json({ locations: [] }); return; }
+    const locations = await prisma.locations.findMany({ where: { id: { in: ids } }, orderBy: { name: "asc" } });
+    res.json({ locations: locations.map((l) => ({ id: l.id, name: l.name })) });
   } catch (err) {
     console.error("getLocations error:", err);
     res.status(500).json({ message: "Failed to load locations" });

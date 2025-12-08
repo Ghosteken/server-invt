@@ -8,28 +8,45 @@ const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../db/prisma"));
 const getSalesAgents = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const search = String(req.query.search || "").trim().toLowerCase();
-        const agents = await prisma_1.default.salesAgents.findMany({ orderBy: { name: "asc" } });
-        // Deduplicate by case-insensitive name and normalize display casing
-        const toTitle = (s) => s
-            .trim()
-            .split(/\s+/)
-            .map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w))
-            .join(" ");
+        const invs = await prisma_1.default.invoices.findMany({ where: { tenantId }, select: { salesAgentId: true, salesAgent: true } });
+        const ids = Array.from(new Set(invs.map((i) => i.salesAgentId).filter(Boolean)));
         const byKey = new Map();
-        for (const a of agents) {
-            const key = (a.name || "").trim().toLowerCase();
+        const normalized = (s) => s.trim().toLowerCase();
+        // Include all manually created agents for this tenant
+        const tenantAgents = await prisma_1.default.salesAgents.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+        for (const a of tenantAgents) {
+            const key = normalized(a.name || "");
             if (!key)
                 continue;
-            if (!byKey.has(key)) {
-                byKey.set(key, { id: a.id, name: toTitle(a.name), mobile: a.mobile ?? null, email: a.email ?? null });
+            if (!byKey.has(key))
+                byKey.set(key, { id: a.id, name: a.name, mobile: a.mobile ?? null, email: a.email ?? null });
+        }
+        // Also include agents referenced by invoices (may include legacy entries)
+        if (ids.length) {
+            const fromIds = await prisma_1.default.salesAgents.findMany({ where: { id: { in: ids } }, orderBy: { name: "asc" } });
+            for (const a of fromIds) {
+                const key = normalized(a.name || "");
+                if (!key)
+                    continue;
+                if (!byKey.has(key))
+                    byKey.set(key, { id: a.id, name: a.name, mobile: a.mobile ?? null, email: a.email ?? null });
             }
         }
-        let unique = Array.from(byKey.values());
+        for (const i of invs) {
+            const n = String(i.salesAgent || "").trim();
+            if (!n)
+                continue;
+            const key = normalized(n);
+            if (!byKey.has(key))
+                byKey.set(key, { id: i.salesAgentId || (0, crypto_1.randomUUID)(), name: n });
+        }
+        let list = Array.from(byKey.values());
         if (search)
-            unique = unique.filter((a) => a.name.toLowerCase().includes(search));
-        unique.sort((a, b) => a.name.localeCompare(b.name));
-        res.json({ agents: unique });
+            list = list.filter((a) => a.name.toLowerCase().includes(search));
+        list.sort((a, b) => a.name.localeCompare(b.name));
+        res.json({ agents: list });
     }
     catch (err) {
         console.error("getSalesAgents error:", err);
@@ -42,11 +59,18 @@ const createSalesAgent = async (req, res) => {
         const name = String(req.body?.name || '').trim();
         const mobile = req.body?.mobile ? String(req.body.mobile) : undefined;
         const email = req.body?.email ? String(req.body.email) : undefined;
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         if (!name) {
             res.status(400).json({ message: "Agent name is required" });
             return;
         }
-        const created = await prisma_1.default.salesAgents.create({ data: { id: (0, crypto_1.randomUUID)(), name, mobile, email } });
+        // Enforce per-tenant uniqueness on name
+        const existing = await prisma_1.default.salesAgents.findFirst({ where: { tenantId, name } });
+        if (existing) {
+            res.status(409).json({ message: "Sales agent already exists" });
+            return;
+        }
+        const created = await prisma_1.default.salesAgents.create({ data: { id: (0, crypto_1.randomUUID)(), name, mobile, email, tenantId } });
         res.status(201).json(created);
     }
     catch (err) {

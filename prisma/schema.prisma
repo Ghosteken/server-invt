@@ -237,10 +237,12 @@ model SalesAgents {
   name      String
   mobile    String?
   email     String?
+  tenantId  String    @default("default")
   createdAt DateTime  @default(now())
   invoices  Invoices[]
 
   @@index([name])
+  @@index([tenantId])
 }
 
 model Locations {
@@ -256,16 +258,18 @@ model Locations {
 model Stores {
   id        String     @id
   name      String     @unique
+  tenantId  String     @default("default")
   createdAt DateTime   @default(now())
   branches  Branches[]
 
-  @@index([name])
+  @@index([tenantId])
 }
 
 model Branches {
   id        String   @id
   storeId   String
   name      String
+  tenantId  String   @default("default")
   city      String?
   state     String?
   address   String?
@@ -274,6 +278,7 @@ model Branches {
   store     Stores   @relation(fields: [storeId], references: [id])
 
   @@index([storeId])
+  @@index([tenantId])
   @@unique([storeId, name])
 }
 
@@ -369,4 +374,13 @@ model OrgAdmins {
 
   @@index([orgId])
   @@unique([orgId, email])
+}
+model ExpenseCategories {
+  id        String   @id
+  tenantId  String   @default("default")
+  name      String
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, name])
+  @@map("expense_categories")
 }

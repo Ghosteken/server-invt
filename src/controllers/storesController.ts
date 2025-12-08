@@ -4,8 +4,9 @@ import prisma from "../db/prisma";
 
 export const listStores = async (req: Request, res: Response): Promise<void> => {
   try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const search = (req.query.search || "").toString().trim().toLowerCase();
-    const stores = await prisma.stores.findMany({ include: { branches: true }, orderBy: { name: "asc" } });
+    const stores = await prisma.stores.findMany({ where: { tenantId }, include: { branches: true }, orderBy: { name: "asc" } });
     const filtered = search
       ? stores.filter((s) => s.name.toLowerCase().includes(search))
       : stores;
@@ -18,12 +19,13 @@ export const listStores = async (req: Request, res: Response): Promise<void> => 
 
 export const createStore = async (req: Request, res: Response): Promise<void> => {
   try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const name = (req.body?.name || "").toString().trim();
     if (!name) {
       res.status(400).json({ message: "Store name is required" });
       return;
     }
-    const created = await prisma.stores.create({ data: { id: randomUUID(), name } });
+    const created = await prisma.stores.create({ data: { id: randomUUID(), name, tenantId } });
     res.status(201).json(created);
   } catch (err) {
     console.error("createStore error:", err);
@@ -35,11 +37,14 @@ export const createStore = async (req: Request, res: Response): Promise<void> =>
 export const updateStore = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const name = (req.body?.name || "").toString().trim();
     if (!name) {
       res.status(400).json({ message: "Store name is required" });
       return;
     }
+    const existing = await prisma.stores.findFirst({ where: { id, tenantId } });
+    if (!existing) { res.status(404).json({ message: "Store not found" }); return; }
     const updated = await prisma.stores.update({ where: { id }, data: { name } });
     res.json(updated);
   } catch (err) {
@@ -51,8 +56,11 @@ export const updateStore = async (req: Request, res: Response): Promise<void> =>
 export const deleteStore = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const existing = await prisma.stores.findFirst({ where: { id, tenantId } });
+    if (!existing) { res.status(404).json({ message: "Store not found" }); return; }
     // Cascade delete branches first
-    await prisma.branches.deleteMany({ where: { storeId: id } });
+    await prisma.branches.deleteMany({ where: { storeId: id, tenantId } });
     await prisma.stores.delete({ where: { id } });
     res.json({ success: true });
   } catch (err) {
@@ -64,7 +72,10 @@ export const deleteStore = async (req: Request, res: Response): Promise<void> =>
 export const listBranches = async (req: Request, res: Response): Promise<void> => {
   try {
     const { storeId } = req.params;
-    const branches = await prisma.branches.findMany({ where: { storeId }, orderBy: { name: "asc" } });
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const store = await prisma.stores.findFirst({ where: { id: storeId, tenantId } });
+    if (!store) { res.status(404).json({ message: "Store not found" }); return; }
+    const branches = await prisma.branches.findMany({ where: { storeId, tenantId }, orderBy: { name: "asc" } });
     res.json({ branches });
   } catch (err) {
     console.error("listBranches error:", err);
@@ -75,6 +86,7 @@ export const listBranches = async (req: Request, res: Response): Promise<void> =
 export const createBranch = async (req: Request, res: Response): Promise<void> => {
   try {
     const { storeId } = req.params;
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const name = (req.body?.name || "").toString().trim();
     const city = (req.body?.city || "").toString().trim() || null;
     const state = (req.body?.state || "").toString().trim() || null;
@@ -84,12 +96,12 @@ export const createBranch = async (req: Request, res: Response): Promise<void> =
       return;
     }
     // Validate store exists
-    const store = await prisma.stores.findUnique({ where: { id: storeId } });
+    const store = await prisma.stores.findFirst({ where: { id: storeId, tenantId } });
     if (!store) {
       res.status(404).json({ message: "Store not found" });
       return;
     }
-    const created = await prisma.branches.create({ data: { id: randomUUID(), storeId, name, city, state, address } });
+    const created = await prisma.branches.create({ data: { id: randomUUID(), storeId, name, city, state, address, tenantId } });
     res.status(201).json(created);
   } catch (err) {
     console.error("createBranch error:", err);
@@ -101,12 +113,15 @@ export const createBranch = async (req: Request, res: Response): Promise<void> =
 export const updateBranch = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const name = (req.body?.name || "").toString().trim();
     const city = (req.body?.city || "").toString().trim() || null;
     const state = (req.body?.state || "").toString().trim() || null;
     const address = (req.body?.address || "").toString().trim() || null;
     const isActiveRaw = req.body?.isActive;
     const isActive = typeof isActiveRaw === "boolean" ? isActiveRaw : undefined;
+    const existing = await prisma.branches.findFirst({ where: { id, tenantId } });
+    if (!existing) { res.status(404).json({ message: "Branch not found" }); return; }
     const updated = await prisma.branches.update({ where: { id }, data: { ...(name ? { name } : {}), city, state, address, ...(isActive === undefined ? {} : { isActive }) } });
     res.json(updated);
   } catch (err) {
@@ -118,6 +133,9 @@ export const updateBranch = async (req: Request, res: Response): Promise<void> =
 export const deleteBranch = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const existing = await prisma.branches.findFirst({ where: { id, tenantId } });
+    if (!existing) { res.status(404).json({ message: "Branch not found" }); return; }
     await prisma.branches.delete({ where: { id } });
     res.json({ success: true });
   } catch (err) {
