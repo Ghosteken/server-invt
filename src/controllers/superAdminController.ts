@@ -110,6 +110,15 @@ export const listOrgAdmins = async (req: Request, res: Response): Promise<void> 
         await prisma.orgAdmins.create({ data: { id: randomUUID(), orgId: id, name: u.name, email: u.email, passwordHash: u.password } });
       }
     }
+    if (!tenantAdmins.length) {
+      const org = await prisma.organizations.findUnique({ where: { id } });
+      if (org) {
+        const already = await prisma.orgAdmins.findFirst({ where: { orgId: id, email: org.adminEmail } });
+        if (!already) {
+          await prisma.orgAdmins.create({ data: { id: randomUUID(), orgId: id, name: "Admin", email: org.adminEmail, passwordHash: org.adminPasswordHash } });
+        }
+      }
+    }
     admins = await prisma.orgAdmins.findMany({ where: { orgId: id }, orderBy: { createdAt: "desc" } });
   }
   res.json({ admins: admins.map((a) => ({ id: a.id, name: a.name, email: a.email, isBlocked: (a as any).isBlocked ?? false })) });
