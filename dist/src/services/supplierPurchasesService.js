@@ -9,10 +9,13 @@ exports.getSupplierMetaFor = getSupplierMetaFor;
 exports.readSupplierPayments = readSupplierPayments;
 exports.addSupplierPayment = addSupplierPayment;
 exports.getPaymentsForPurchase = getPaymentsForPurchase;
+exports.readSuppliers = readSuppliers;
+exports.writeSuppliers = writeSuppliers;
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const META_PATH = node_path_1.default.join(__dirname, "../../prisma/seedData/supplierPurchases.json");
 const PAYMENTS_PATH = node_path_1.default.join(__dirname, "../../prisma/seedData/supplierPurchasePayments.json");
+const SUPPLIERS_PATH = node_path_1.default.join(__dirname, "../../prisma/seedData/suppliers.json");
 let cache = null;
 let flushTimer = null;
 const FLUSH_DELAY_MS = 500;
@@ -118,4 +121,26 @@ function addSupplierPayment(entry) {
 function getPaymentsForPurchase(purchaseId) {
     const list = readSupplierPayments();
     return list.filter((p) => p.purchaseId === purchaseId);
+}
+function readSuppliers() {
+    try {
+        ensureDir();
+        if (!node_fs_1.default.existsSync(SUPPLIERS_PATH))
+            return [];
+        const raw = node_fs_1.default.readFileSync(SUPPLIERS_PATH, "utf-8");
+        const data = JSON.parse(raw);
+        return Array.isArray(data) ? data : [];
+    }
+    catch {
+        return [];
+    }
+}
+function writeSuppliers(next) {
+    try {
+        ensureDir();
+        node_fs_1.default.writeFileSync(SUPPLIERS_PATH, JSON.stringify(next, null, 2), "utf-8");
+    }
+    catch {
+        // ignore
+    }
 }

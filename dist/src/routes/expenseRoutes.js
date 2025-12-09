@@ -11,6 +11,7 @@ const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage()
 router.get("/", expenseController_1.getExpensesByCategory);
 router.get("/list", expenseController_1.listExpenses);
 router.get("/categories", expenseController_1.getExpenseCategories);
+router.post("/categories", expenseController_1.createExpenseCategory);
 router.post("/", expenseController_1.createExpense);
 router.put("/:id", expenseController_1.updateExpenseController);
 router.delete("/:id", expenseController_1.deleteExpenseController);

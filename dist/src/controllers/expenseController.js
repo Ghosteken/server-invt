@@ -36,10 +36,11 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.importExpenseCategories = exports.getExpenseCategories = exports.deleteExpenseController = exports.updateExpenseController = exports.createExpense = exports.listExpenses = exports.getExpensesByCategory = void 0;
+exports.importExpenseCategories = exports.createExpenseCategory = exports.getExpenseCategories = exports.deleteExpenseController = exports.updateExpenseController = exports.createExpense = exports.listExpenses = exports.getExpensesByCategory = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const XLSX = __importStar(require("xlsx"));
 const crypto_1 = require("crypto");
+const expensesService_1 = require("../services/expensesService");
 const notificationService_1 = require("../services/notificationService");
 // Use shared Prisma client
 const getExpensesByCategory = async (req, res) => {
@@ -185,14 +186,46 @@ const getExpenseCategories = async (_req, res) => {
         const reqAny = _req;
         const tenantId = reqAny.tenantId || _req.user?.tenantId || "default";
         const rows = await prisma_1.default.expenseByCategory.findMany({ where: { tenantId }, select: { category: true } });
-        const set = Array.from(new Set(rows.map((r) => (r.category || "").toLowerCase()).filter(Boolean)));
-        res.json({ categories: set });
+        const dbSet = new Set(rows.map((r) => (r.category || "").toLowerCase()).filter(Boolean));
+        const jsonCats = (0, expensesService_1.readExpenseCategories)().map((c) => String(c.name || "").toLowerCase()).filter(Boolean);
+        for (const c of jsonCats)
+            dbSet.add(c);
+        res.json({ categories: Array.from(dbSet.values()) });
     }
     catch (err) {
         res.status(500).json({ message: "Failed to load expense categories" });
     }
 };
 exports.getExpenseCategories = getExpenseCategories;
+/**
+ * Create a new expense category for the current tenant.
+ * Body: { name: string }
+ * This inserts a zero-amount ExpenseSummary and an ExpenseByCategory row,
+ * ensuring the category appears in dropdowns immediately.
+ */
+const createExpenseCategory = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const nameRaw = String((req.body || {}).name || "").trim();
+        if (!nameRaw) {
+            res.status(400).json({ message: "Category name is required" });
+            return;
+        }
+        const category = nameRaw.toLowerCase();
+        const exists = await prisma_1.default.expenseByCategory.findFirst({ where: { tenantId, category } });
+        if (!exists) {
+            const summaryId = (0, crypto_1.randomUUID)();
+            const now = new Date();
+            await prisma_1.default.expenseSummary.create({ data: { expenseSummaryId: summaryId, totalExpenses: 0, date: now, tenantId } });
+            await prisma_1.default.expenseByCategory.create({ data: { expenseByCategoryId: (0, crypto_1.randomUUID)(), expenseSummaryId: summaryId, category, amount: BigInt(0), date: now, tenantId } });
+        }
+        res.status(201).json({ category });
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to create expense category" });
+    }
+};
+exports.createExpenseCategory = createExpenseCategory;
 /**
  * Import expenses categories from an uploaded Excel file.
  * Expected header: "Category name" (case-insensitive). Writes to seed JSON and upserts

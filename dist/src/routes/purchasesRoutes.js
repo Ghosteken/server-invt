@@ -10,4 +10,8 @@ router.post("/:id/payments", purchasesController_1.addPurchasePayment);
 router.put("/:id/meta", purchasesController_1.updatePurchaseMeta);
 router.put("/:id", purchasesController_1.updatePurchase);
 router.get("/:id/print-options", purchasesController_1.getPurchasePrintOptions);
+// Suppliers
+router.get("/suppliers", purchasesController_1.getSuppliers);
+router.post("/suppliers/import", purchasesController_1.upload.single("file"), purchasesController_1.importSuppliers);
+router.get("/suppliers/export/excel", purchasesController_1.exportSuppliersExcel);
 exports.default = router;

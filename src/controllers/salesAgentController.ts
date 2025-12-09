@@ -64,6 +64,37 @@ export const createSalesAgent = async (req: Request, res: Response): Promise<voi
   }
 };
 
+export const updateSalesAgent = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const existing = await prisma.salesAgents.findFirst({ where: { id, tenantId } });
+    if (!existing) { res.status(404).json({ message: "Sales agent not found" }); return; }
+    const name = req.body?.name ? String(req.body.name).trim() : undefined;
+    const mobile = req.body?.mobile ? String(req.body.mobile) : undefined;
+    const email = req.body?.email ? String(req.body.email) : undefined;
+    const updated = await prisma.salesAgents.update({ where: { id }, data: { ...(name ? { name } : {}), mobile, email } });
+    res.json(updated);
+  } catch (err) {
+    console.error("updateSalesAgent error:", err);
+    res.status(500).json({ message: "Failed to update sales agent" });
+  }
+};
+
+export const deleteSalesAgent = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { id } = req.params;
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const existing = await prisma.salesAgents.findFirst({ where: { id, tenantId } });
+    if (!existing) { res.status(404).json({ message: "Sales agent not found" }); return; }
+    await prisma.salesAgents.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) {
+    console.error("deleteSalesAgent error:", err);
+    res.status(500).json({ message: "Failed to delete sales agent" });
+  }
+};
+
 export const getAgentInvoices = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;

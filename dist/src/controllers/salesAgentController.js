@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getAgentInvoices = exports.createSalesAgent = exports.getSalesAgents = void 0;
+exports.getAgentInvoices = exports.deleteSalesAgent = exports.updateSalesAgent = exports.createSalesAgent = exports.getSalesAgents = void 0;
 const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../db/prisma"));
 const getSalesAgents = async (req, res) => {
@@ -80,6 +80,45 @@ const createSalesAgent = async (req, res) => {
     }
 };
 exports.createSalesAgent = createSalesAgent;
+const updateSalesAgent = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const existing = await prisma_1.default.salesAgents.findFirst({ where: { id, tenantId } });
+        if (!existing) {
+            res.status(404).json({ message: "Sales agent not found" });
+            return;
+        }
+        const name = req.body?.name ? String(req.body.name).trim() : undefined;
+        const mobile = req.body?.mobile ? String(req.body.mobile) : undefined;
+        const email = req.body?.email ? String(req.body.email) : undefined;
+        const updated = await prisma_1.default.salesAgents.update({ where: { id }, data: { ...(name ? { name } : {}), mobile, email } });
+        res.json(updated);
+    }
+    catch (err) {
+        console.error("updateSalesAgent error:", err);
+        res.status(500).json({ message: "Failed to update sales agent" });
+    }
+};
+exports.updateSalesAgent = updateSalesAgent;
+const deleteSalesAgent = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const existing = await prisma_1.default.salesAgents.findFirst({ where: { id, tenantId } });
+        if (!existing) {
+            res.status(404).json({ message: "Sales agent not found" });
+            return;
+        }
+        await prisma_1.default.salesAgents.delete({ where: { id } });
+        res.json({ success: true });
+    }
+    catch (err) {
+        console.error("deleteSalesAgent error:", err);
+        res.status(500).json({ message: "Failed to delete sales agent" });
+    }
+};
+exports.deleteSalesAgent = deleteSalesAgent;
 const getAgentInvoices = async (req, res) => {
     try {
         const { id } = req.params;

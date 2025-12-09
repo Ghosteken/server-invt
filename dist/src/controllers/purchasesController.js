@@ -1,15 +1,51 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getPurchasePrintOptions = exports.updatePurchase = exports.updatePurchaseMeta = exports.addPurchasePayment = exports.createPurchase = exports.deletePurchase = exports.getPurchases = void 0;
+exports.exportSuppliersExcel = exports.importSuppliers = exports.getSuppliers = exports.getPurchasePrintOptions = exports.updatePurchase = exports.updatePurchaseMeta = exports.addPurchasePayment = exports.createPurchase = exports.deletePurchase = exports.getPurchases = exports.upload = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const crypto_1 = require("crypto");
 const pcsInventoryService_1 = require("../services/pcsInventoryService");
 const cache_1 = require("../services/cache");
 const notificationService_1 = require("../services/notificationService");
 const supplierPurchasesService_1 = require("../services/supplierPurchasesService");
+const XLSX = __importStar(require("xlsx"));
+const multer_1 = __importDefault(require("multer"));
+exports.upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
 // GET /purchases - list all customer purchases with joined names
 // GET /purchases - list all procurement purchases (supplier-side)
 const getPurchases = async (req, res) => {
@@ -359,3 +395,73 @@ const getPurchasePrintOptions = async (req, res) => {
     }
 };
 exports.getPurchasePrintOptions = getPurchasePrintOptions;
+const getSuppliers = async (_req, res) => {
+    try {
+        const list = (0, supplierPurchasesService_1.readSuppliers)();
+        res.json({ suppliers: list });
+    }
+    catch {
+        res.json({ suppliers: [] });
+    }
+};
+exports.getSuppliers = getSuppliers;
+const importSuppliers = async (req, res) => {
+    try {
+        const file = req.file;
+        if (!file) {
+            res.status(400).json({ message: "No file uploaded. Use field name 'file'." });
+            return;
+        }
+        const wb = XLSX.read(file.buffer, { type: "buffer" });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(ws, { defval: null });
+        const norm = (k) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+        const out = [];
+        for (const row of rows) {
+            const kv = {};
+            for (const k of Object.keys(row))
+                kv[norm(k)] = row[k];
+            const name = kv["supplier"] ?? kv["name"] ?? kv["supplier name"];
+            const mobile = kv["mobile"] ?? kv["phone"] ?? kv["phone number"] ?? null;
+            const n = String(name || "").trim();
+            if (!n)
+                continue;
+            out.push({ name: n, mobile: mobile == null ? null : String(mobile) });
+        }
+        const existing = (0, supplierPurchasesService_1.readSuppliers)();
+        const byName = new Map();
+        const add = (s) => {
+            const key = s.name.toLowerCase();
+            const prev = byName.get(key);
+            byName.set(key, { name: s.name, mobile: s.mobile ?? prev?.mobile ?? null });
+        };
+        existing.forEach(add);
+        out.forEach(add);
+        const merged = Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
+        (0, supplierPurchasesService_1.writeSuppliers)(merged);
+        res.json({ importedSuppliers: out.length });
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to import suppliers" });
+    }
+};
+exports.importSuppliers = importSuppliers;
+const exportSuppliersExcel = async (_req, res) => {
+    try {
+        const list = (0, supplierPurchasesService_1.readSuppliers)();
+        const rows = list.map((s) => ({ Name: s.name, Mobile: s.mobile ?? "" }));
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(rows, { header: ["Name", "Mobile"] });
+        XLSX.utils.book_append_sheet(wb, ws, "Suppliers");
+        const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", "attachment; filename=suppliers.xlsx");
+        res.status(200).send(buf);
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to export suppliers" });
+    }
+};
+exports.exportSuppliersExcel = exportSuppliersExcel;
+// Suppliers utilities for routes file
+// `upload` is defined once at the top of this file for reuse

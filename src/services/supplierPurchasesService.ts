@@ -27,6 +27,14 @@ export type SupplierPayment = {
   notes?: string | null;
 };
 const PAYMENTS_PATH = path.join(__dirname, "../../prisma/seedData/supplierPurchasePayments.json");
+const SUPPLIERS_PATH = path.join(__dirname, "../../prisma/seedData/suppliers.json");
+function ensureDirFor(p: string) {
+  const dir = path.dirname(p);
+  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+}
+function suppliersPathForTenant(tenantId: string): string {
+  return path.join(__dirname, "../../prisma/seedData/suppliers", `${tenantId}.json`);
+}
 
 let cache: SupplierPurchaseMeta[] | null = null;
 let flushTimer: NodeJS.Timeout | null = null;
@@ -134,4 +142,49 @@ export function addSupplierPayment(entry: SupplierPayment): SupplierPayment {
 export function getPaymentsForPurchase(purchaseId: string): SupplierPayment[] {
   const list = readSupplierPayments();
   return list.filter((p) => p.purchaseId === purchaseId);
+}
+
+export type SupplierEntry = { name: string; mobile?: string | null };
+
+export function readSuppliers(): SupplierEntry[] {
+  try {
+    ensureDir();
+    if (!fs.existsSync(SUPPLIERS_PATH)) return [];
+    const raw = fs.readFileSync(SUPPLIERS_PATH, "utf-8");
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? (data as SupplierEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeSuppliers(next: SupplierEntry[]): void {
+  try {
+    ensureDir();
+    fs.writeFileSync(SUPPLIERS_PATH, JSON.stringify(next, null, 2), "utf-8");
+  } catch {
+    // ignore
+  }
+}
+
+export function readSuppliersForTenant(tenantId: string): SupplierEntry[] {
+  try {
+    const p = suppliersPathForTenant(tenantId);
+    ensureDirFor(p);
+    if (!fs.existsSync(p)) return [];
+    const raw = fs.readFileSync(p, "utf-8");
+    const data = JSON.parse(raw);
+    return Array.isArray(data) ? (data as SupplierEntry[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+export function writeSuppliersForTenant(tenantId: string, next: SupplierEntry[]): void {
+  try {
+    const p = suppliersPathForTenant(tenantId);
+    ensureDirFor(p);
+    fs.writeFileSync(p, JSON.stringify(next, null, 2), "utf-8");
+  } catch {
+  }
 }

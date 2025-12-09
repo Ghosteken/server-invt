@@ -4,7 +4,10 @@ import { randomUUID } from "crypto";
 import { adjustPcsQuantity } from "../services/pcsInventoryService";
 import { withCache } from "../services/cache";
 import { appendNotification } from "../services/notificationService";
-import { getSupplierMetaFor, upsertSupplierMeta, addSupplierPayment } from "../services/supplierPurchasesService";
+import { getSupplierMetaFor, upsertSupplierMeta, addSupplierPayment, readSuppliers, writeSuppliers } from "../services/supplierPurchasesService";
+import * as XLSX from "xlsx";
+import multer from "multer";
+export const upload = multer({ storage: multer.memoryStorage() });
 
 // GET /purchases - list all customer purchases with joined names
 // GET /purchases - list all procurement purchases (supplier-side)
@@ -356,3 +359,66 @@ export const getPurchasePrintOptions = async (req: Request, res: Response): Prom
     res.status(500).json({ message: "Failed to load print options" });
   }
 };
+
+export const getSuppliers = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const list = readSuppliers();
+    res.json({ suppliers: list });
+  } catch {
+    res.json({ suppliers: [] });
+  }
+};
+
+export const importSuppliers = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const file = (req as any).file as Express.Multer.File | undefined;
+    if (!file) { res.status(400).json({ message: "No file uploaded. Use field name 'file'." }); return; }
+    const wb = XLSX.read(file.buffer, { type: "buffer" });
+    const ws = wb.Sheets[wb.SheetNames[0]];
+    const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(ws, { defval: null });
+    const norm = (k: string) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+    const out: Array<{ name: string; mobile?: string | null }> = [];
+    for (const row of rows) {
+      const kv: Record<string, any> = {};
+      for (const k of Object.keys(row)) kv[norm(k)] = row[k];
+      const name = kv["supplier"] ?? kv["name"] ?? kv["supplier name"];
+      const mobile = kv["mobile"] ?? kv["phone"] ?? kv["phone number"] ?? null;
+      const n = String(name || "").trim();
+      if (!n) continue;
+      out.push({ name: n, mobile: mobile == null ? null : String(mobile) });
+    }
+    const existing = readSuppliers();
+    const byName = new Map<string, { name: string; mobile?: string | null }>();
+    const add = (s: { name: string; mobile?: string | null }) => {
+      const key = s.name.toLowerCase();
+      const prev = byName.get(key);
+      byName.set(key, { name: s.name, mobile: s.mobile ?? prev?.mobile ?? null });
+    };
+    existing.forEach(add);
+    out.forEach(add);
+    const merged = Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
+    writeSuppliers(merged);
+    res.json({ importedSuppliers: out.length });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to import suppliers" });
+  }
+};
+
+export const exportSuppliersExcel = async (_req: Request, res: Response): Promise<void> => {
+  try {
+    const list = readSuppliers();
+    const rows = list.map((s) => ({ Name: s.name, Mobile: s.mobile ?? "" }));
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(rows, { header: ["Name", "Mobile"] });
+    XLSX.utils.book_append_sheet(wb, ws, "Suppliers");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", "attachment; filename=suppliers.xlsx");
+    res.status(200).send(buf);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to export suppliers" });
+  }
+};
+
+// Suppliers utilities for routes file
+// `upload` is defined once at the top of this file for reuse

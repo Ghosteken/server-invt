@@ -6,4 +6,6 @@ const router = (0, express_1.Router)();
 router.get("/", salesAgentController_1.getSalesAgents);
 router.post("/", salesAgentController_1.createSalesAgent);
 router.get("/:id/invoices", salesAgentController_1.getAgentInvoices);
+router.put("/:id", salesAgentController_1.updateSalesAgent);
+router.delete("/:id", salesAgentController_1.deleteSalesAgent);
 exports.default = router;
