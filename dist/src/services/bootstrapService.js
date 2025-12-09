@@ -13,16 +13,7 @@ const crypto_1 = require("crypto");
 async function ensureDefaults() {
     try {
         const locCount = await prisma_1.default.locations.count();
-        if (locCount === 0) {
-            try {
-                await prisma_1.default.locations.create({ data: { id: (0, crypto_1.randomUUID)(), name: "Main Warehouse" } });
-                console.log("[bootstrap] Created default Location: Main Warehouse");
-            }
-            catch (err) {
-                console.warn("[bootstrap] Failed creating default Location:", err);
-            }
-        }
-        else if (locCount > 1) {
+        if (locCount > 1) {
             // Remove placeholder if real locations exist
             try {
                 const placeholder = await prisma_1.default.locations.findFirst({ where: { name: "Main Warehouse" } });

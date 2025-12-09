@@ -10,7 +10,7 @@ const getLocations = async (_req, res) => {
     try {
         const reqAny = _req;
         const tenantId = reqAny.tenantId || _req.user?.tenantId || "default";
-        const where = { tenantId };
+        const where = { tenantId, name: { not: "Main Warehouse" } };
         const locations = await prisma_1.default.locations.findMany({ where, orderBy: { name: "asc" } });
         res.json({ locations: locations.map((l) => ({ id: l.id, name: l.name })) });
     }

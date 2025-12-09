@@ -8,14 +8,7 @@ import { randomUUID } from "crypto";
 export async function ensureDefaults(): Promise<void> {
   try {
     const locCount = await prisma.locations.count();
-    if (locCount === 0) {
-      try {
-        await prisma.locations.create({ data: { id: randomUUID(), name: "Main Warehouse" } });
-        console.log("[bootstrap] Created default Location: Main Warehouse");
-      } catch (err) {
-        console.warn("[bootstrap] Failed creating default Location:", err);
-      }
-    } else if (locCount > 1) {
+    if (locCount > 1) {
       // Remove placeholder if real locations exist
       try {
         const placeholder = await prisma.locations.findFirst({ where: { name: "Main Warehouse" } });
