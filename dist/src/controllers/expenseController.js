@@ -40,7 +40,6 @@ exports.importExpenseCategories = exports.createExpenseCategory = exports.getExp
 const prisma_1 = __importDefault(require("../db/prisma"));
 const XLSX = __importStar(require("xlsx"));
 const crypto_1 = require("crypto");
-const expensesService_1 = require("../services/expensesService");
 const notificationService_1 = require("../services/notificationService");
 // Use shared Prisma client
 const getExpensesByCategory = async (req, res) => {
@@ -186,11 +185,8 @@ const getExpenseCategories = async (_req, res) => {
         const reqAny = _req;
         const tenantId = reqAny.tenantId || _req.user?.tenantId || "default";
         const rows = await prisma_1.default.expenseByCategory.findMany({ where: { tenantId }, select: { category: true } });
-        const dbSet = new Set(rows.map((r) => (r.category || "").toLowerCase()).filter(Boolean));
-        const jsonCats = (0, expensesService_1.readExpenseCategories)().map((c) => String(c.name || "").toLowerCase()).filter(Boolean);
-        for (const c of jsonCats)
-            dbSet.add(c);
-        res.json({ categories: Array.from(dbSet.values()) });
+        const categories = Array.from(new Set(rows.map((r) => (r.category || "").toLowerCase()).filter(Boolean)));
+        res.json({ categories });
     }
     catch (err) {
         res.status(500).json({ message: "Failed to load expense categories" });

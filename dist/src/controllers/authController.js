@@ -135,6 +135,25 @@ const adminLogin = async (req, res) => {
             res.json({ message: "Login successful", token, user: masterUser });
             return;
         }
+        // Org admin fallback: allow org admins to log in via this route
+        const orgAdmin = await prisma_1.default.orgAdmins.findFirst({ where: { email: normalizedEmail } });
+        if (orgAdmin) {
+            if (orgAdmin.isBlocked) {
+                res.status(403).json({ message: "Admin account is blocked" });
+                return;
+            }
+            const org = await prisma_1.default.organizations.findUnique({ where: { id: orgAdmin.orgId } });
+            if (org && org.isBlocked) {
+                res.status(403).json({ message: "Organization is blocked" });
+                return;
+            }
+            const ok = bcryptjs_1.default.compareSync(password, orgAdmin.passwordHash);
+            if (ok) {
+                const token = jsonwebtoken_1.default.sign({ userId: orgAdmin.id, email: orgAdmin.email, role: "org_admin", tenantId: orgAdmin.orgId }, JWT_SECRET, { expiresIn: "24h" });
+                res.json({ message: "Login successful", token, user: { userId: orgAdmin.id, name: orgAdmin.name, email: orgAdmin.email, role: "org_admin" } });
+                return;
+            }
+        }
         // DB user path: require admin role
         const user = await prisma_1.default.users.findFirst({ where: { email: normalizedEmail } });
         if (!user) {
@@ -159,6 +178,16 @@ const adminLogin = async (req, res) => {
         }
         catch { }
         if ((user.role || "").toLowerCase() !== "admin") {
+            // If not admin, see if this user corresponds to an org admin record
+            const fallbackOrgAdmin = await prisma_1.default.orgAdmins.findFirst({ where: { email: normalizedEmail } });
+            if (fallbackOrgAdmin) {
+                const ok = bcryptjs_1.default.compareSync(password, fallbackOrgAdmin.passwordHash);
+                if (ok) {
+                    const token = jsonwebtoken_1.default.sign({ userId: fallbackOrgAdmin.id, email: fallbackOrgAdmin.email, role: "org_admin", tenantId: fallbackOrgAdmin.orgId }, JWT_SECRET, { expiresIn: "24h" });
+                    res.json({ message: "Login successful", token, user: { userId: fallbackOrgAdmin.id, name: fallbackOrgAdmin.name, email: fallbackOrgAdmin.email, role: "org_admin" } });
+                    return;
+                }
+            }
             res.status(403).json({ message: "Not an admin account" });
             return;
         }
