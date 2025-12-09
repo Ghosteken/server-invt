@@ -11,11 +11,21 @@ exports.addSupplierPayment = addSupplierPayment;
 exports.getPaymentsForPurchase = getPaymentsForPurchase;
 exports.readSuppliers = readSuppliers;
 exports.writeSuppliers = writeSuppliers;
+exports.readSuppliersForTenant = readSuppliersForTenant;
+exports.writeSuppliersForTenant = writeSuppliersForTenant;
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const META_PATH = node_path_1.default.join(__dirname, "../../prisma/seedData/supplierPurchases.json");
 const PAYMENTS_PATH = node_path_1.default.join(__dirname, "../../prisma/seedData/supplierPurchasePayments.json");
 const SUPPLIERS_PATH = node_path_1.default.join(__dirname, "../../prisma/seedData/suppliers.json");
+function ensureDirFor(p) {
+    const dir = node_path_1.default.dirname(p);
+    if (!node_fs_1.default.existsSync(dir))
+        node_fs_1.default.mkdirSync(dir, { recursive: true });
+}
+function suppliersPathForTenant(tenantId) {
+    return node_path_1.default.join(__dirname, "../../prisma/seedData/suppliers", `${tenantId}.json`);
+}
 let cache = null;
 let flushTimer = null;
 const FLUSH_DELAY_MS = 500;
@@ -142,5 +152,28 @@ function writeSuppliers(next) {
     }
     catch {
         // ignore
+    }
+}
+function readSuppliersForTenant(tenantId) {
+    try {
+        const p = suppliersPathForTenant(tenantId);
+        ensureDirFor(p);
+        if (!node_fs_1.default.existsSync(p))
+            return [];
+        const raw = node_fs_1.default.readFileSync(p, "utf-8");
+        const data = JSON.parse(raw);
+        return Array.isArray(data) ? data : [];
+    }
+    catch {
+        return [];
+    }
+}
+function writeSuppliersForTenant(tenantId, next) {
+    try {
+        const p = suppliersPathForTenant(tenantId);
+        ensureDirFor(p);
+        node_fs_1.default.writeFileSync(p, JSON.stringify(next, null, 2), "utf-8");
+    }
+    catch {
     }
 }

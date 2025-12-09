@@ -395,9 +395,25 @@ const getPurchasePrintOptions = async (req, res) => {
     }
 };
 exports.getPurchasePrintOptions = getPurchasePrintOptions;
-const getSuppliers = async (_req, res) => {
+const getSuppliers = async (req, res) => {
     try {
-        const list = (0, supplierPurchasesService_1.readSuppliers)();
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        let list = (0, supplierPurchasesService_1.readSuppliersForTenant)(tenantId);
+        if (!list.length) {
+            const purchases = await prisma_1.default.purchases.findMany({ where: { tenantId } });
+            const map = new Map();
+            for (const p of purchases) {
+                const m = (0, supplierPurchasesService_1.getSupplierMetaFor)(p.purchaseId);
+                const n = String(m?.supplierName || "").trim();
+                if (!n)
+                    continue;
+                const key = n.toLowerCase();
+                const mobile = m?.supplierMobile ?? null;
+                const prev = map.get(key);
+                map.set(key, { name: n, mobile: mobile ?? prev?.mobile ?? null });
+            }
+            list = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+        }
         res.json({ suppliers: list });
     }
     catch {
@@ -428,7 +444,8 @@ const importSuppliers = async (req, res) => {
                 continue;
             out.push({ name: n, mobile: mobile == null ? null : String(mobile) });
         }
-        const existing = (0, supplierPurchasesService_1.readSuppliers)();
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const existing = (0, supplierPurchasesService_1.readSuppliersForTenant)(tenantId);
         const byName = new Map();
         const add = (s) => {
             const key = s.name.toLowerCase();
@@ -438,7 +455,7 @@ const importSuppliers = async (req, res) => {
         existing.forEach(add);
         out.forEach(add);
         const merged = Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
-        (0, supplierPurchasesService_1.writeSuppliers)(merged);
+        (0, supplierPurchasesService_1.writeSuppliersForTenant)(tenantId, merged);
         res.json({ importedSuppliers: out.length });
     }
     catch (err) {
@@ -446,9 +463,25 @@ const importSuppliers = async (req, res) => {
     }
 };
 exports.importSuppliers = importSuppliers;
-const exportSuppliersExcel = async (_req, res) => {
+const exportSuppliersExcel = async (req, res) => {
     try {
-        const list = (0, supplierPurchasesService_1.readSuppliers)();
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        let list = (0, supplierPurchasesService_1.readSuppliersForTenant)(tenantId);
+        if (!list.length) {
+            const purchases = await prisma_1.default.purchases.findMany({ where: { tenantId } });
+            const map = new Map();
+            for (const p of purchases) {
+                const m = (0, supplierPurchasesService_1.getSupplierMetaFor)(p.purchaseId);
+                const n = String(m?.supplierName || "").trim();
+                if (!n)
+                    continue;
+                const key = n.toLowerCase();
+                const mobile = m?.supplierMobile ?? null;
+                const prev = map.get(key);
+                map.set(key, { name: n, mobile: mobile ?? prev?.mobile ?? null });
+            }
+            list = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+        }
         const rows = list.map((s) => ({ Name: s.name, Mobile: s.mobile ?? "" }));
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.json_to_sheet(rows, { header: ["Name", "Mobile"] });

@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { adjustPcsQuantity } from "../services/pcsInventoryService";
 import { withCache } from "../services/cache";
 import { appendNotification } from "../services/notificationService";
-import { getSupplierMetaFor, upsertSupplierMeta, addSupplierPayment, readSuppliers, writeSuppliers } from "../services/supplierPurchasesService";
+import { getSupplierMetaFor, upsertSupplierMeta, addSupplierPayment, readSuppliersForTenant, writeSuppliersForTenant } from "../services/supplierPurchasesService";
 import * as XLSX from "xlsx";
 import multer from "multer";
 export const upload = multer({ storage: multer.memoryStorage() });
@@ -360,9 +360,24 @@ export const getPurchasePrintOptions = async (req: Request, res: Response): Prom
   }
 };
 
-export const getSuppliers = async (_req: Request, res: Response): Promise<void> => {
+export const getSuppliers = async (req: Request, res: Response): Promise<void> => {
   try {
-    const list = readSuppliers();
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    let list = readSuppliersForTenant(tenantId);
+    if (!list.length) {
+      const purchases = await prisma.purchases.findMany({ where: { tenantId } });
+      const map = new Map<string, { name: string; mobile?: string | null }>();
+      for (const p of purchases) {
+        const m = getSupplierMetaFor(p.purchaseId);
+        const n = String(m?.supplierName || "").trim();
+        if (!n) continue;
+        const key = n.toLowerCase();
+        const mobile = m?.supplierMobile ?? null;
+        const prev = map.get(key);
+        map.set(key, { name: n, mobile: mobile ?? prev?.mobile ?? null });
+      }
+      list = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }
     res.json({ suppliers: list });
   } catch {
     res.json({ suppliers: [] });
@@ -387,7 +402,8 @@ export const importSuppliers = async (req: Request, res: Response): Promise<void
       if (!n) continue;
       out.push({ name: n, mobile: mobile == null ? null : String(mobile) });
     }
-    const existing = readSuppliers();
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const existing = readSuppliersForTenant(tenantId);
     const byName = new Map<string, { name: string; mobile?: string | null }>();
     const add = (s: { name: string; mobile?: string | null }) => {
       const key = s.name.toLowerCase();
@@ -397,16 +413,31 @@ export const importSuppliers = async (req: Request, res: Response): Promise<void
     existing.forEach(add);
     out.forEach(add);
     const merged = Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
-    writeSuppliers(merged);
+    writeSuppliersForTenant(tenantId, merged);
     res.json({ importedSuppliers: out.length });
   } catch (err) {
     res.status(500).json({ message: "Failed to import suppliers" });
   }
 };
 
-export const exportSuppliersExcel = async (_req: Request, res: Response): Promise<void> => {
+export const exportSuppliersExcel = async (req: Request, res: Response): Promise<void> => {
   try {
-    const list = readSuppliers();
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    let list = readSuppliersForTenant(tenantId);
+    if (!list.length) {
+      const purchases = await prisma.purchases.findMany({ where: { tenantId } });
+      const map = new Map<string, { name: string; mobile?: string | null }>();
+      for (const p of purchases) {
+        const m = getSupplierMetaFor(p.purchaseId);
+        const n = String(m?.supplierName || "").trim();
+        if (!n) continue;
+        const key = n.toLowerCase();
+        const mobile = m?.supplierMobile ?? null;
+        const prev = map.get(key);
+        map.set(key, { name: n, mobile: mobile ?? prev?.mobile ?? null });
+      }
+      list = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }
     const rows = list.map((s) => ({ Name: s.name, Mobile: s.mobile ?? "" }));
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows, { header: ["Name", "Mobile"] });
