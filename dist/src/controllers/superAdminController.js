@@ -93,6 +93,10 @@ const createOrg = async (req, res) => {
             if (!existingAdmin) {
                 await prisma_1.default.orgAdmins.create({ data: { id: (0, crypto_1.randomUUID)(), orgId, name: "Admin", email: adminEmail, passwordHash } });
             }
+            const existingUser = await prisma_1.default.users.findFirst({ where: { email: adminEmail, tenantId: orgId } });
+            if (!existingUser) {
+                await prisma_1.default.users.create({ data: { userId: (0, crypto_1.randomUUID)(), name: "Admin", email: adminEmail, password: passwordHash, role: "admin", tenantId: orgId, isBlocked: false } });
+            }
         }
         catch { }
         res.status(201).json({ org: { id: org.id, name: org.name, apiBaseUrl: org.apiBaseUrl, adminEmail: org.adminEmail } });
@@ -142,6 +146,13 @@ const createOrgAdmin = async (req, res) => {
         }
         const passwordHash = bcryptjs_1.default.hashSync(password, 10);
         const admin = await prisma_1.default.orgAdmins.create({ data: { id: (0, crypto_1.randomUUID)(), orgId: id, name, email, passwordHash } });
+        try {
+            const existingUser = await prisma_1.default.users.findFirst({ where: { email, tenantId: id } });
+            if (!existingUser) {
+                await prisma_1.default.users.create({ data: { userId: (0, crypto_1.randomUUID)(), name, email, password: passwordHash, role: "admin", tenantId: id, isBlocked: false } });
+            }
+        }
+        catch { }
         res.status(201).json({ admin: { id: admin.id, name: admin.name, email: admin.email } });
     }
     catch (err) {
