@@ -143,10 +143,8 @@ export const getExpenseCategories = async (_req: Request, res: Response): Promis
     const reqAny = _req as any;
     const tenantId = reqAny.tenantId || _req.user?.tenantId || "default";
     const rows = await prisma.expenseByCategory.findMany({ where: { tenantId }, select: { category: true } });
-    const dbSet = new Set(rows.map((r) => (r.category || "").toLowerCase()).filter(Boolean));
-    const jsonCats = readExpenseCategories().map((c) => String(c.name || "").toLowerCase()).filter(Boolean);
-    for (const c of jsonCats) dbSet.add(c);
-    res.json({ categories: Array.from(dbSet.values()) });
+    const categories = Array.from(new Set(rows.map((r) => (r.category || "").toLowerCase()).filter(Boolean)));
+    res.json({ categories });
   } catch (err) {
     res.status(500).json({ message: "Failed to load expense categories" });
   }

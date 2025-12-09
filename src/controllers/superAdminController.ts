@@ -86,6 +86,10 @@ export const createOrg = async (req: Request, res: Response): Promise<void> => {
       if (!existingAdmin) {
         await prisma.orgAdmins.create({ data: { id: randomUUID(), orgId, name: "Admin", email: adminEmail, passwordHash } });
       }
+      const existingUser = await prisma.users.findFirst({ where: { email: adminEmail, tenantId: orgId } });
+      if (!existingUser) {
+        await prisma.users.create({ data: { userId: randomUUID(), name: "Admin", email: adminEmail, password: passwordHash, role: "admin", tenantId: orgId, isBlocked: false } });
+      }
     } catch {}
     res.status(201).json({ org: { id: org.id, name: org.name, apiBaseUrl: org.apiBaseUrl, adminEmail: org.adminEmail } });
   } catch (err) {
@@ -131,6 +135,12 @@ export const createOrgAdmin = async (req: Request, res: Response): Promise<void>
     }
     const passwordHash = bcrypt.hashSync(password, 10);
     const admin = await prisma.orgAdmins.create({ data: { id: randomUUID(), orgId: id, name, email, passwordHash } });
+    try {
+      const existingUser = await prisma.users.findFirst({ where: { email, tenantId: id } });
+      if (!existingUser) {
+        await prisma.users.create({ data: { userId: randomUUID(), name, email, password: passwordHash, role: "admin", tenantId: id, isBlocked: false } });
+      }
+    } catch {}
     res.status(201).json({ admin: { id: admin.id, name: admin.name, email: admin.email } });
   } catch (err) {
     res.status(500).json({ message: "Failed to create org admin" });
