@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../db/prisma";
+import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
 import { randomUUID } from "crypto";
 import fs from "node:fs";
@@ -257,6 +258,33 @@ export const importCustomers = async (req: Request, res: Response): Promise<void
     const importedSnapshot: Array<{ name: string; mobile?: string | null; netBalanceDue?: number | null }> = [];
     const seenKeys = new Set<string>();
 
+    const mobilesSet = new Set<string>();
+    const namesNoMobileSet = new Set<string>();
+    for (const row of rows) {
+      const kv: Record<string, any> = {};
+      for (const k of Object.keys(row)) kv[normalizeKey(k)] = row[k];
+      const name = kv["name"] ?? kv["customer name"] ?? kv["customer"];
+      const mobile = kv["mobile"] ?? kv["phone"] ?? kv["phone number"];
+      if (!name) continue;
+      const normNamePre = String(name).trim().toLowerCase();
+      const normMobilePre = mobile ? String(mobile).trim() : "";
+      if (normMobilePre) mobilesSet.add(normMobilePre);
+      else namesNoMobileSet.add(normNamePre);
+    }
+
+    const existingByMobile = mobilesSet.size
+      ? await prisma.customers.findMany({ where: { tenantId, mobile: { in: Array.from(mobilesSet.values()) } }, select: { mobile: true } })
+      : [];
+    const existingMobileSet = new Set<string>(existingByMobile.map((e) => String(e.mobile)));
+
+    const nameOrClauses = Array.from(namesNoMobileSet.values()).map((n) => ({ name: { equals: n, mode: "insensitive" as Prisma.QueryMode } }));
+    const existingByName = nameOrClauses.length
+      ? await prisma.customers.findMany({ where: { tenantId, OR: nameOrClauses }, select: { name: true } })
+      : [];
+    const existingNameSet = new Set<string>(existingByName.map((e) => String(e.name).toLowerCase()));
+
+    const toCreate: Array<{ customerId: string; name: string; mobile: string | null; address: string | null; city: string | null; state: string | null; country: string | null; tenantId: string }> = [];
+
     for (const row of rows) {
       const kv: Record<string, any> = {};
       for (const k of Object.keys(row)) kv[normalizeKey(k)] = row[k];
@@ -287,28 +315,19 @@ export const importCustomers = async (req: Request, res: Response): Promise<void
       }
       seenKeys.add(key);
 
-      // Try to find existing by mobile first, else by name
-      const existing = await prisma.customers.findFirst({
-        where: normMobile
-          ? { tenantId, OR: [ { mobile: normMobile }, { name: { equals: normName, mode: "insensitive" } } ] }
-          : { tenantId, name: { equals: normName, mode: "insensitive" } },
-      });
-
-      if (existing) {
-        // Skip duplicates in DB: do not update existing customers
+      const exists = normMobile ? existingMobileSet.has(normMobile) : existingNameSet.has(normName);
+      if (exists) {
         skippedExisting += 1;
       } else {
-        await prisma.customers.create({
-          data: {
-            customerId: randomUUID(),
-            name: String(name).trim(),
-            mobile: mobile ? String(mobile).trim() : null,
-            address: address ? String(address).trim() : null,
-            city: city ? String(city).trim() : null,
-            state: state ? String(state).trim() : null,
-            country: country ? String(country).trim() : null,
-            tenantId,
-          },
+        toCreate.push({
+          customerId: randomUUID(),
+          name: String(name).trim(),
+          mobile: normMobile ? normMobile : null,
+          address: address ? String(address).trim() : null,
+          city: city ? String(city).trim() : null,
+          state: state ? String(state).trim() : null,
+          country: country ? String(country).trim() : null,
+          tenantId,
         });
         created += 1;
       }
@@ -319,6 +338,10 @@ export const importCustomers = async (req: Request, res: Response): Promise<void
         mobile: mobile ? String(mobile).trim() : null,
         netBalanceDue,
       });
+    }
+
+    if (toCreate.length) {
+      await prisma.customers.createMany({ data: toCreate });
     }
 
     // Attempt to parse store/branch mapping from top rows (sample format)
