@@ -45,9 +45,10 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
 
     const normalizedEmail = String(email).trim().toLowerCase();
     const tenantId = req.tenantId || req.user?.tenantId || "default";
-    const existing = await prisma.users.findFirst({ where: { tenantId, email: normalizedEmail } });
+    // Check globally to respect the DB-level unique constraint on email
+    const existing = await prisma.users.findFirst({ where: { email: normalizedEmail } });
     if (existing) {
-      res.status(400).json({ message: "User with this email already exists" });
+      res.status(400).json({ message: "User with this email already exists (possibly in another organization)" });
       return;
     }
 

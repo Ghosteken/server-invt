@@ -42,9 +42,10 @@ const createUser = async (req, res) => {
         }
         const normalizedEmail = String(email).trim().toLowerCase();
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        const existing = await prisma_1.default.users.findFirst({ where: { tenantId, email: normalizedEmail } });
+        // Check globally to respect the DB-level unique constraint on email
+        const existing = await prisma_1.default.users.findFirst({ where: { email: normalizedEmail } });
         if (existing) {
-            res.status(400).json({ message: "User with this email already exists" });
+            res.status(400).json({ message: "User with this email already exists (possibly in another organization)" });
             return;
         }
         const hashedPassword = bcryptjs_1.default.hashSync(password, 10);
