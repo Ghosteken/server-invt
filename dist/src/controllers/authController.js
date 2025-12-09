@@ -12,6 +12,11 @@ const crypto_1 = require("crypto");
 // Load JWT secret from environment (server/index.ts calls dotenv.config()).
 // Fallback kept for local/dev convenience but you should set JWT_SECRET in production.
 const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";
+const compareAsync = (p, h) => new Promise((resolve) => bcryptjs_1.default.compare(p, h, (err, res) => resolve(!!res)));
+const hashAsync = (p, rounds) => new Promise((resolve, reject) => bcryptjs_1.default.hash(p, rounds, (err, res) => { if (err)
+    reject(err);
+else
+    resolve(String(res)); }));
 const signup = async (req, res) => {
     try {
         const { name, email, password } = req.body;
@@ -26,8 +31,7 @@ const signup = async (req, res) => {
             res.status(400).json({ message: "User already exists" });
             return;
         }
-        // Hash password (using bcryptjs sync to avoid native bindings)
-        const hashedPassword = bcryptjs_1.default.hashSync(password, 10);
+        const hashedPassword = await hashAsync(password, 10);
         // Create new user
         const tenantIdBody = req.body?.tenantId ? String(req.body.tenantId).trim() : undefined;
         const newUser = await prisma_1.default.users.create({
@@ -87,7 +91,7 @@ const login = async (req, res) => {
             res.status(403).json({ message: "Account is blocked" });
             return;
         }
-        const isPasswordValid = bcryptjs_1.default.compareSync(password, user.password);
+        const isPasswordValid = await compareAsync(password, user.password);
         if (!isPasswordValid) {
             console.log(`auth: login failed - invalid password for ${email}`);
             res.status(401).json({ message: "Invalid credentials" });
@@ -147,7 +151,7 @@ const adminLogin = async (req, res) => {
                 res.status(403).json({ message: "Organization is blocked" });
                 return;
             }
-            const ok = bcryptjs_1.default.compareSync(password, orgAdmin.passwordHash);
+            const ok = await compareAsync(password, orgAdmin.passwordHash);
             if (ok) {
                 const token = jsonwebtoken_1.default.sign({ userId: orgAdmin.id, email: orgAdmin.email, role: "org_admin", tenantId: orgAdmin.orgId }, JWT_SECRET, { expiresIn: "24h" });
                 res.json({ message: "Login successful", token, user: { userId: orgAdmin.id, name: orgAdmin.name, email: orgAdmin.email, role: "org_admin" } });
@@ -164,7 +168,7 @@ const adminLogin = async (req, res) => {
             res.status(403).json({ message: "Account is blocked" });
             return;
         }
-        const isPasswordValid = bcryptjs_1.default.compareSync(password, user.password);
+        const isPasswordValid = await compareAsync(password, user.password);
         if (!isPasswordValid) {
             res.status(401).json({ message: "Invalid credentials" });
             return;
@@ -181,7 +185,7 @@ const adminLogin = async (req, res) => {
             // If not admin, see if this user corresponds to an org admin record
             const fallbackOrgAdmin = await prisma_1.default.orgAdmins.findFirst({ where: { email: normalizedEmail } });
             if (fallbackOrgAdmin) {
-                const ok = bcryptjs_1.default.compareSync(password, fallbackOrgAdmin.passwordHash);
+                const ok = await compareAsync(password, fallbackOrgAdmin.passwordHash);
                 if (ok) {
                     const token = jsonwebtoken_1.default.sign({ userId: fallbackOrgAdmin.id, email: fallbackOrgAdmin.email, role: "org_admin", tenantId: fallbackOrgAdmin.orgId }, JWT_SECRET, { expiresIn: "24h" });
                     res.json({ message: "Login successful", token, user: { userId: fallbackOrgAdmin.id, name: fallbackOrgAdmin.name, email: fallbackOrgAdmin.email, role: "org_admin" } });
@@ -269,7 +273,7 @@ const orgAdminLogin = async (req, res) => {
             res.status(403).json({ message: "Organization is blocked" });
             return;
         }
-        const ok = bcryptjs_1.default.compareSync(password, admin.passwordHash);
+        const ok = await compareAsync(password, admin.passwordHash);
         if (!ok) {
             res.status(401).json({ message: "Invalid credentials" });
             return;

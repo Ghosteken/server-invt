@@ -29,7 +29,9 @@ const getProducts = async (req, res) => {
         const search = rawSearch.trim();
         const typeahead = String(req.query.typeahead || "").trim() === "1";
         const limitRaw = req.query.limit?.toString();
+        const pageRaw = req.query.page?.toString();
         const limit = limitRaw ? Math.max(1, Math.min(200, Number(limitRaw) || 20)) : undefined;
+        const page = pageRaw ? Math.max(1, Number(pageRaw) || 1) : undefined;
         // Cache key per search term
         const cacheKey = search.toLowerCase();
         const now = Date.now();
@@ -55,6 +57,7 @@ const getProducts = async (req, res) => {
             },
             ...(typeahead ? { select: { productId: true, name: true } } : {}),
             ...(limit ? { take: limit } : {}),
+            ...(page && limit ? { skip: (page - 1) * limit } : {}),
             orderBy: {
                 name: "asc",
             },

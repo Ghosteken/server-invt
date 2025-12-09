@@ -9,6 +9,9 @@ import { randomUUID } from "crypto";
 // Fallback kept for local/dev convenience but you should set JWT_SECRET in production.
 const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";
 
+const compareAsync = (p: string, h: string) => new Promise<boolean>((resolve) => bcrypt.compare(p, h, (err, res) => resolve(!!res)));
+const hashAsync = (p: string, rounds: number) => new Promise<string>((resolve, reject) => bcrypt.hash(p, rounds, (err, res) => { if (err) reject(err); else resolve(String(res)); }));
+
 export const signup = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, email, password } = req.body;
@@ -26,8 +29,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-  // Hash password (using bcryptjs sync to avoid native bindings)
-  const hashedPassword = bcrypt.hashSync(password, 10);
+  const hashedPassword = await hashAsync(password, 10);
 
     // Create new user
     const tenantIdBody = req.body?.tenantId ? String(req.body.tenantId).trim() : undefined;
@@ -97,7 +99,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       res.status(403).json({ message: "Account is blocked" });
       return;
     }
-  const isPasswordValid = bcrypt.compareSync(password, user.password);
+  const isPasswordValid = await compareAsync(password, user.password);
 
     if (!isPasswordValid) {
       console.log(`auth: login failed - invalid password for ${email}`);
@@ -164,7 +166,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       if (orgAdmin.isBlocked) { res.status(403).json({ message: "Admin account is blocked" }); return; }
       const org = await prisma.organizations.findUnique({ where: { id: orgAdmin.orgId } });
       if (org && org.isBlocked) { res.status(403).json({ message: "Organization is blocked" }); return; }
-      const ok = bcrypt.compareSync(password, orgAdmin.passwordHash);
+      const ok = await compareAsync(password, orgAdmin.passwordHash);
       if (ok) {
         const token = jwt.sign(
           { userId: orgAdmin.id, email: orgAdmin.email, role: "org_admin", tenantId: orgAdmin.orgId },
@@ -186,7 +188,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       res.status(403).json({ message: "Account is blocked" });
       return;
     }
-    const isPasswordValid = bcrypt.compareSync(password, user.password);
+    const isPasswordValid = await compareAsync(password, user.password);
     if (!isPasswordValid) {
       res.status(401).json({ message: "Invalid credentials" });
       return;
@@ -204,7 +206,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       // If not admin, see if this user corresponds to an org admin record
       const fallbackOrgAdmin = await prisma.orgAdmins.findFirst({ where: { email: normalizedEmail } });
       if (fallbackOrgAdmin) {
-        const ok = bcrypt.compareSync(password, fallbackOrgAdmin.passwordHash);
+        const ok = await compareAsync(password, fallbackOrgAdmin.passwordHash);
         if (ok) {
           const token = jwt.sign(
             { userId: fallbackOrgAdmin.id, email: fallbackOrgAdmin.email, role: "org_admin", tenantId: fallbackOrgAdmin.orgId },
@@ -310,7 +312,7 @@ export const orgAdminLogin = async (req: Request, res: Response): Promise<void> 
       res.status(403).json({ message: "Organization is blocked" });
       return;
     }
-    const ok = bcrypt.compareSync(password, admin.passwordHash);
+    const ok = await compareAsync(password, admin.passwordHash);
     if (!ok) {
       res.status(401).json({ message: "Invalid credentials" });
       return;
