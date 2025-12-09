@@ -172,9 +172,9 @@ async function main() {
           if (typeof data.name === "string") data.name = data.name.trim();
           const name = String(data.name);
           await prisma.locations.upsert({
-            where: { name },
+            where: { tenantId_name: { tenantId: "default", name } },
             update: {},
-            create: { id: data.id || randomUUID(), name },
+            create: { id: data.id || randomUUID(), name, tenantId: "default" },
           });
           continue;
         }

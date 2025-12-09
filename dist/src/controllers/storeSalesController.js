@@ -199,11 +199,6 @@ const getStoreBranchSales = async (req, res) => {
         }
         // Find canonical token by matching provided store name (case-insensitive)
         const token = (CANONICAL_CHAINS.find((c) => c.name.toLowerCase() === store.toLowerCase())?.token) || store.toLowerCase();
-        const branches = aggregateBranchesByToken(token);
-        if (!branches.includes(branch)) {
-            res.status(404).json({ message: "Unknown branch for store" });
-            return;
-        }
         // Find the customer that matches this branch name
         const tenantId = req.tenantId || req.user?.tenantId || "default";
         const customer = await prisma_1.default.customers.findFirst({ where: { tenantId, name: branch } });

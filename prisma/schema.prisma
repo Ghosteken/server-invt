@@ -247,11 +247,14 @@ model SalesAgents {
 
 model Locations {
   id        String    @id
-  name      String    @unique
+  name      String
+  tenantId  String    @default("default")
   createdAt DateTime  @default(now())
   invoices  Invoices[]
 
+  @@unique([tenantId, name])
   @@index([name])
+  @@index([tenantId])
 }
 
 // Store and Branch models for multi-store management
