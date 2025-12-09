@@ -465,5 +465,19 @@
     "message": "Imported 29 PCS products",
     "timestamp": "2025-12-09T01:16:19.460Z",
     "actorUserId": "admin-user-id-123456"
+  },
+  {
+    "id": "1765267334552-u0ss6o",
+    "type": "user",
+    "message": "User created: davis (davis@inventory.com) as user",
+    "timestamp": "2025-12-09T08:02:14.553Z",
+    "actorUserId": "admin-user-id-123456"
+  },
+  {
+    "id": "1765267349652-etdzhp",
+    "type": "user",
+    "message": "User created: david (david@inventory.com) as admin",
+    "timestamp": "2025-12-09T08:02:29.652Z",
+    "actorUserId": "admin-user-id-123456"
   }
 ]

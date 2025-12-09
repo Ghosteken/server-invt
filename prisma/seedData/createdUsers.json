@@ -12,5 +12,19 @@
     "email": "ben@amagzy.com",
     "role": "user",
     "createdAt": "2025-12-07T20:22:29.092Z"
+  },
+  {
+    "userId": "7f40bd59-5f86-467e-bc17-f7096c8d239e",
+    "name": "davis",
+    "email": "davis@inventory.com",
+    "role": "user",
+    "createdAt": "2025-12-09T08:02:14.544Z"
+  },
+  {
+    "userId": "03ab6cd8-4990-45d8-b325-717858500428",
+    "name": "david",
+    "email": "david@inventory.com",
+    "role": "admin",
+    "createdAt": "2025-12-09T08:02:29.649Z"
   }
 ]
