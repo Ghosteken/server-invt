@@ -172,11 +172,10 @@ async function main() {
                     if (typeof data.name === "string")
                         data.name = data.name.trim();
                     const name = String(data.name);
-                    await prisma.locations.upsert({
-                        where: { tenantId_name: { tenantId: "default", name } },
-                        update: {},
-                        create: { id: data.id || (0, node_crypto_1.randomUUID)(), name, tenantId: "default" },
-                    });
+                    const existingLoc = await prisma.locations.findFirst({ where: { name } });
+                    if (!existingLoc) {
+                        await prisma.locations.create({ data: { id: data.id || (0, node_crypto_1.randomUUID)(), name } });
+                    }
                     continue;
                 }
                 if (lowerModel === "salesagents") {

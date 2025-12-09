@@ -10,10 +10,8 @@ const getLocations = async (_req, res) => {
     try {
         const reqAny = _req;
         const tenantId = reqAny.tenantId || _req.user?.tenantId || "default";
-        const locations = await prisma_1.default.locations.findMany({
-            where: { tenantId },
-            orderBy: { name: "asc" }
-        });
+        const where = { tenantId };
+        const locations = await prisma_1.default.locations.findMany({ where, orderBy: { name: "asc" } });
         res.json({ locations: locations.map((l) => ({ id: l.id, name: l.name })) });
     }
     catch (err) {
@@ -30,7 +28,7 @@ const createLocation = async (req, res) => {
             return;
         }
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        const existing = await prisma_1.default.locations.findFirst({ where: { tenantId, name } });
+        const existing = await prisma_1.default.locations.findFirst({ where: { name, tenantId } });
         if (existing) {
             res.status(409).json({ message: "Location already exists" });
             return;
