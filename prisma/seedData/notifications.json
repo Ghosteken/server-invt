@@ -437,5 +437,33 @@
     "type": "expense",
     "message": "Deleted expense c21c08e8-51b9-40f1-be37-b5116cd8d174",
     "timestamp": "2025-12-08T01:27:47.633Z"
+  },
+  {
+    "id": "1765242222780-6ewwkn",
+    "type": "product",
+    "message": "Imported 316 products from Excel (processed 786)",
+    "timestamp": "2025-12-09T01:03:42.780Z",
+    "actorUserId": "admin-user-id-123456"
+  },
+  {
+    "id": "1765242772392-bl81e6",
+    "type": "product",
+    "message": "Imported 16 products from Excel (processed 396)",
+    "timestamp": "2025-12-09T01:12:52.392Z",
+    "actorUserId": "admin-user-id-123456"
+  },
+  {
+    "id": "1765242815523-sruqp8",
+    "type": "product",
+    "message": "Imported 14 products from Excel (processed 786)",
+    "timestamp": "2025-12-09T01:13:35.523Z",
+    "actorUserId": "admin-user-id-123456"
+  },
+  {
+    "id": "1765242979460-eo95r9",
+    "type": "product",
+    "message": "Imported 29 PCS products",
+    "timestamp": "2025-12-09T01:16:19.460Z",
+    "actorUserId": "admin-user-id-123456"
   }
 ]

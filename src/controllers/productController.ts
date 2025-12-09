@@ -725,6 +725,7 @@ export const importProducts = async (
   res: Response
 ): Promise<void> => {
   try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const file = (req as any).file as Express.Multer.File | undefined;
     if (!file) {
       res.status(400).json({ message: "No file uploaded. Use field name 'file'." });
@@ -921,10 +922,10 @@ export const importProducts = async (
     const names = Array.from(new Set(productsToInsert.map(p => p.name)));
     const barcodes = Array.from(new Set(productsToInsert.map(p => p.barcode).filter((b): b is string => !!b)));
     const existingCandidates = await prisma.products.findMany({
-      where: { name: { in: names } },
+      where: { tenantId, name: { in: names } },
     });
     const existingByBarcode = barcodes.length
-      ? await prisma.products.findMany({ where: { barcode: { in: barcodes } } })
+      ? await prisma.products.findMany({ where: { tenantId, barcode: { in: barcodes } } })
       : [];
     const keyOf = (p: { name: string; packSize: string | null }) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`;
     const existingMap = new Map<string, any>();
@@ -1025,7 +1026,7 @@ export const importProducts = async (
       const toks = tokenize(item.name);
       const ors = toks.slice(0, 3).map(tok => ({ name: { contains: tok, mode: "insensitive" as const } }));
       if (!ors.length) return null;
-      const candidates = await prisma.products.findMany({ where: { OR: ors }, take: 25 });
+      const candidates = await prisma.products.findMany({ where: { tenantId, OR: ors }, take: 25 });
       let best: any = null;
       let bestScore = 0;
       for (const p of candidates) {
@@ -1035,9 +1036,13 @@ export const importProducts = async (
       return bestScore >= 0.6 ? best : null;
     };
 
+    const idList = Array.from(new Set(productsToInsert.map(p => p.productId)));
+    const existingById = idList.length ? await prisma.products.findMany({ where: { tenantId, productId: { in: idList } } }) : [];
+    const idMap = new Map(existingById.map(p => [p.productId, p] as const));
+
     for (const item of productsToInsert) {
       const key = keyOf({ name: item.name, packSize: item.packSize });
-      let existing = (item.barcode ? barcodeMap.get(String(item.barcode).trim()) : undefined) || existingMap.get(key);
+      let existing = idMap.get(item.productId) || (item.barcode ? barcodeMap.get(String(item.barcode).trim()) : undefined) || existingMap.get(key);
       if (!existing) {
         existing = await fuzzyFindExisting({ name: item.name, packSize: item.packSize });
       }
@@ -1077,7 +1082,15 @@ export const importProducts = async (
         } else {
           newItemData.category = bestCategoryForName(item.name);
         }
-        await prisma.products.create({ data: newItemData });
+        try {
+          await prisma.products.create({ data: { ...newItemData, tenantId } });
+        } catch (e) {
+          try {
+            await prisma.products.update({ where: { productId: item.productId }, data: { ...newItemData, tenantId } });
+          } catch (e2) {
+            throw e2;
+          }
+        }
         try {
           recordFieldUpdates(item.productId, ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize", "barcode"].filter((f) => (item as any)[f] !== undefined), "import");
         } catch (logErr) {
@@ -1090,7 +1103,7 @@ export const importProducts = async (
 
     // After processing import rows, collapse any existing duplicates in DB for the same name+packSize
     try {
-      const candidatesForDedupe = await prisma.products.findMany({ where: { name: { in: names } } });
+      const candidatesForDedupe = await prisma.products.findMany({ where: { tenantId, name: { in: names } } });
       // Cluster by fuzzy name similarity and identical packSize
       type Prod = typeof candidatesForDedupe[number] & { packSize?: string | null };
       const clusters: Prod[][] = [];
@@ -1171,7 +1184,7 @@ export const importProducts = async (
       }
 
       // Global dedupe across the entire products table to catch legacy duplicates
-      const allProducts = await prisma.products.findMany();
+      const allProducts = await prisma.products.findMany({ where: { tenantId } });
       type AnyProd = typeof allProducts[number] & { packSize?: string | null, barcode?: string | null };
       const globalClusters: AnyProd[][] = [];
       for (const p of allProducts as AnyProd[]) {
@@ -1351,8 +1364,9 @@ export const importProducts = async (
     await syncProductsJsonFromDb(prisma);
     res.status(201).json({ insertedCount, attempted: productsToInsert.length });
   } catch (error) {
+    const msg = (error && (error as any).message) ? String((error as any).message) : "Error importing products";
     console.error("importProducts error:", error);
-    res.status(500).json({ message: "Error importing products" });
+    res.status(500).json({ message: msg });
   }
 };
 
@@ -1916,7 +1930,7 @@ export const getImportSample = async (
       const incoming: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, { defval: null });
       const normalizeKey = (k: string) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
 
-      const existingCategoriesRaw = await prisma.products.findMany({ select: { category: true }, where: { category: { not: null } } });
+      const existingCategoriesRaw = await prisma.products.findMany({ select: { category: true }, where: { tenantId, category: { not: null } } });
       const existingCategories = Array.from(new Set(existingCategoriesRaw.map((r) => String(r.category))));
       const similarity = (a: string, b: string): number => {
         const ta = a.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);

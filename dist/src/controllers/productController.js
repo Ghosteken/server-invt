@@ -723,6 +723,7 @@ exports.upsertPcsItems = upsertPcsItems;
  */
 const importProducts = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const file = req.file;
         if (!file) {
             res.status(400).json({ message: "No file uploaded. Use field name 'file'." });
@@ -879,10 +880,10 @@ const importProducts = async (req, res) => {
         const names = Array.from(new Set(productsToInsert.map(p => p.name)));
         const barcodes = Array.from(new Set(productsToInsert.map(p => p.barcode).filter((b) => !!b)));
         const existingCandidates = await prisma_1.default.products.findMany({
-            where: { name: { in: names } },
+            where: { tenantId, name: { in: names } },
         });
         const existingByBarcode = barcodes.length
-            ? await prisma_1.default.products.findMany({ where: { barcode: { in: barcodes } } })
+            ? await prisma_1.default.products.findMany({ where: { tenantId, barcode: { in: barcodes } } })
             : [];
         const keyOf = (p) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`;
         const existingMap = new Map();
@@ -982,7 +983,7 @@ const importProducts = async (req, res) => {
             const ors = toks.slice(0, 3).map(tok => ({ name: { contains: tok, mode: "insensitive" } }));
             if (!ors.length)
                 return null;
-            const candidates = await prisma_1.default.products.findMany({ where: { OR: ors }, take: 25 });
+            const candidates = await prisma_1.default.products.findMany({ where: { tenantId, OR: ors }, take: 25 });
             let best = null;
             let bestScore = 0;
             for (const p of candidates) {
@@ -994,9 +995,12 @@ const importProducts = async (req, res) => {
             }
             return bestScore >= 0.6 ? best : null;
         };
+        const idList = Array.from(new Set(productsToInsert.map(p => p.productId)));
+        const existingById = idList.length ? await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: idList } } }) : [];
+        const idMap = new Map(existingById.map(p => [p.productId, p]));
         for (const item of productsToInsert) {
             const key = keyOf({ name: item.name, packSize: item.packSize });
-            let existing = (item.barcode ? barcodeMap.get(String(item.barcode).trim()) : undefined) || existingMap.get(key);
+            let existing = idMap.get(item.productId) || (item.barcode ? barcodeMap.get(String(item.barcode).trim()) : undefined) || existingMap.get(key);
             if (!existing) {
                 existing = await fuzzyFindExisting({ name: item.name, packSize: item.packSize });
             }
@@ -1050,7 +1054,17 @@ const importProducts = async (req, res) => {
                 else {
                     newItemData.category = bestCategoryForName(item.name);
                 }
-                await prisma_1.default.products.create({ data: newItemData });
+                try {
+                    await prisma_1.default.products.create({ data: { ...newItemData, tenantId } });
+                }
+                catch (e) {
+                    try {
+                        await prisma_1.default.products.update({ where: { productId: item.productId }, data: { ...newItemData, tenantId } });
+                    }
+                    catch (e2) {
+                        throw e2;
+                    }
+                }
                 try {
                     (0, productUpdateAuditService_1.recordFieldUpdates)(item.productId, ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize", "barcode"].filter((f) => item[f] !== undefined), "import");
                 }
@@ -1063,7 +1077,7 @@ const importProducts = async (req, res) => {
         }
         // After processing import rows, collapse any existing duplicates in DB for the same name+packSize
         try {
-            const candidatesForDedupe = await prisma_1.default.products.findMany({ where: { name: { in: names } } });
+            const candidatesForDedupe = await prisma_1.default.products.findMany({ where: { tenantId, name: { in: names } } });
             const clusters = [];
             const samePack = (a, b) => normalizeText(a.packSize ?? null) === normalizeText(b.packSize ?? null);
             const SIM_THRESHOLD = 0.6;
@@ -1151,7 +1165,7 @@ const importProducts = async (req, res) => {
                 }
             }
             // Global dedupe across the entire products table to catch legacy duplicates
-            const allProducts = await prisma_1.default.products.findMany();
+            const allProducts = await prisma_1.default.products.findMany({ where: { tenantId } });
             const globalClusters = [];
             for (const p of allProducts) {
                 let placed = false;
@@ -1345,8 +1359,9 @@ const importProducts = async (req, res) => {
         res.status(201).json({ insertedCount, attempted: productsToInsert.length });
     }
     catch (error) {
+        const msg = (error && error.message) ? String(error.message) : "Error importing products";
         console.error("importProducts error:", error);
-        res.status(500).json({ message: "Error importing products" });
+        res.status(500).json({ message: msg });
     }
 };
 exports.importProducts = importProducts;
@@ -1892,7 +1907,7 @@ const getImportSample = async (req, res) => {
             const worksheet = workbook.Sheets[firstSheetName];
             const incoming = xlsx_1.default.utils.sheet_to_json(worksheet, { defval: null });
             const normalizeKey = (k) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
-            const existingCategoriesRaw = await prisma_1.default.products.findMany({ select: { category: true }, where: { category: { not: null } } });
+            const existingCategoriesRaw = await prisma_1.default.products.findMany({ select: { category: true }, where: { tenantId, category: { not: null } } });
             const existingCategories = Array.from(new Set(existingCategoriesRaw.map((r) => String(r.category))));
             const similarity = (a, b) => {
                 const ta = a.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
