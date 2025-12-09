@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ensureAdminUser = ensureAdminUser;
+exports.syncOrgAdminsToUsers = syncOrgAdminsToUsers;
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const node_crypto_1 = require("node:crypto");
@@ -51,6 +52,53 @@ async function ensureAdminUser() {
     }
     catch (e) {
         console.error("adminBootstrap: failed ensuring admin user", e);
+    }
+    finally {
+        await prisma.$disconnect();
+    }
+}
+// Sync org admin records into Users table for visibility in tenant-scoped views
+async function syncOrgAdminsToUsers() {
+    const prisma = new client_1.PrismaClient();
+    try {
+        const orgs = await prisma.organizations.findMany();
+        for (const org of orgs) {
+            const adminEmail = String(org.adminEmail || '').toLowerCase();
+            if (adminEmail) {
+                const existingUser = await prisma.users.findFirst({ where: { email: adminEmail } });
+                const hashed = org.adminPasswordHash || bcryptjs_1.default.hashSync('changeme', 10);
+                if (!existingUser) {
+                    await prisma.users.create({ data: { userId: (0, node_crypto_1.randomUUID)(), name: 'Admin', email: adminEmail, password: hashed, role: 'admin', tenantId: org.id } });
+                }
+                else {
+                    const next = { role: 'admin', tenantId: org.id };
+                    // Keep password hash in sync if it differs
+                    if (existingUser.password !== hashed)
+                        next.password = hashed;
+                    await prisma.users.update({ where: { userId: existingUser.userId }, data: next });
+                }
+            }
+            // Ensure all orgAdmins are represented in Users
+            const admins = await prisma.orgAdmins.findMany({ where: { orgId: org.id } });
+            for (const a of admins) {
+                const email = String(a.email || '').toLowerCase();
+                const existingUser = await prisma.users.findFirst({ where: { email } });
+                const hashed = a.passwordHash || bcryptjs_1.default.hashSync('changeme', 10);
+                if (!existingUser) {
+                    await prisma.users.create({ data: { userId: (0, node_crypto_1.randomUUID)(), name: a.name || 'Admin', email, password: hashed, role: 'admin', tenantId: org.id } });
+                }
+                else {
+                    const next = { role: 'admin', tenantId: org.id };
+                    if (existingUser.password !== hashed)
+                        next.password = hashed;
+                    await prisma.users.update({ where: { userId: existingUser.userId }, data: next });
+                }
+            }
+        }
+        console.log('adminBootstrap: synced org admins to users across organizations');
+    }
+    catch (e) {
+        console.warn('adminBootstrap: failed syncing org admins to users', e);
     }
     finally {
         await prisma.$disconnect();

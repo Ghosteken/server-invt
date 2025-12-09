@@ -49,3 +49,45 @@ export async function ensureAdminUser() {
     await prisma.$disconnect();
   }
 }
+
+// Sync org admin records into Users table for visibility in tenant-scoped views
+export async function syncOrgAdminsToUsers() {
+  const prisma = new PrismaClient();
+  try {
+    const orgs = await prisma.organizations.findMany();
+    for (const org of orgs) {
+      const adminEmail = String(org.adminEmail || '').toLowerCase();
+      if (adminEmail) {
+        const existingUser = await prisma.users.findFirst({ where: { email: adminEmail } });
+        const hashed = org.adminPasswordHash || bcrypt.hashSync('changeme', 10);
+        if (!existingUser) {
+          await prisma.users.create({ data: { userId: randomUUID(), name: 'Admin', email: adminEmail, password: hashed, role: 'admin', tenantId: org.id } });
+        } else {
+          const next: any = { role: 'admin', tenantId: org.id };
+          // Keep password hash in sync if it differs
+          if (existingUser.password !== hashed) next.password = hashed;
+          await prisma.users.update({ where: { userId: existingUser.userId }, data: next });
+        }
+      }
+      // Ensure all orgAdmins are represented in Users
+      const admins = await prisma.orgAdmins.findMany({ where: { orgId: org.id } });
+      for (const a of admins) {
+        const email = String(a.email || '').toLowerCase();
+        const existingUser = await prisma.users.findFirst({ where: { email } });
+        const hashed = a.passwordHash || bcrypt.hashSync('changeme', 10);
+        if (!existingUser) {
+          await prisma.users.create({ data: { userId: randomUUID(), name: a.name || 'Admin', email, password: hashed, role: 'admin', tenantId: org.id } });
+        } else {
+          const next: any = { role: 'admin', tenantId: org.id };
+          if (existingUser.password !== hashed) next.password = hashed;
+          await prisma.users.update({ where: { userId: existingUser.userId }, data: next });
+        }
+      }
+    }
+    console.log('adminBootstrap: synced org admins to users across organizations');
+  } catch (e) {
+    console.warn('adminBootstrap: failed syncing org admins to users', e);
+  } finally {
+    await prisma.$disconnect();
+  }
+}

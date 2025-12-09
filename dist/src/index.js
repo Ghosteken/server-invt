@@ -224,6 +224,8 @@ try {
         });
         // Bootstrap defaults for first-run UX
         (0, bootstrapService_1.ensureDefaults)().catch((err) => console.warn("Bootstrap ensureDefaults failed:", err));
+        // Sync org admins to Users so admin appears in tenant-scoped views
+        (0, adminBootstrap_1.syncOrgAdminsToUsers)().catch((err) => console.warn("Bootstrap syncOrgAdminsToUsers failed:", err));
     });
     // On unexpected errors, log and exit
     server.on("error", (err) => {

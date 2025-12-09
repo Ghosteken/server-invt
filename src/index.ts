@@ -22,7 +22,7 @@ import customerRoutes from "./routes/customerRoutes";
 import reportRoutes from "./routes/reportRoutes";
 import storeSalesRoutes from "./routes/storeSalesRoutes";
 import storesRoutes from "./routes/storesRoutes";
-import { ensureAdminUser } from "./services/adminBootstrap";
+import { ensureAdminUser, syncOrgAdminsToUsers } from "./services/adminBootstrap";
 import settingsRoutes from "./routes/settingsRoutes";
 import purchasesRoutes from "./routes/purchasesRoutes";
 import invoiceRoutes from "./routes/invoiceRoutes";
@@ -229,6 +229,8 @@ try {
     });
     // Bootstrap defaults for first-run UX
     ensureDefaults().catch((err) => console.warn("Bootstrap ensureDefaults failed:", err));
+    // Sync org admins to Users so admin appears in tenant-scoped views
+    syncOrgAdminsToUsers().catch((err) => console.warn("Bootstrap syncOrgAdminsToUsers failed:", err));
   });
 
   // On unexpected errors, log and exit
