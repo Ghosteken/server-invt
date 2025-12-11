@@ -153,6 +153,15 @@
     "barcode": null
   },
   {
+    "productId": "8b7dfd89-2a12-4129-8537-223241abebdd",
+    "name": "BAGS",
+    "price": 10000,
+    "stockQuantity": 20,
+    "category": "BAGSG",
+    "packSize": "24",
+    "barcode": "6948632424"
+  },
+  {
     "productId": "0a06a9cb-ac47-40db-b1a1-80dc27450996",
     "name": "BAKED BEANS ESTUS 415G",
     "price": 0,

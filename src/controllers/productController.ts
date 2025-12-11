@@ -234,23 +234,19 @@ export const exportProductsExcel = async (
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const products = await prisma.products.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
     const rows = products.map((p) => ({
-      ProductId: p.productId,
-      SKU: p.productId, // use ProductId as SKU for export (no separate sku field)
-      ProductDescription: p.name,
-      Barcode: p.barcode ?? "",
-      PackSize: p.packSize ?? "",
+      Name: p.name,
+      Barcode: (p as any).barcode ?? "",
+      PackSize: (p as any).packSize ?? "",
       Category: p.category ?? "",
       PurchasePrice: p.purchasePrice ?? "",
       SalesPrice: p.price ?? "",
       Quantity: p.stockQuantity ?? 0,
       ExpiryDate: p.expiryDate ? new Date(p.expiryDate).toLocaleDateString() : "",
-      Description: p.description ?? "",
+      Description: (p as any).description ?? "",
     }));
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows, { header: [
-      "ProductId",
-      "SKU",
-      "ProductDescription",
+      "Name",
       "Barcode",
       "PackSize",
       "Category",
@@ -468,17 +464,18 @@ export const reloadPcs = async (req: Request, res: Response): Promise<void> => {
 
 export const importPcsProducts = async (req: Request, res: Response): Promise<void> => {
   try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const file = (req as any).file as Express.Multer.File | undefined;
     if (!file) {
       res.status(400).json({ message: "No file uploaded. Use field name 'file'." });
       return;
     }
-    const workbook = XLSX.read(file.buffer, { type: "buffer" });
+    const workbook = XLSX.read(file.buffer, { type: "buffer", cellDates: true });
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
-    const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, { defval: null });
+    const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, { defval: null, raw: false });
     if (!rows.length) {
-      res.status(400).json({ message: "Uploaded sheet is empty." });
+      res.status(400).json({ message: "Uploaded sheet is empty" });
       return;
     }
     // Parse optional selective update fields from multipart form (CSV or JSON array)
@@ -530,7 +527,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       pcsQuantity: number;
       purchasePrice?: number | null;
       salesPrice?: number | null;
-      expiryDate?: string | null;
+      expiryDate?: string | Date | null;
       description?: string | null;
     }> = [];
     for (const row of rows) {
@@ -565,7 +562,46 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       const category = kv["category"] ?? null;
       const purchasePrice = coerceNumber(kv["purchaseprice"]);
       const salesPrice = coerceNumber(kv["salesprice"]);
-      const expiryDate = kv["expirydate"] ? String(kv["expirydate"]).trim() : null;
+      const expiryDateRaw = kv["expirydate"] ? String(kv["expirydate"]).trim() : null;
+      const parseDate = (val: any): Date | null => {
+        if (val === null || val === undefined) return null;
+        if (val instanceof Date && !Number.isNaN(val.getTime())) return val;
+        if (typeof val === "number" && Number.isFinite(val)) {
+          const excelEpoch = Date.UTC(1899, 11, 30);
+          const ms = Math.round(val * 86400 * 1000);
+          const d = new Date(excelEpoch + ms);
+          return Number.isNaN(d.getTime()) ? null : d;
+        }
+        const s = String(val).trim().replace(/[.]+$/g, "");
+        const ymd = s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+        if (ymd) {
+          const y = Number(ymd[1]);
+          const m = Number(ymd[2]);
+          const day = Number(ymd[3]);
+          const d = new Date(y, Math.max(0, Math.min(11, m - 1)), Math.max(1, Math.min(31, day)));
+          return Number.isNaN(d.getTime()) ? null : d;
+        }
+        const dmy = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+        if (dmy) {
+          const a = Number(dmy[1]);
+          const b = Number(dmy[2]);
+          const y = Number(dmy[3]);
+          const month = a > 12 ? b : a;
+          const day = a > 12 ? a : b;
+          const d = new Date(y, Math.max(0, Math.min(11, month - 1)), Math.max(1, Math.min(31, day)));
+          return Number.isNaN(d.getTime()) ? null : d;
+        }
+        const mmYYYY = s.match(/^(\d{1,2})[\/-](\d{4})$/);
+        if (mmYYYY) {
+          const m = Number(mmYYYY[1]);
+          const y = Number(mmYYYY[2]);
+          const d = new Date(y, Math.max(0, Math.min(11, m - 1)), 1);
+          return Number.isNaN(d.getTime()) ? null : d;
+        }
+        const d = new Date(s);
+        return Number.isNaN(d.getTime()) ? null : d;
+      };
+      const expiryDate = parseDate(expiryDateRaw);
       const description = kv["description"] ? String(kv["description"]).trim() : null;
 
       incoming.push({ name: String(name).trim(), quantity: Math.max(0, Number(qty)), packSize: packSize ? String(packSize).trim() : null });
@@ -585,7 +621,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
     // Optionally update matching Product records for selected fields
     try {
       const should = (field: string) => !updateFieldsSet || updateFieldsSet.has(field);
-      const existingProducts = await prisma.products.findMany({});
+      const existingProducts = await prisma.products.findMany({ where: { tenantId } });
       const keyOf = (r: { name: string; packSize: string | null }) => `${String(r.name).toLowerCase()}|${String(r.packSize ?? "").toLowerCase()}`;
       const existingByKey = new Map<string, any>();
       const existingByBarcode = new Map<string, any>();
@@ -606,14 +642,49 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
           target = existingByKey.get(keyOf({ name: item.name, packSize: (item.packSize ?? null) as any }));
         }
         if (!target) {
-          target = await prisma.products.findFirst({ where: { name: item.name } });
+          target = await prisma.products.findFirst({ where: { name: item.name, tenantId } });
         }
-        if (!target) continue;
+        if (!target) {
+          const created = await prisma.products.create({
+            data: {
+              productId: randomUUID(),
+              name: item.name,
+              price: item.salesPrice != null ? Number(item.salesPrice) : 0,
+              purchasePrice: item.purchasePrice != null ? Number(item.purchasePrice) : null,
+              stockQuantity: 0,
+              expiryDate: (item.expiryDate instanceof Date) ? item.expiryDate : (item.expiryDate ? new Date(item.expiryDate) : null),
+              category: item.category ?? null,
+              description: item.description ?? null,
+              packSize: item.packSize ?? null,
+              barcode: item.barcode ? String(item.barcode).trim() : null,
+              tenantId,
+            },
+          });
+          try {
+            recordFieldUpdates(created.productId, [
+              "name",
+              ...(item.salesPrice != null ? ["price"] : []),
+              ...(item.purchasePrice != null ? ["purchasePrice"] : []),
+              "stockQuantity",
+              ...(item.expiryDate ? ["expiryDate"] : []),
+              ...(item.category ? ["category"] : []),
+              ...(item.description ? ["description"] : []),
+              ...(item.packSize ? ["packSize"] : []),
+              ...(item.barcode ? ["barcode"] : []),
+            ], "import");
+          } catch {}
+          existingByKey.set(keyOf({ name: created.name, packSize: (created as any).packSize ?? null }), created);
+          if (created.barcode) existingByBarcode.set(String(created.barcode).trim(), created);
+          target = created;
+        }
         const dataUpdate: any = {};
         if (should("name") && item.name) dataUpdate.name = item.name;
         if (should("price") && item.salesPrice != null) dataUpdate.price = Number(item.salesPrice);
         if (should("purchaseprice") && item.purchasePrice != null) dataUpdate.purchasePrice = Number(item.purchasePrice);
-        if (should("expirydate")) dataUpdate.expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
+        if (should("expirydate")) {
+          const v = item.expiryDate;
+          dataUpdate.expiryDate = v instanceof Date ? v : (v ? new Date(v) : null);
+        }
         if (should("category")) dataUpdate.category = (target.category ?? item.category ?? null);
         if (should("description")) dataUpdate.description = item.description ?? target.description ?? null;
         if (should("packsize")) dataUpdate.packSize = item.packSize ?? target.packSize ?? null;
@@ -642,7 +713,6 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
 
     // Only upsert PCS quantities when selected or when no selection provided
     const doPcsUpsert = !updateFieldsSet || updateFieldsSet.has("pcsquantity");
-    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const merged = doPcsUpsert ? await upsertPcsEntries(incoming, tenantId) : await readPcsInventory(tenantId);
     const importedCount = doPcsUpsert ? incoming.length : 0;
     appendNotification({ type: "product", message: `Imported ${importedCount} PCS products`, actorUserId: req.user?.userId });
@@ -736,13 +806,12 @@ export const importProducts = async (
     }
 
     // Parse Excel buffer
-    const workbook = XLSX.read(file.buffer, { type: "buffer" });
+    const workbook = XLSX.read(file.buffer, { type: "buffer", cellDates: true });
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
-    const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, { defval: null });
-
+    const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, { defval: null, raw: false });
     if (!rows.length) {
-      res.status(400).json({ message: "Uploaded sheet is empty." });
+      res.status(400).json({ message: "Uploaded sheet is empty" });
       return;
     }
 
@@ -772,27 +841,38 @@ export const importProducts = async (
           const noPunct = base.replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
           if (noPunct && noPunct !== base) kv[noPunct] = row[k];
         }
-
+        const present = new Set<string>();
         const productId = kv["productid"] ?? kv["id"] ?? kv["sku"] ?? randomUUID();
         const barcodeRaw = kv["barcode"] ?? kv["bar code"] ?? kv["ean"] ?? kv["upc"] ?? kv["bar-code"] ?? null;
+        if (barcodeRaw !== undefined && barcodeRaw !== null) present.add("barcode");
         // Support description-driven files; if name missing but description present, use description as name and also store description
         const description = kv["product description"] ?? kv["productdescription"] ?? kv["description"] ?? null;
+        if (description !== undefined && description !== null) present.add("description");
         // Accept common headers: "Name", "Product", "Product Name", and also "ProductDescription" from our own export
         const name = kv["name"] ?? kv["product"] ?? kv["product name"] ?? kv["product description"] ?? kv["productdescription"] ?? description;
+        if (kv["name"] !== undefined || kv["product"] !== undefined || kv["product name"] !== undefined || kv["product description"] !== undefined || kv["productdescription"] !== undefined) {
+          present.add("name");
+        }
         // Support multiple price header variants
-        const priceRaw = kv["price"] ?? kv["unit price"] ?? kv["selling price"] ?? kv["sales price"] ?? kv["amount"];
+        const priceRaw = kv["price"] ?? kv["unit price"] ?? kv["selling price"] ?? kv["sales price"] ?? kv["salesprice"] ?? kv["amount"];
+        if (priceRaw !== undefined && priceRaw !== null) present.add("price");
         // Optional purchase price (cost) variants
         const purchasePriceRaw = kv["purchase price"] ?? kv["purchaseprice"] ?? kv["cost"] ?? kv["unit cost"] ?? kv["buying price"] ?? kv["buy price"];
+        if (purchasePriceRaw !== undefined && purchasePriceRaw !== null) present.add("purchaseprice");
         // Support quantity/stock variants
         const stockRaw = kv["stockquantity"] ?? kv["quantity"] ?? kv["qty"] ?? kv["qty/ctn"] ?? kv["qty ctn"] ?? kv["stock"];
+        if (stockRaw !== undefined && stockRaw !== null) present.add("stockquantity");
         // Optional expiry date variants
-        const expiryRaw = kv["expiry date"] ?? kv["exp date"] ?? kv["expiry"] ?? kv["expity date"] ?? kv["expity"] ?? null;
+        const expiryRaw = kv["expiry date"] ?? kv["exp date"] ?? kv["expiry"] ?? kv["expity date"] ?? kv["expity"] ?? kv["expirydate"] ?? null;
+        if (expiryRaw !== undefined && expiryRaw !== null) present.add("expirydate");
         // Additional fields
         const category = kv["category"] ?? kv["product category"] ?? null;
+        if (category !== undefined && category !== null) present.add("category");
         const packSize = kv["pack size"] ?? kv["packsize"] ?? kv["size"] ?? null;
+        if (packSize !== undefined && packSize !== null) present.add("packsize");
 
         // Detect category rows: a single label like "SPREAD" with no numeric fields
-        const numericHints = [kv["price"], kv["unit price"], kv["selling price"], kv["sales price"], kv["amount"], kv["purchase price"], kv["purchaseprice"], kv["cost"], kv["unit cost"], kv["buying price"], kv["buy price"], kv["stockquantity"], kv["quantity"], kv["qty"], kv["qty/ctn"], kv["qty ctn"], kv["stock"]];
+        const numericHints = [kv["price"], kv["unit price"], kv["selling price"], kv["sales price"], kv["salesprice"], kv["amount"], kv["purchase price"], kv["purchaseprice"], kv["cost"], kv["unit cost"], kv["buying price"], kv["buy price"], kv["stockquantity"], kv["quantity"], kv["qty"], kv["qty/ctn"], kv["qty ctn"], kv["stock"]];
         const hasAnyNumeric = numericHints.some(v => coerceNumber(v) !== null);
         const hasOnlyLabel = !!description && !hasAnyNumeric && !packSize;
         if (hasOnlyLabel) {
@@ -810,7 +890,35 @@ export const importProducts = async (
         const coerceDate = (val: any): Date | null => {
           if (val === null || val === undefined) return null;
           if (val instanceof Date && !Number.isNaN(val.getTime())) return val;
+          if (typeof val === "number" && Number.isFinite(val)) {
+            const excelEpoch = Date.UTC(1899, 11, 30);
+            const ms = Math.round(val * 86400 * 1000);
+            const d = new Date(excelEpoch + ms);
+            return Number.isNaN(d.getTime()) ? null : d;
+          }
           const s = String(val).trim().replace(/[.]+$/g, "");
+          // yyyy-mm-dd or yyyy/mm/dd
+          const ymd = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+          if (ymd) {
+            const y = Number(ymd[1]);
+            const m = Number(ymd[2]);
+            const day = Number(ymd[3]);
+            const d = new Date(y, Math.max(0, Math.min(11, m - 1)), Math.max(1, Math.min(31, day)));
+            return Number.isNaN(d.getTime()) ? null : d;
+          }
+          // dd/mm/yyyy or mm/dd/yyyy
+          const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+          if (dmy) {
+            let a = Number(dmy[1]);
+            let b = Number(dmy[2]);
+            const y = Number(dmy[3]);
+            // If first token > 12, treat as day/month, else assume month/day
+            const month = a > 12 ? b : a;
+            const day = a > 12 ? a : b;
+            const d = new Date(y, Math.max(0, Math.min(11, month - 1)), Math.max(1, Math.min(31, day)));
+            return Number.isNaN(d.getTime()) ? null : d;
+          }
+          // mm/YYYY fallback
           const mmYYYY = s.match(/^(\d{1,2})[\/\-](\d{4})$/);
           if (mmYYYY) {
             const m = Number(mmYYYY[1]);
@@ -838,6 +946,7 @@ export const importProducts = async (
           description: description ? String(description) : null,
           packSize: packSize ? String(packSize) : null,
           barcode: barcodeRaw ? String(barcodeRaw).trim() : null,
+          __present: present,
         } as {
           productId: string;
           name: string;
@@ -849,6 +958,7 @@ export const importProducts = async (
           description: string | null;
           packSize: string | null;
           barcode: string | null;
+          __present: Set<string>;
         };
       })
       .filter(Boolean) as Array<{
@@ -942,6 +1052,8 @@ export const importProducts = async (
     }
 
     let insertedCount = 0;
+    let updatedCount = 0;
+    let deletedCount = 0;
     const mergedItemsForJson: Array<{
       productId: string;
       name: string;
@@ -1055,13 +1167,14 @@ export const importProducts = async (
       }
       if (existing) {
         const dataUpdate: any = {};
-        const should = (field: string) => !updateFieldsSet || updateFieldsSet.has(field);
+        const present = (item as any).__present as Set<string>;
+        const should = (field: string) => (!updateFieldsSet || updateFieldsSet.has(field)) && present.has(field);
         if (should("name")) dataUpdate.name = item.name;
-        if (should("price")) dataUpdate.price = item.price;
-        if (should("purchaseprice")) dataUpdate.purchasePrice = item.purchasePrice;
-        if (should("stockquantity")) dataUpdate.stockQuantity = item.stockQuantity;
+        if (should("price") && item.price !== undefined) dataUpdate.price = item.price;
+        if (should("purchaseprice") && item.purchasePrice !== undefined) dataUpdate.purchasePrice = item.purchasePrice;
+        if (should("stockquantity") && item.stockQuantity !== undefined) dataUpdate.stockQuantity = item.stockQuantity;
         if (should("expirydate")) dataUpdate.expiryDate = item.expiryDate ?? null;
-        if (should("category")) dataUpdate.category = (existing.category ?? item.category ?? null);
+        if (should("category")) dataUpdate.category = (item.category ?? existing.category ?? null);
         if (should("description")) dataUpdate.description = item.description ?? existing.description ?? null;
         if (should("packsize")) dataUpdate.packSize = item.packSize ?? existing.packSize ?? null;
         if (should("barcode")) dataUpdate.barcode = item.barcode ?? existing.barcode ?? null;
@@ -1075,7 +1188,12 @@ export const importProducts = async (
             const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
             if (oldNorm !== newNorm) changed.push(k);
           }
-          if (changed.length) recordFieldUpdates(existing.productId, changed, "import");
+          if (changed.length) {
+            recordFieldUpdates(existing.productId, changed, "import");
+          } else {
+            // If nothing changed, drop this update to avoid false-positive counts
+            batchedUpdates.pop();
+          }
         } catch (logErr) {
           console.warn("Failed to log field updates on import update:", logErr);
         }
@@ -1104,6 +1222,32 @@ export const importProducts = async (
     }
     if (batchedUpdates.length) {
       await prisma.$transaction(batchedUpdates.map((u) => prisma.products.update(u)));
+      updatedCount += batchedUpdates.length;
+    }
+
+    // Purge products missing from the uploaded sheet (by Name+PackSize or matching Barcode)
+    try {
+      const normalizeText = (s: string | null | undefined) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+      const presentKeys = new Set(productsToInsert.map((p) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`));
+      const presentBarcodes = new Set(
+        productsToInsert
+          .map((p) => (p.barcode ? String(p.barcode).trim() : null))
+          .filter((b): b is string => !!b)
+      );
+      const existingAll = await prisma.products.findMany({ where: { tenantId } });
+      const toDeleteIds: string[] = [];
+      for (const ex of existingAll as Array<any>) {
+        const key = `${normalizeText(ex.name)}|${normalizeText(ex.packSize ?? null)}`;
+        const bc = ex.barcode ? String(ex.barcode).trim() : null;
+        const isPresent = presentKeys.has(key) || (!!bc && presentBarcodes.has(bc));
+        if (!isPresent) toDeleteIds.push(ex.productId);
+      }
+      if (toDeleteIds.length) {
+        await prisma.$transaction(toDeleteIds.map((id) => prisma.products.delete({ where: { productId: id } })));
+        deletedCount += toDeleteIds.length;
+      }
+    } catch (purgeErr) {
+      console.warn("Failed to purge missing products:", purgeErr);
     }
 
     // After processing import rows, collapse any existing duplicates in DB for the same name+packSize
@@ -1362,12 +1506,12 @@ export const importProducts = async (
 
     appendNotification({
       type: "product",
-      message: `Imported ${insertedCount} products from Excel (processed ${productsToInsert.length})`,
+      message: `Imported ${insertedCount}, updated ${updatedCount}, deleted ${deletedCount} (processed ${productsToInsert.length})`,
       actorUserId: req.user?.userId,
     });
     // Sync JSON snapshot with DB after import
     await syncProductsJsonFromDb(prisma);
-    res.status(201).json({ insertedCount, attempted: productsToInsert.length });
+    res.status(201).json({ insertedCount, updatedCount, deletedCount, attempted: productsToInsert.length });
   } catch (error) {
     const msg = (error && (error as any).message) ? String((error as any).message) : "Error importing products";
     console.error("importProducts error:", error);
@@ -1912,9 +2056,7 @@ export const getImportSample = async (
     const keyOf = (name: string, packSize: string | null | undefined) => `${norm(name)}|${norm(packSize ?? null)}`;
 
     let rows: any[] = products.map((p) => ({
-      ProductId: p.productId,
-      SKU: p.productId,
-      ProductDescription: p.name,
+      Name: p.name,
       Barcode: (p as any).barcode ?? "",
       PackSize: (p as any).packSize ?? "",
       Category: p.category ?? "",
@@ -1966,9 +2108,7 @@ export const getImportSample = async (
         const k = keyOf(String(name), packSize ? String(packSize) : null);
         if (seen.has(k)) continue;
         rows.push({
-          ProductId: "",
-          SKU: "",
-          ProductDescription: String(name),
+          Name: String(name),
           Barcode: barcode ? String(barcode).trim() : "",
           PackSize: packSize ? String(packSize) : "",
           Category: category ? String(category) : (bestCategoryForName(String(name)) ?? ""),
@@ -1982,9 +2122,7 @@ export const getImportSample = async (
     }
 
     const header = [
-      "ProductId",
-      "SKU",
-      "ProductDescription",
+      "Name",
       "Barcode",
       "PackSize",
       "Category",

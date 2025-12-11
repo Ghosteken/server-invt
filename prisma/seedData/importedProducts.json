@@ -7532,5 +7532,39 @@
     "price": 0,
     "stockQuantity": 50,
     "description": "Sample Widget"
+  },
+  {
+    "productId": "eea739c8-4290-4924-9574-ce927dc31d5b",
+    "name": "CORN",
+    "price": 0,
+    "purchasePrice": 5000,
+    "stockQuantity": 20,
+    "category": "CORNBASED",
+    "description": "CORN IS GOOD",
+    "packSize": "12",
+    "barcode": "309120912039"
+  },
+  {
+    "productId": "61f1ac28-b8e0-4b07-a445-4262519d1171",
+    "name": "BEANS",
+    "price": 0,
+    "purchasePrice": 4000,
+    "stockQuantity": 21,
+    "category": "BEANSBASED",
+    "description": "BEANS IS BAD",
+    "packSize": "12",
+    "barcode": "2870927032"
+  },
+  {
+    "productId": "8b7dfd89-2a12-4129-8537-223241abebdd",
+    "name": "BAGS",
+    "price": 10000,
+    "purchasePrice": 5000,
+    "stockQuantity": 20,
+    "expiryDate": "2025-11-29T23:00:00.000Z",
+    "category": "BAGSG",
+    "description": "BAGSTO",
+    "packSize": "24",
+    "barcode": "6948632424"
   }
 ]

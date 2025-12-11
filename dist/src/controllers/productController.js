@@ -230,9 +230,7 @@ const exportProductsExcel = async (req, res) => {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
         const products = await prisma_1.default.products.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
         const rows = products.map((p) => ({
-            ProductId: p.productId,
-            SKU: p.productId, // use ProductId as SKU for export (no separate sku field)
-            ProductDescription: p.name,
+            Name: p.name,
             Barcode: p.barcode ?? "",
             PackSize: p.packSize ?? "",
             Category: p.category ?? "",
@@ -244,9 +242,7 @@ const exportProductsExcel = async (req, res) => {
         }));
         const wb = xlsx_1.default.utils.book_new();
         const ws = xlsx_1.default.utils.json_to_sheet(rows, { header: [
-                "ProductId",
-                "SKU",
-                "ProductDescription",
+                "Name",
                 "Barcode",
                 "PackSize",
                 "Category",
@@ -451,17 +447,18 @@ const reloadPcs = async (req, res) => {
 exports.reloadPcs = reloadPcs;
 const importPcsProducts = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const file = req.file;
         if (!file) {
             res.status(400).json({ message: "No file uploaded. Use field name 'file'." });
             return;
         }
-        const workbook = xlsx_1.default.read(file.buffer, { type: "buffer" });
+        const workbook = xlsx_1.default.read(file.buffer, { type: "buffer", cellDates: true });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        const rows = xlsx_1.default.utils.sheet_to_json(worksheet, { defval: null });
+        const rows = xlsx_1.default.utils.sheet_to_json(worksheet, { defval: null, raw: false });
         if (!rows.length) {
-            res.status(400).json({ message: "Uploaded sheet is empty." });
+            res.status(400).json({ message: "Uploaded sheet is empty" });
             return;
         }
         // Parse optional selective update fields from multipart form (CSV or JSON array)
@@ -544,7 +541,48 @@ const importPcsProducts = async (req, res) => {
             const category = kv["category"] ?? null;
             const purchasePrice = coerceNumber(kv["purchaseprice"]);
             const salesPrice = coerceNumber(kv["salesprice"]);
-            const expiryDate = kv["expirydate"] ? String(kv["expirydate"]).trim() : null;
+            const expiryDateRaw = kv["expirydate"] ? String(kv["expirydate"]).trim() : null;
+            const parseDate = (val) => {
+                if (val === null || val === undefined)
+                    return null;
+                if (val instanceof Date && !Number.isNaN(val.getTime()))
+                    return val;
+                if (typeof val === "number" && Number.isFinite(val)) {
+                    const excelEpoch = Date.UTC(1899, 11, 30);
+                    const ms = Math.round(val * 86400 * 1000);
+                    const d = new Date(excelEpoch + ms);
+                    return Number.isNaN(d.getTime()) ? null : d;
+                }
+                const s = String(val).trim().replace(/[.]+$/g, "");
+                const ymd = s.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+                if (ymd) {
+                    const y = Number(ymd[1]);
+                    const m = Number(ymd[2]);
+                    const day = Number(ymd[3]);
+                    const d = new Date(y, Math.max(0, Math.min(11, m - 1)), Math.max(1, Math.min(31, day)));
+                    return Number.isNaN(d.getTime()) ? null : d;
+                }
+                const dmy = s.match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+                if (dmy) {
+                    const a = Number(dmy[1]);
+                    const b = Number(dmy[2]);
+                    const y = Number(dmy[3]);
+                    const month = a > 12 ? b : a;
+                    const day = a > 12 ? a : b;
+                    const d = new Date(y, Math.max(0, Math.min(11, month - 1)), Math.max(1, Math.min(31, day)));
+                    return Number.isNaN(d.getTime()) ? null : d;
+                }
+                const mmYYYY = s.match(/^(\d{1,2})[\/-](\d{4})$/);
+                if (mmYYYY) {
+                    const m = Number(mmYYYY[1]);
+                    const y = Number(mmYYYY[2]);
+                    const d = new Date(y, Math.max(0, Math.min(11, m - 1)), 1);
+                    return Number.isNaN(d.getTime()) ? null : d;
+                }
+                const d = new Date(s);
+                return Number.isNaN(d.getTime()) ? null : d;
+            };
+            const expiryDate = parseDate(expiryDateRaw);
             const description = kv["description"] ? String(kv["description"]).trim() : null;
             incoming.push({ name: String(name).trim(), quantity: Math.max(0, Number(qty)), packSize: packSize ? String(packSize).trim() : null });
             importedSnapshot.push({
@@ -563,7 +601,7 @@ const importPcsProducts = async (req, res) => {
         // Optionally update matching Product records for selected fields
         try {
             const should = (field) => !updateFieldsSet || updateFieldsSet.has(field);
-            const existingProducts = await prisma_1.default.products.findMany({});
+            const existingProducts = await prisma_1.default.products.findMany({ where: { tenantId } });
             const keyOf = (r) => `${String(r.name).toLowerCase()}|${String(r.packSize ?? "").toLowerCase()}`;
             const existingByKey = new Map();
             const existingByBarcode = new Map();
@@ -585,10 +623,43 @@ const importPcsProducts = async (req, res) => {
                     target = existingByKey.get(keyOf({ name: item.name, packSize: (item.packSize ?? null) }));
                 }
                 if (!target) {
-                    target = await prisma_1.default.products.findFirst({ where: { name: item.name } });
+                    target = await prisma_1.default.products.findFirst({ where: { name: item.name, tenantId } });
                 }
-                if (!target)
-                    continue;
+                if (!target) {
+                    const created = await prisma_1.default.products.create({
+                        data: {
+                            productId: (0, crypto_1.randomUUID)(),
+                            name: item.name,
+                            price: item.salesPrice != null ? Number(item.salesPrice) : 0,
+                            purchasePrice: item.purchasePrice != null ? Number(item.purchasePrice) : null,
+                            stockQuantity: 0,
+                            expiryDate: (item.expiryDate instanceof Date) ? item.expiryDate : (item.expiryDate ? new Date(item.expiryDate) : null),
+                            category: item.category ?? null,
+                            description: item.description ?? null,
+                            packSize: item.packSize ?? null,
+                            barcode: item.barcode ? String(item.barcode).trim() : null,
+                            tenantId,
+                        },
+                    });
+                    try {
+                        (0, productUpdateAuditService_1.recordFieldUpdates)(created.productId, [
+                            "name",
+                            ...(item.salesPrice != null ? ["price"] : []),
+                            ...(item.purchasePrice != null ? ["purchasePrice"] : []),
+                            "stockQuantity",
+                            ...(item.expiryDate ? ["expiryDate"] : []),
+                            ...(item.category ? ["category"] : []),
+                            ...(item.description ? ["description"] : []),
+                            ...(item.packSize ? ["packSize"] : []),
+                            ...(item.barcode ? ["barcode"] : []),
+                        ], "import");
+                    }
+                    catch { }
+                    existingByKey.set(keyOf({ name: created.name, packSize: created.packSize ?? null }), created);
+                    if (created.barcode)
+                        existingByBarcode.set(String(created.barcode).trim(), created);
+                    target = created;
+                }
                 const dataUpdate = {};
                 if (should("name") && item.name)
                     dataUpdate.name = item.name;
@@ -596,8 +667,10 @@ const importPcsProducts = async (req, res) => {
                     dataUpdate.price = Number(item.salesPrice);
                 if (should("purchaseprice") && item.purchasePrice != null)
                     dataUpdate.purchasePrice = Number(item.purchasePrice);
-                if (should("expirydate"))
-                    dataUpdate.expiryDate = item.expiryDate ? new Date(item.expiryDate) : null;
+                if (should("expirydate")) {
+                    const v = item.expiryDate;
+                    dataUpdate.expiryDate = v instanceof Date ? v : (v ? new Date(v) : null);
+                }
                 if (should("category"))
                     dataUpdate.category = (target.category ?? item.category ?? null);
                 if (should("description"))
@@ -633,7 +706,6 @@ const importPcsProducts = async (req, res) => {
         }
         // Only upsert PCS quantities when selected or when no selection provided
         const doPcsUpsert = !updateFieldsSet || updateFieldsSet.has("pcsquantity");
-        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const merged = doPcsUpsert ? await (0, pcsInventoryService_1.upsertPcsEntries)(incoming, tenantId) : await (0, pcsInventoryService_1.readPcsInventory)(tenantId);
         const importedCount = doPcsUpsert ? incoming.length : 0;
         (0, notificationService_1.appendNotification)({ type: "product", message: `Imported ${importedCount} PCS products`, actorUserId: req.user?.userId });
@@ -733,12 +805,12 @@ const importProducts = async (req, res) => {
             return;
         }
         // Parse Excel buffer
-        const workbook = xlsx_1.default.read(file.buffer, { type: "buffer" });
+        const workbook = xlsx_1.default.read(file.buffer, { type: "buffer", cellDates: true });
         const firstSheetName = workbook.SheetNames[0];
         const worksheet = workbook.Sheets[firstSheetName];
-        const rows = xlsx_1.default.utils.sheet_to_json(worksheet, { defval: null });
+        const rows = xlsx_1.default.utils.sheet_to_json(worksheet, { defval: null, raw: false });
         if (!rows.length) {
-            res.status(400).json({ message: "Uploaded sheet is empty." });
+            res.status(400).json({ message: "Uploaded sheet is empty" });
             return;
         }
         // Normalize header keys: lower-case, collapse spaces, replace NBSP, and also provide a no-punctuation variant
@@ -769,25 +841,45 @@ const importProducts = async (req, res) => {
                 if (noPunct && noPunct !== base)
                     kv[noPunct] = row[k];
             }
+            const present = new Set();
             const productId = kv["productid"] ?? kv["id"] ?? kv["sku"] ?? (0, crypto_1.randomUUID)();
             const barcodeRaw = kv["barcode"] ?? kv["bar code"] ?? kv["ean"] ?? kv["upc"] ?? kv["bar-code"] ?? null;
+            if (barcodeRaw !== undefined && barcodeRaw !== null)
+                present.add("barcode");
             // Support description-driven files; if name missing but description present, use description as name and also store description
             const description = kv["product description"] ?? kv["productdescription"] ?? kv["description"] ?? null;
+            if (description !== undefined && description !== null)
+                present.add("description");
             // Accept common headers: "Name", "Product", "Product Name", and also "ProductDescription" from our own export
             const name = kv["name"] ?? kv["product"] ?? kv["product name"] ?? kv["product description"] ?? kv["productdescription"] ?? description;
+            if (kv["name"] !== undefined || kv["product"] !== undefined || kv["product name"] !== undefined || kv["product description"] !== undefined || kv["productdescription"] !== undefined) {
+                present.add("name");
+            }
             // Support multiple price header variants
-            const priceRaw = kv["price"] ?? kv["unit price"] ?? kv["selling price"] ?? kv["sales price"] ?? kv["amount"];
+            const priceRaw = kv["price"] ?? kv["unit price"] ?? kv["selling price"] ?? kv["sales price"] ?? kv["salesprice"] ?? kv["amount"];
+            if (priceRaw !== undefined && priceRaw !== null)
+                present.add("price");
             // Optional purchase price (cost) variants
             const purchasePriceRaw = kv["purchase price"] ?? kv["purchaseprice"] ?? kv["cost"] ?? kv["unit cost"] ?? kv["buying price"] ?? kv["buy price"];
+            if (purchasePriceRaw !== undefined && purchasePriceRaw !== null)
+                present.add("purchaseprice");
             // Support quantity/stock variants
             const stockRaw = kv["stockquantity"] ?? kv["quantity"] ?? kv["qty"] ?? kv["qty/ctn"] ?? kv["qty ctn"] ?? kv["stock"];
+            if (stockRaw !== undefined && stockRaw !== null)
+                present.add("stockquantity");
             // Optional expiry date variants
-            const expiryRaw = kv["expiry date"] ?? kv["exp date"] ?? kv["expiry"] ?? kv["expity date"] ?? kv["expity"] ?? null;
+            const expiryRaw = kv["expiry date"] ?? kv["exp date"] ?? kv["expiry"] ?? kv["expity date"] ?? kv["expity"] ?? kv["expirydate"] ?? null;
+            if (expiryRaw !== undefined && expiryRaw !== null)
+                present.add("expirydate");
             // Additional fields
             const category = kv["category"] ?? kv["product category"] ?? null;
+            if (category !== undefined && category !== null)
+                present.add("category");
             const packSize = kv["pack size"] ?? kv["packsize"] ?? kv["size"] ?? null;
+            if (packSize !== undefined && packSize !== null)
+                present.add("packsize");
             // Detect category rows: a single label like "SPREAD" with no numeric fields
-            const numericHints = [kv["price"], kv["unit price"], kv["selling price"], kv["sales price"], kv["amount"], kv["purchase price"], kv["purchaseprice"], kv["cost"], kv["unit cost"], kv["buying price"], kv["buy price"], kv["stockquantity"], kv["quantity"], kv["qty"], kv["qty/ctn"], kv["qty ctn"], kv["stock"]];
+            const numericHints = [kv["price"], kv["unit price"], kv["selling price"], kv["sales price"], kv["salesprice"], kv["amount"], kv["purchase price"], kv["purchaseprice"], kv["cost"], kv["unit cost"], kv["buying price"], kv["buy price"], kv["stockquantity"], kv["quantity"], kv["qty"], kv["qty/ctn"], kv["qty ctn"], kv["stock"]];
             const hasAnyNumeric = numericHints.some(v => coerceNumber(v) !== null);
             const hasOnlyLabel = !!description && !hasAnyNumeric && !packSize;
             if (hasOnlyLabel) {
@@ -806,7 +898,35 @@ const importProducts = async (req, res) => {
                     return null;
                 if (val instanceof Date && !Number.isNaN(val.getTime()))
                     return val;
+                if (typeof val === "number" && Number.isFinite(val)) {
+                    const excelEpoch = Date.UTC(1899, 11, 30);
+                    const ms = Math.round(val * 86400 * 1000);
+                    const d = new Date(excelEpoch + ms);
+                    return Number.isNaN(d.getTime()) ? null : d;
+                }
                 const s = String(val).trim().replace(/[.]+$/g, "");
+                // yyyy-mm-dd or yyyy/mm/dd
+                const ymd = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+                if (ymd) {
+                    const y = Number(ymd[1]);
+                    const m = Number(ymd[2]);
+                    const day = Number(ymd[3]);
+                    const d = new Date(y, Math.max(0, Math.min(11, m - 1)), Math.max(1, Math.min(31, day)));
+                    return Number.isNaN(d.getTime()) ? null : d;
+                }
+                // dd/mm/yyyy or mm/dd/yyyy
+                const dmy = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+                if (dmy) {
+                    let a = Number(dmy[1]);
+                    let b = Number(dmy[2]);
+                    const y = Number(dmy[3]);
+                    // If first token > 12, treat as day/month, else assume month/day
+                    const month = a > 12 ? b : a;
+                    const day = a > 12 ? a : b;
+                    const d = new Date(y, Math.max(0, Math.min(11, month - 1)), Math.max(1, Math.min(31, day)));
+                    return Number.isNaN(d.getTime()) ? null : d;
+                }
+                // mm/YYYY fallback
                 const mmYYYY = s.match(/^(\d{1,2})[\/\-](\d{4})$/);
                 if (mmYYYY) {
                     const m = Number(mmYYYY[1]);
@@ -832,6 +952,7 @@ const importProducts = async (req, res) => {
                 description: description ? String(description) : null,
                 packSize: packSize ? String(packSize) : null,
                 barcode: barcodeRaw ? String(barcodeRaw).trim() : null,
+                __present: present,
             };
         })
             .filter(Boolean);
@@ -900,6 +1021,8 @@ const importProducts = async (req, res) => {
                 barcodeMap.set(String(bc).trim(), p);
         }
         let insertedCount = 0;
+        let updatedCount = 0;
+        let deletedCount = 0;
         const mergedItemsForJson = [];
         // Parse optional selective update fields from multipart form (CSV or JSON array)
         const rawUpdateFields = req.body?.updateFields ?? undefined;
@@ -1012,19 +1135,20 @@ const importProducts = async (req, res) => {
             }
             if (existing) {
                 const dataUpdate = {};
-                const should = (field) => !updateFieldsSet || updateFieldsSet.has(field);
+                const present = item.__present;
+                const should = (field) => (!updateFieldsSet || updateFieldsSet.has(field)) && present.has(field);
                 if (should("name"))
                     dataUpdate.name = item.name;
-                if (should("price"))
+                if (should("price") && item.price !== undefined)
                     dataUpdate.price = item.price;
-                if (should("purchaseprice"))
+                if (should("purchaseprice") && item.purchasePrice !== undefined)
                     dataUpdate.purchasePrice = item.purchasePrice;
-                if (should("stockquantity"))
+                if (should("stockquantity") && item.stockQuantity !== undefined)
                     dataUpdate.stockQuantity = item.stockQuantity;
                 if (should("expirydate"))
                     dataUpdate.expiryDate = item.expiryDate ?? null;
                 if (should("category"))
-                    dataUpdate.category = (existing.category ?? item.category ?? null);
+                    dataUpdate.category = (item.category ?? existing.category ?? null);
                 if (should("description"))
                     dataUpdate.description = item.description ?? existing.description ?? null;
                 if (should("packsize"))
@@ -1042,8 +1166,13 @@ const importProducts = async (req, res) => {
                         if (oldNorm !== newNorm)
                             changed.push(k);
                     }
-                    if (changed.length)
+                    if (changed.length) {
                         (0, productUpdateAuditService_1.recordFieldUpdates)(existing.productId, changed, "import");
+                    }
+                    else {
+                        // If nothing changed, drop this update to avoid false-positive counts
+                        batchedUpdates.pop();
+                    }
                 }
                 catch (logErr) {
                     console.warn("Failed to log field updates on import update:", logErr);
@@ -1075,6 +1204,31 @@ const importProducts = async (req, res) => {
         }
         if (batchedUpdates.length) {
             await prisma_1.default.$transaction(batchedUpdates.map((u) => prisma_1.default.products.update(u)));
+            updatedCount += batchedUpdates.length;
+        }
+        // Purge products missing from the uploaded sheet (by Name+PackSize or matching Barcode)
+        try {
+            const normalizeText = (s) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+            const presentKeys = new Set(productsToInsert.map((p) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`));
+            const presentBarcodes = new Set(productsToInsert
+                .map((p) => (p.barcode ? String(p.barcode).trim() : null))
+                .filter((b) => !!b));
+            const existingAll = await prisma_1.default.products.findMany({ where: { tenantId } });
+            const toDeleteIds = [];
+            for (const ex of existingAll) {
+                const key = `${normalizeText(ex.name)}|${normalizeText(ex.packSize ?? null)}`;
+                const bc = ex.barcode ? String(ex.barcode).trim() : null;
+                const isPresent = presentKeys.has(key) || (!!bc && presentBarcodes.has(bc));
+                if (!isPresent)
+                    toDeleteIds.push(ex.productId);
+            }
+            if (toDeleteIds.length) {
+                await prisma_1.default.$transaction(toDeleteIds.map((id) => prisma_1.default.products.delete({ where: { productId: id } })));
+                deletedCount += toDeleteIds.length;
+            }
+        }
+        catch (purgeErr) {
+            console.warn("Failed to purge missing products:", purgeErr);
         }
         // After processing import rows, collapse any existing duplicates in DB for the same name+packSize
         try {
@@ -1352,12 +1506,12 @@ const importProducts = async (req, res) => {
         catch { }
         (0, notificationService_1.appendNotification)({
             type: "product",
-            message: `Imported ${insertedCount} products from Excel (processed ${productsToInsert.length})`,
+            message: `Imported ${insertedCount}, updated ${updatedCount}, deleted ${deletedCount} (processed ${productsToInsert.length})`,
             actorUserId: req.user?.userId,
         });
         // Sync JSON snapshot with DB after import
         await (0, productSyncService_1.syncProductsJsonFromDb)(prisma_1.default);
-        res.status(201).json({ insertedCount, attempted: productsToInsert.length });
+        res.status(201).json({ insertedCount, updatedCount, deletedCount, attempted: productsToInsert.length });
     }
     catch (error) {
         const msg = (error && error.message) ? String(error.message) : "Error importing products";
@@ -1888,9 +2042,7 @@ const getImportSample = async (req, res) => {
         const norm = (s) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
         const keyOf = (name, packSize) => `${norm(name)}|${norm(packSize ?? null)}`;
         let rows = products.map((p) => ({
-            ProductId: p.productId,
-            SKU: p.productId,
-            ProductDescription: p.name,
+            Name: p.name,
             Barcode: p.barcode ?? "",
             PackSize: p.packSize ?? "",
             Category: p.category ?? "",
@@ -1945,9 +2097,7 @@ const getImportSample = async (req, res) => {
                 if (seen.has(k))
                     continue;
                 rows.push({
-                    ProductId: "",
-                    SKU: "",
-                    ProductDescription: String(name),
+                    Name: String(name),
                     Barcode: barcode ? String(barcode).trim() : "",
                     PackSize: packSize ? String(packSize) : "",
                     Category: category ? String(category) : (bestCategoryForName(String(name)) ?? ""),
@@ -1960,9 +2110,7 @@ const getImportSample = async (req, res) => {
             }
         }
         const header = [
-            "ProductId",
-            "SKU",
-            "ProductDescription",
+            "Name",
             "Barcode",
             "PackSize",
             "Category",
