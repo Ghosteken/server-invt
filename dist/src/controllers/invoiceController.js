@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.deleteInvoice = exports.addPayment = exports.updateInvoice = exports.getInvoiceById = exports.getInvoices = exports.getInvoicePrintOptions = exports.createInvoice = void 0;
+exports.deleteInvoice = exports.addPayment = exports.updateInvoice = exports.getInvoiceById = exports.getInvoiceStats = exports.getInvoices = exports.getInvoicePrintOptions = exports.createInvoice = void 0;
 const zod_1 = require("zod");
 const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../db/prisma"));
@@ -270,6 +270,9 @@ const getInvoices = async (req, res) => {
         const agentId = (req.query.agentId || "").toString().trim();
         const from = req.query.from ? new Date(String(req.query.from)) : undefined;
         const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+        const statusQ = (req.query.status || "").toString().trim().toLowerCase();
+        const limit = Math.max(0, Number(req.query.limit || 0));
+        const offset = Math.max(0, Number(req.query.offset || 0));
         const tenantId = req.tenantId || req.user?.tenantId || "default";
         const where = { tenantId };
         if (agentId) {
@@ -282,12 +285,19 @@ const getInvoices = async (req, res) => {
             if (to)
                 where.date.lte = to;
         }
-        const invoices = await prisma_1.default.invoices.findMany({ where, include: { items: true, payments: true }, orderBy: { date: "desc" } });
+        if (statusQ === "paid" || statusQ === "unpaid" || statusQ === "partial") {
+            where.status = statusQ;
+        }
+        const invoices = await prisma_1.default.invoices.findMany({
+            where,
+            include: { items: true, payments: true },
+            orderBy: { date: "desc" },
+        });
         for (const inv of invoices) {
             await maybeNotifyDueSoon(inv, req.user?.userId);
         }
         if (!invoices.length) {
-            res.json({ invoices: [] });
+            res.json({ invoices: [], total: 0 });
             return;
         }
         const customerIds = Array.from(new Set(invoices.map((i) => i.customerId))).filter(Boolean);
@@ -301,7 +311,7 @@ const getInvoices = async (req, res) => {
             const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
             return { ...inv, status, customerName: customerMap.get(inv.customerId), invoiceNumber: meta?.invoiceNumber || undefined };
         }));
-        const filtered = list.filter((inv) => {
+        let filtered = list.filter((inv) => {
             if (!search)
                 return true;
             return (inv.invoiceId.toLowerCase().includes(search) ||
@@ -309,7 +319,12 @@ const getInvoices = async (req, res) => {
                 (inv.customerName || "").toLowerCase().includes(search) ||
                 inv.location.toLowerCase().includes(search));
         });
-        res.json({ invoices: filtered });
+        if (statusQ === "paid" || statusQ === "unpaid" || statusQ === "partial") {
+            filtered = filtered.filter((inv) => inv.status === statusQ);
+        }
+        const total = filtered.length;
+        const pageSlice = limit > 0 ? filtered.slice(offset, offset + limit) : filtered;
+        res.json({ invoices: pageSlice, total });
     }
     catch (err) {
         console.error("getInvoices error:", err);
@@ -318,6 +333,31 @@ const getInvoices = async (req, res) => {
     }
 };
 exports.getInvoices = getInvoices;
+const getInvoiceStats = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const from = req.query.from ? new Date(String(req.query.from)) : undefined;
+        const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+        const where = { tenantId };
+        if (from || to) {
+            where.date = {};
+            if (from)
+                where.date.gte = from;
+            if (to)
+                where.date.lte = to;
+        }
+        const [paid, unpaid, partial] = await Promise.all([
+            prisma_1.default.invoices.count({ where: { ...where, status: "paid" } }),
+            prisma_1.default.invoices.count({ where: { ...where, status: "unpaid" } }),
+            prisma_1.default.invoices.count({ where: { ...where, status: "partial" } }),
+        ]);
+        res.json({ counts: { paid, unpaid, partial } });
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to load invoice stats" });
+    }
+};
+exports.getInvoiceStats = getInvoiceStats;
 const getInvoiceById = async (req, res) => {
     try {
         const { id } = req.params;

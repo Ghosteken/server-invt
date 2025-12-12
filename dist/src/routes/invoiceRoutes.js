@@ -4,6 +4,7 @@ const express_1 = require("express");
 const invoiceController_1 = require("../controllers/invoiceController");
 const router = (0, express_1.Router)();
 router.get("/", invoiceController_1.getInvoices);
+router.get("/stats", invoiceController_1.getInvoiceStats);
 router.get("/:id", invoiceController_1.getInvoiceById);
 router.get("/:id/print-options", invoiceController_1.getInvoicePrintOptions);
 router.post("/", invoiceController_1.createInvoice);

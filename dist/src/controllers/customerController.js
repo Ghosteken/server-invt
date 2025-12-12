@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exportCustomersExcel = exports.importCustomersSample = exports.importCustomers = exports.deleteCustomer = exports.updateCustomer = exports.purgeCustomerPurchases = exports.createCustomer = exports.deleteCustomerPurchase = exports.getCustomers = void 0;
+exports.removeCustomerFromGroup = exports.addCustomerToGroup = exports.deleteCustomerGroup = exports.updateCustomerGroup = exports.createCustomerGroup = exports.getCustomerGroups = exports.exportCustomersExcel = exports.importCustomersSample = exports.importCustomers = exports.deleteCustomer = exports.updateCustomer = exports.purgeCustomerPurchases = exports.createCustomer = exports.deleteCustomerPurchase = exports.getCustomers = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const XLSX = __importStar(require("xlsx"));
 const crypto_1 = require("crypto");
@@ -572,3 +572,135 @@ const exportCustomersExcel = async (req, res) => {
     }
 };
 exports.exportCustomersExcel = exportCustomersExcel;
+// Customer Groups CRUD
+const getCustomerGroups = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const search = String(req.query.search || "").trim().toLowerCase();
+        const groups = await prisma_1.default.customerGroups.findMany({
+            where: { tenantId, ...(search ? { name: { contains: search, mode: "insensitive" } } : {}) },
+            orderBy: { createdAt: "desc" },
+            include: { customers: { select: { customerId: true, name: true } } },
+        });
+        res.json({ groups });
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to load customer groups" });
+    }
+};
+exports.getCustomerGroups = getCustomerGroups;
+const createCustomerGroup = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const name = String(req.body?.name || "").trim();
+        const description = req.body?.description ? String(req.body.description) : undefined;
+        if (!name) {
+            res.status(400).json({ message: "Group name is required" });
+            return;
+        }
+        const existing = await prisma_1.default.customerGroups.findFirst({ where: { tenantId, name } });
+        if (existing) {
+            res.status(409).json({ message: "Group already exists" });
+            return;
+        }
+        const created = await prisma_1.default.customerGroups.create({ data: { groupId: (0, crypto_1.randomUUID)(), name, description, tenantId } });
+        res.status(201).json(created);
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to create customer group" });
+    }
+};
+exports.createCustomerGroup = createCustomerGroup;
+const updateCustomerGroup = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const { id } = req.params;
+        const existing = await prisma_1.default.customerGroups.findFirst({ where: { groupId: id, tenantId } });
+        if (!existing) {
+            res.status(404).json({ message: "Group not found" });
+            return;
+        }
+        const name = req.body?.name ? String(req.body.name).trim() : undefined;
+        const description = req.body?.description ? String(req.body.description) : undefined;
+        const updated = await prisma_1.default.customerGroups.update({ where: { groupId: id }, data: { ...(name ? { name } : {}), description } });
+        res.json(updated);
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to update customer group" });
+    }
+};
+exports.updateCustomerGroup = updateCustomerGroup;
+const deleteCustomerGroup = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const { id } = req.params;
+        const existing = await prisma_1.default.customerGroups.findFirst({ where: { groupId: id, tenantId } });
+        if (!existing) {
+            res.status(404).json({ message: "Group not found" });
+            return;
+        }
+        await prisma_1.default.customerGroups.delete({ where: { groupId: id } });
+        res.json({ success: true });
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to delete customer group" });
+    }
+};
+exports.deleteCustomerGroup = deleteCustomerGroup;
+const addCustomerToGroup = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const { id } = req.params;
+        const customerId = String(req.body?.customerId || "").trim();
+        if (!customerId) {
+            res.status(400).json({ message: "customerId is required" });
+            return;
+        }
+        const group = await prisma_1.default.customerGroups.findFirst({ where: { groupId: id, tenantId } });
+        if (!group) {
+            res.status(404).json({ message: "Group not found" });
+            return;
+        }
+        const customer = await prisma_1.default.customers.findFirst({ where: { customerId, tenantId } });
+        if (!customer) {
+            res.status(404).json({ message: "Customer not found" });
+            return;
+        }
+        const updated = await prisma_1.default.customerGroups.update({
+            where: { groupId: id },
+            data: { customers: { connect: { customerId } } },
+            include: { customers: { select: { customerId: true, name: true } } },
+        });
+        res.json(updated);
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to add customer to group" });
+    }
+};
+exports.addCustomerToGroup = addCustomerToGroup;
+const removeCustomerFromGroup = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const { id, customerId } = req.params;
+        const group = await prisma_1.default.customerGroups.findFirst({ where: { groupId: id, tenantId } });
+        if (!group) {
+            res.status(404).json({ message: "Group not found" });
+            return;
+        }
+        const customer = await prisma_1.default.customers.findFirst({ where: { customerId, tenantId } });
+        if (!customer) {
+            res.status(404).json({ message: "Customer not found" });
+            return;
+        }
+        const updated = await prisma_1.default.customerGroups.update({
+            where: { groupId: id },
+            data: { customers: { disconnect: { customerId } } },
+            include: { customers: { select: { customerId: true, name: true } } },
+        });
+        res.json(updated);
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to remove customer from group" });
+    }
+};
+exports.removeCustomerFromGroup = removeCustomerFromGroup;

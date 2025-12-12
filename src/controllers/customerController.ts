@@ -541,3 +541,102 @@ export const exportCustomersExcel = async (req: Request, res: Response): Promise
     res.status(500).json({ message: "Failed to export customers as Excel" });
   }
 };
+
+// Customer Groups CRUD
+export const getCustomerGroups = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const search = String(req.query.search || "").trim().toLowerCase();
+    const groups = await prisma.customerGroups.findMany({
+      where: { tenantId, ...(search ? { name: { contains: search, mode: "insensitive" } } : {}) },
+      orderBy: { createdAt: "desc" },
+      include: { customers: { select: { customerId: true, name: true } } },
+    });
+    res.json({ groups });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to load customer groups" });
+  }
+};
+
+export const createCustomerGroup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const name = String(req.body?.name || "").trim();
+    const description = req.body?.description ? String(req.body.description) : undefined;
+    if (!name) { res.status(400).json({ message: "Group name is required" }); return; }
+    const existing = await prisma.customerGroups.findFirst({ where: { tenantId, name } });
+    if (existing) { res.status(409).json({ message: "Group already exists" }); return; }
+    const created = await prisma.customerGroups.create({ data: { groupId: randomUUID(), name, description, tenantId } });
+    res.status(201).json(created);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to create customer group" });
+  }
+};
+
+export const updateCustomerGroup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const { id } = req.params;
+    const existing = await prisma.customerGroups.findFirst({ where: { groupId: id, tenantId } });
+    if (!existing) { res.status(404).json({ message: "Group not found" }); return; }
+    const name = req.body?.name ? String(req.body.name).trim() : undefined;
+    const description = req.body?.description ? String(req.body.description) : undefined;
+    const updated = await prisma.customerGroups.update({ where: { groupId: id }, data: { ...(name ? { name } : {}), description } });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update customer group" });
+  }
+};
+
+export const deleteCustomerGroup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const { id } = req.params;
+    const existing = await prisma.customerGroups.findFirst({ where: { groupId: id, tenantId } });
+    if (!existing) { res.status(404).json({ message: "Group not found" }); return; }
+    await prisma.customerGroups.delete({ where: { groupId: id } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete customer group" });
+  }
+};
+
+export const addCustomerToGroup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const { id } = req.params;
+    const customerId = String(req.body?.customerId || "").trim();
+    if (!customerId) { res.status(400).json({ message: "customerId is required" }); return; }
+    const group = await prisma.customerGroups.findFirst({ where: { groupId: id, tenantId } });
+    if (!group) { res.status(404).json({ message: "Group not found" }); return; }
+    const customer = await prisma.customers.findFirst({ where: { customerId, tenantId } });
+    if (!customer) { res.status(404).json({ message: "Customer not found" }); return; }
+    const updated = await prisma.customerGroups.update({
+      where: { groupId: id },
+      data: { customers: { connect: { customerId } } },
+      include: { customers: { select: { customerId: true, name: true } } },
+    });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to add customer to group" });
+  }
+};
+
+export const removeCustomerFromGroup = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const { id, customerId } = req.params as { id: string; customerId: string };
+    const group = await prisma.customerGroups.findFirst({ where: { groupId: id, tenantId } });
+    if (!group) { res.status(404).json({ message: "Group not found" }); return; }
+    const customer = await prisma.customers.findFirst({ where: { customerId, tenantId } });
+    if (!customer) { res.status(404).json({ message: "Customer not found" }); return; }
+    const updated = await prisma.customerGroups.update({
+      where: { groupId: id },
+      data: { customers: { disconnect: { customerId } } },
+      include: { customers: { select: { customerId: true, name: true } } },
+    });
+    res.json(updated);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to remove customer from group" });
+  }
+};

@@ -280,6 +280,7 @@ const getOrgAdminFeatures = async (req, res) => {
             "expenses",
             "salesAgents",
             "purchases",
+            "customerGroups",
         ];
         const list = flags[adminId] && Array.isArray(flags[adminId]) ? flags[adminId] : allFeatures;
         res.json({ features: list });

@@ -273,6 +273,9 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
     const agentId = (req.query.agentId || "").toString().trim();
     const from = req.query.from ? new Date(String(req.query.from)) : undefined;
     const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+    const statusQ = (req.query.status || "").toString().trim().toLowerCase();
+    const limit = Math.max(0, Number(req.query.limit || 0));
+    const offset = Math.max(0, Number(req.query.offset || 0));
     const tenantId = req.tenantId || req.user?.tenantId || "default";
     const where: any = { tenantId };
     if (agentId) {
@@ -283,12 +286,19 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
       if (from) where.date.gte = from;
       if (to) where.date.lte = to;
     }
-    const invoices = await prisma.invoices.findMany({ where, include: { items: true, payments: true }, orderBy: { date: "desc" } });
+    if (statusQ === "paid" || statusQ === "unpaid" || statusQ === "partial") {
+      where.status = statusQ;
+    }
+    const invoices = await prisma.invoices.findMany({
+      where,
+      include: { items: true, payments: true },
+      orderBy: { date: "desc" },
+    });
     for (const inv of invoices) {
       await maybeNotifyDueSoon(inv as any, req.user?.userId);
     }
     if (!invoices.length) {
-      res.json({ invoices: [] });
+      res.json({ invoices: [], total: 0 });
       return;
     }
     const customerIds = Array.from(new Set(invoices.map((i) => i.customerId))).filter(Boolean);
@@ -304,7 +314,7 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
         return { ...inv, status, customerName: customerMap.get(inv.customerId), invoiceNumber: meta?.invoiceNumber || undefined } as any;
       })
     );
-    const filtered = list.filter((inv) => {
+    let filtered = list.filter((inv) => {
       if (!search) return true;
       return (
         inv.invoiceId.toLowerCase().includes(search) ||
@@ -313,11 +323,38 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
         inv.location.toLowerCase().includes(search)
       );
     });
-    res.json({ invoices: filtered });
+    if (statusQ === "paid" || statusQ === "unpaid" || statusQ === "partial") {
+      filtered = filtered.filter((inv) => inv.status === statusQ);
+    }
+    const total = filtered.length;
+    const pageSlice = limit > 0 ? filtered.slice(offset, offset + limit) : filtered;
+    res.json({ invoices: pageSlice, total });
   } catch (err) {
     console.error("getInvoices error:", err);
     const msg = err instanceof Error ? err.message : "Failed to load invoices";
     res.status(500).json({ message: msg });
+  }
+};
+
+export const getInvoiceStats = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const from = req.query.from ? new Date(String(req.query.from)) : undefined;
+    const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+    const where: any = { tenantId };
+    if (from || to) {
+      where.date = {};
+      if (from) where.date.gte = from;
+      if (to) where.date.lte = to;
+    }
+    const [paid, unpaid, partial] = await Promise.all([
+      prisma.invoices.count({ where: { ...where, status: "paid" } }),
+      prisma.invoices.count({ where: { ...where, status: "unpaid" } }),
+      prisma.invoices.count({ where: { ...where, status: "partial" } }),
+    ]);
+    res.json({ counts: { paid, unpaid, partial } });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to load invoice stats" });
   }
 };
 

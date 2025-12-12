@@ -131,6 +131,7 @@ model Customers {
   purchases  CustomerPurchases[]
   invoices   Invoices[]
   payments   Payments[]
+  groups     CustomerGroups[]    @relation("CustomerGroupMembership")
   @@index([tenantId])
 }
 
@@ -228,6 +229,17 @@ model Payments {
 
   @@index([invoiceId])
   @@index([customerId])
+  @@index([tenantId])
+}
+
+model CustomerGroups {
+  groupId     String     @id
+  name        String
+  description String?
+  tenantId    String     @default("default")
+  createdAt   DateTime   @default(now())
+  customers   Customers[] @relation("CustomerGroupMembership")
+  @@unique([tenantId, name])
   @@index([tenantId])
 }
 
