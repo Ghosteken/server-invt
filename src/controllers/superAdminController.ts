@@ -3,6 +3,8 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
 import prisma from "../db/prisma";
+import { z, ZodError } from "zod";
+import { readFlags, writeFlags } from "../services/featureFlagsService";
 
 const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";
 
@@ -233,4 +235,58 @@ export const unblockOrgAdmin = async (req: Request, res: Response): Promise<void
   const { orgId, adminId } = req.params as { orgId: string; adminId: string };
   const admin = await prisma.orgAdmins.update({ where: { id: adminId }, data: { isBlocked: false } });
   res.json({ admin: { id: admin.id, name: admin.name, email: admin.email, isBlocked: false } });
+};
+
+export const getOrgAdminFeatures = async (req: Request, res: Response): Promise<void> => {
+  const auth = requireSuperAdmin(req, res);
+  if (!auth.ok) return;
+  try {
+    const Params = z.object({ orgId: z.string().min(1), adminId: z.string().min(1) });
+    const { orgId, adminId } = Params.parse(req.params);
+    const flags = await readFlags(orgId);
+    const allFeatures = [
+      "reports",
+      "storeSales",
+      "inventory",
+      "productTracker",
+      "products",
+      "customers",
+      "invoices",
+      "expenses",
+      "salesAgents",
+      "purchases",
+    ];
+    const list = flags[adminId] && Array.isArray(flags[adminId]) ? flags[adminId] : allFeatures;
+    res.json({ features: list });
+  } catch (err) {
+    if (err instanceof ZodError) { res.status(400).json({ message: "Invalid input", errors: err.issues }); return; }
+    res.status(500).json({ message: "Failed to read features" });
+  }
+};
+
+export const setOrgAdminFeatures = async (req: Request, res: Response): Promise<void> => {
+  const auth = requireSuperAdmin(req, res);
+  if (!auth.ok) return;
+  try {
+    const Params = z.object({ orgId: z.string().min(1), adminId: z.string().min(1) });
+    const { orgId, adminId } = Params.parse(req.params);
+    const Body = z.object({ features: z.array(z.string()).default([]) });
+    const { features } = Body.parse(req.body || {});
+    const flags = await readFlags(orgId);
+    flags[adminId] = features;
+    try {
+      const admin = await prisma.orgAdmins.findUnique({ where: { id: adminId } });
+      if (admin) {
+        const user = await prisma.users.findFirst({ where: { email: admin.email, tenantId: orgId } });
+        if (user) {
+          flags[user.userId] = features;
+        }
+      }
+    } catch {}
+    await writeFlags(flags, orgId);
+    res.json({ features });
+  } catch (err) {
+    if (err instanceof ZodError) { res.status(400).json({ message: "Invalid input", errors: err.issues }); return; }
+    res.status(500).json({ message: "Failed to write features" });
+  }
 };

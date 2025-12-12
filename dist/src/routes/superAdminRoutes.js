@@ -14,4 +14,6 @@ router.patch("/orgs/:id/block", superAdminController_1.blockOrg);
 router.patch("/orgs/:id/unblock", superAdminController_1.unblockOrg);
 router.patch("/orgs/:orgId/admins/:adminId/block", superAdminController_1.blockOrgAdmin);
 router.patch("/orgs/:orgId/admins/:adminId/unblock", superAdminController_1.unblockOrgAdmin);
+router.get("/orgs/:orgId/admins/:adminId/features", superAdminController_1.getOrgAdminFeatures);
+router.put("/orgs/:orgId/admins/:adminId/features", superAdminController_1.setOrgAdminFeatures);
 exports.default = router;

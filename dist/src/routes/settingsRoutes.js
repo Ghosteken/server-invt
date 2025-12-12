@@ -17,7 +17,8 @@ router.put("/features/by-email", async (req, res) => {
     try {
         const Body = zod_1.z.object({ email: zod_1.z.string().email(), features: zod_1.z.array(zod_1.z.string()).default([]) });
         const { email, features } = Body.parse(req.body);
-        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const user = await prisma_1.default.users.findUnique({ where: { email: email.toLowerCase() } });
         if (!user) {
             res.status(404).json({ message: "User not found" });
@@ -41,7 +42,8 @@ router.put("/org", async (req, res) => {
     try {
         const Body = zod_1.z.object({ name: zod_1.z.string().min(1) });
         const { name } = Body.parse(req.body || {});
-        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const existing = await prisma_1.default.organizations.findUnique({ where: { id: tenantId } });
         if (!existing) {
             res.status(404).json({ message: "Organization not found" });
@@ -63,7 +65,8 @@ router.get("/features/by-email", async (req, res) => {
     try {
         const Query = zod_1.z.object({ email: zod_1.z.string().email() });
         const { email } = Query.parse(req.query);
-        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const user = await prisma_1.default.users.findUnique({ where: { email: String(email).toLowerCase() } });
         if (!user) {
             res.status(404).json({ message: "User not found" });
@@ -85,7 +88,8 @@ router.get("/features/:userId", async (req, res) => {
     try {
         const Params = zod_1.z.object({ userId: zod_1.z.string().min(1) });
         const { userId } = Params.parse(req.params);
-        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const flags = await (0, featureFlagsService_1.readFlags)(tenantId);
         res.json({ features: flags[userId] || [] });
     }
@@ -104,7 +108,8 @@ router.put("/features/:userId", async (req, res) => {
         const { userId } = Params.parse(req.params);
         const Body = zod_1.z.object({ features: zod_1.z.array(zod_1.z.string()).default([]) });
         const { features } = Body.parse(req.body);
-        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const flags = await (0, featureFlagsService_1.readFlags)(tenantId);
         flags[userId] = features;
         await (0, featureFlagsService_1.writeFlags)(flags, tenantId);
@@ -171,7 +176,8 @@ router.put("/financial-layout", async (req, res) => {
 // Tenant-scoped bank accounts list
 router.get("/banks", async (req, res) => {
     try {
-        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const banksDefault = [
             { name: "Amagzy global vic limited(Zenith bank) FOR SUPPLIES", account: "1017679715" },
             { name: "Amagzy global vic limited FCMB(FOR SUPPLIES)", account: "2002076509" },
@@ -191,7 +197,8 @@ router.post("/banks", async (req, res) => {
     try {
         const Body = zod_1.z.object({ name: zod_1.z.string().min(1), account: zod_1.z.string().min(1) });
         const { name, account } = Body.parse(req.body || {});
-        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const list = (0, banksService_1.addBank)(tenantId, { name, account });
         res.status(201).json({ banks: list });
     }
@@ -212,7 +219,8 @@ router.put("/banks", async (req, res) => {
             account: zod_1.z.string().min(1),
         });
         const { oldName, oldAccount, name, account } = Body.parse(req.body || {});
-        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const list = (0, banksService_1.updateBank)(tenantId, { name: oldName, account: oldAccount }, { name, account });
         res.json({ banks: list });
     }
@@ -228,7 +236,8 @@ router.delete("/banks", async (req, res) => {
     try {
         const Body = zod_1.z.object({ name: zod_1.z.string().min(1), account: zod_1.z.string().min(1) });
         const { name, account } = Body.parse(req.body || {});
-        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const list = (0, banksService_1.removeBank)(tenantId, { name, account });
         res.json({ banks: list });
     }

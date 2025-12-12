@@ -3,11 +3,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.unblockOrgAdmin = exports.blockOrgAdmin = exports.unblockOrg = exports.blockOrg = exports.deleteOrg = exports.getOrg = exports.createOrgAdmin = exports.listOrgAdmins = exports.createOrg = exports.listOrgs = exports.superAdminLogin = void 0;
+exports.setOrgAdminFeatures = exports.getOrgAdminFeatures = exports.unblockOrgAdmin = exports.blockOrgAdmin = exports.unblockOrg = exports.blockOrg = exports.deleteOrg = exports.getOrg = exports.createOrgAdmin = exports.listOrgAdmins = exports.createOrg = exports.listOrgs = exports.superAdminLogin = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../db/prisma"));
+const zod_1 = require("zod");
+const featureFlagsService_1 = require("../services/featureFlagsService");
 const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";
 const superAdminLogin = async (req, res) => {
     try {
@@ -259,3 +261,68 @@ const unblockOrgAdmin = async (req, res) => {
     res.json({ admin: { id: admin.id, name: admin.name, email: admin.email, isBlocked: false } });
 };
 exports.unblockOrgAdmin = unblockOrgAdmin;
+const getOrgAdminFeatures = async (req, res) => {
+    const auth = requireSuperAdmin(req, res);
+    if (!auth.ok)
+        return;
+    try {
+        const Params = zod_1.z.object({ orgId: zod_1.z.string().min(1), adminId: zod_1.z.string().min(1) });
+        const { orgId, adminId } = Params.parse(req.params);
+        const flags = await (0, featureFlagsService_1.readFlags)(orgId);
+        const allFeatures = [
+            "reports",
+            "storeSales",
+            "inventory",
+            "productTracker",
+            "products",
+            "customers",
+            "invoices",
+            "expenses",
+            "salesAgents",
+            "purchases",
+        ];
+        const list = flags[adminId] && Array.isArray(flags[adminId]) ? flags[adminId] : allFeatures;
+        res.json({ features: list });
+    }
+    catch (err) {
+        if (err instanceof zod_1.ZodError) {
+            res.status(400).json({ message: "Invalid input", errors: err.issues });
+            return;
+        }
+        res.status(500).json({ message: "Failed to read features" });
+    }
+};
+exports.getOrgAdminFeatures = getOrgAdminFeatures;
+const setOrgAdminFeatures = async (req, res) => {
+    const auth = requireSuperAdmin(req, res);
+    if (!auth.ok)
+        return;
+    try {
+        const Params = zod_1.z.object({ orgId: zod_1.z.string().min(1), adminId: zod_1.z.string().min(1) });
+        const { orgId, adminId } = Params.parse(req.params);
+        const Body = zod_1.z.object({ features: zod_1.z.array(zod_1.z.string()).default([]) });
+        const { features } = Body.parse(req.body || {});
+        const flags = await (0, featureFlagsService_1.readFlags)(orgId);
+        flags[adminId] = features;
+        try {
+            const admin = await prisma_1.default.orgAdmins.findUnique({ where: { id: adminId } });
+            if (admin) {
+                const user = await prisma_1.default.users.findFirst({ where: { email: admin.email, tenantId: orgId } });
+                if (user) {
+                    flags[user.userId] = features;
+                }
+            }
+        }
+        catch { }
+        await (0, featureFlagsService_1.writeFlags)(flags, orgId);
+        res.json({ features });
+    }
+    catch (err) {
+        if (err instanceof zod_1.ZodError) {
+            res.status(400).json({ message: "Invalid input", errors: err.issues });
+            return;
+        }
+        res.status(500).json({ message: "Failed to write features" });
+    }
+};
+exports.setOrgAdminFeatures = setOrgAdminFeatures;

@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { superAdminLogin, listOrgs, createOrg, listOrgAdmins, createOrgAdmin, getOrg, blockOrg, unblockOrg, blockOrgAdmin, unblockOrgAdmin, deleteOrg } from "../controllers/superAdminController";
+import { superAdminLogin, listOrgs, createOrg, listOrgAdmins, createOrgAdmin, getOrg, blockOrg, unblockOrg, blockOrgAdmin, unblockOrgAdmin, deleteOrg, getOrgAdminFeatures, setOrgAdminFeatures } from "../controllers/superAdminController";
 
 const router = Router();
 
@@ -14,5 +14,7 @@ router.patch("/orgs/:id/block", blockOrg);
 router.patch("/orgs/:id/unblock", unblockOrg);
 router.patch("/orgs/:orgId/admins/:adminId/block", blockOrgAdmin);
 router.patch("/orgs/:orgId/admins/:adminId/unblock", unblockOrgAdmin);
+router.get("/orgs/:orgId/admins/:adminId/features", getOrgAdminFeatures);
+router.put("/orgs/:orgId/admins/:adminId/features", setOrgAdminFeatures);
 
 export default router;
