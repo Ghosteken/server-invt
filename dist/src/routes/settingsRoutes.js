@@ -12,6 +12,20 @@ const financialLayoutService_1 = require("../services/financialLayoutService");
 const banksService_1 = require("../services/banksService");
 const router = (0, express_1.Router)();
 // Use shared Prisma client
+const ALL_FEATURES = [
+    "reports",
+    "storeSales",
+    "inventory",
+    "productTracker",
+    "products",
+    "customers",
+    "invoices",
+    "expenses",
+    "salesAgents",
+    "purchases",
+    "customerGroups",
+    "logistics",
+];
 // Set features by email for convenience in admin UI
 router.put("/features/by-email", async (req, res) => {
     try {
@@ -81,6 +95,19 @@ router.get("/features/by-email", async (req, res) => {
             return;
         }
         res.status(500).json({ message: "Failed to read features" });
+    }
+});
+// Get tenant-allowed features (set by Super Admin)
+router.get("/features/allowed", async (req, res) => {
+    try {
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
+        const flags = await (0, featureFlagsService_1.readFlags)(tenantId);
+        const allowed = Array.isArray(flags["__allowed__"]) ? flags["__allowed__"] : ALL_FEATURES;
+        res.json({ features: allowed });
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to read tenant allowed features" });
     }
 });
 // Get features for a user by ID

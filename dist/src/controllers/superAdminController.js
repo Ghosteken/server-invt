@@ -306,6 +306,7 @@ const setOrgAdminFeatures = async (req, res) => {
         const { features } = Body.parse(req.body || {});
         const flags = await (0, featureFlagsService_1.readFlags)(orgId);
         flags[adminId] = features;
+        flags["__allowed__"] = features;
         try {
             const admin = await prisma_1.default.orgAdmins.findUnique({ where: { id: adminId } });
             if (admin) {
