@@ -556,5 +556,12 @@
     "message": "Imported 0, updated 1, deleted 0 (processed 1)",
     "timestamp": "2025-12-11T21:17:55.133Z",
     "actorUserId": "85442d91-36dc-4f37-a217-d1f2efa8c6c1"
+  },
+  {
+    "id": "1765525134103-k0xevw",
+    "type": "user",
+    "message": "User created: babs (babs@amagzy.com) as user",
+    "timestamp": "2025-12-12T07:38:54.103Z",
+    "actorUserId": "85442d91-36dc-4f37-a217-d1f2efa8c6c1"
   }
 ]

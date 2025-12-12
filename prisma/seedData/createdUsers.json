@@ -26,5 +26,12 @@
     "email": "david@inventory.com",
     "role": "admin",
     "createdAt": "2025-12-09T08:02:29.649Z"
+  },
+  {
+    "userId": "7d5fda07-e40b-4a8a-83f4-7917eaf44647",
+    "name": "babs",
+    "email": "babs@amagzy.com",
+    "role": "user",
+    "createdAt": "2025-12-12T07:38:54.092Z"
   }
 ]

@@ -36,6 +36,28 @@ router.put("/features/by-email", async (req, res) => {
         res.status(500).json({ message: "Failed to set features" });
     }
 });
+// Update organization display name for current tenant
+router.put("/org", async (req, res) => {
+    try {
+        const Body = zod_1.z.object({ name: zod_1.z.string().min(1) });
+        const { name } = Body.parse(req.body || {});
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const existing = await prisma_1.default.organizations.findUnique({ where: { id: tenantId } });
+        if (!existing) {
+            res.status(404).json({ message: "Organization not found" });
+            return;
+        }
+        const updated = await prisma_1.default.organizations.update({ where: { id: tenantId }, data: { name } });
+        res.json({ org: { id: updated.id, name: updated.name } });
+    }
+    catch (err) {
+        if (err instanceof zod_1.z.ZodError) {
+            res.status(400).json({ message: "Invalid input", errors: err.issues });
+            return;
+        }
+        res.status(500).json({ message: "Failed to save organization name" });
+    }
+});
 // Get features by email (diagnostic/fallback)
 router.get("/features/by-email", async (req, res) => {
     try {
