@@ -563,5 +563,75 @@
     "message": "User created: babs (babs@amagzy.com) as user",
     "timestamp": "2025-12-12T07:38:54.103Z",
     "actorUserId": "85442d91-36dc-4f37-a217-d1f2efa8c6c1"
+  },
+  {
+    "id": "1765636965449-yyuy5b",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-13T14:42:45.449Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765636965465-yz44cs",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-13T14:42:45.466Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765637029250-2c690j",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-13T14:43:49.250Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765637029271-p0vt1i",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-13T14:43:49.271Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765637060559-qzctq9",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-13T14:44:20.559Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765637060591-gehax8",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-13T14:44:20.591Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765637386044-bduytp",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-13T14:49:46.044Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765637386072-ev6tu3",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-13T14:49:46.072Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765637551834-aq596s",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-13T14:52:31.834Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765637551849-l2nw4m",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-13T14:52:31.849Z",
+    "actorUserId": "tester"
   }
 ]
