@@ -4,7 +4,7 @@ import path from "path";
 type Bank = { name: string; account: string };
 type BanksFile = { tenants: Record<string, Bank[]> };
 
-const BANKS_PATH = path.join(__dirname, "../../assets/banks.json");
+const BANKS_PATH = path.join(process.cwd(), "assets", "banks.json");
 
 function readFile(): BanksFile {
   try {

@@ -9,7 +9,7 @@ exports.updateBank = updateBank;
 exports.removeBank = removeBank;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
-const BANKS_PATH = path_1.default.join(__dirname, "../../assets/banks.json");
+const BANKS_PATH = path_1.default.join(process.cwd(), "assets", "banks.json");
 function readFile() {
     try {
         if (!fs_1.default.existsSync(BANKS_PATH))
