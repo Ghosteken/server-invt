@@ -150,13 +150,18 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
         email: masterEmail,
         role: "admin",
       };
+      let tenantId: string | undefined = undefined;
+      try {
+        const org = await prisma.organizations.findFirst({ where: { adminEmail: masterEmail } });
+        if (org?.id) tenantId = org.id;
+      } catch {}
       const token = jwt.sign(
-        { userId: masterUser.userId, email: masterUser.email, role: masterUser.role },
+        { userId: masterUser.userId, email: masterUser.email, role: masterUser.role, ...(tenantId ? { tenantId } : {}) },
         JWT_SECRET,
         { expiresIn: "24h" }
       );
       console.log(`auth: master admin login successful for ${normalizedEmail}`);
-      res.json({ message: "Login successful", token, user: masterUser });
+      res.json({ message: "Login successful", token, user: { ...masterUser, tenantId } });
       return;
     }
 
@@ -221,8 +226,15 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       return;
     }
 
+    let tenantId: string | undefined = user.tenantId;
+    if (!tenantId) {
+      try {
+        const org = await prisma.organizations.findFirst({ where: { adminEmail: user.email } });
+        if (org?.id) tenantId = org.id;
+      } catch {}
+    }
     const token = jwt.sign(
-      { userId: user.userId, email: user.email, role: user.role },
+      { userId: user.userId, email: user.email, role: user.role, ...(tenantId ? { tenantId } : {}) },
       JWT_SECRET,
       { expiresIn: "24h" }
     );
@@ -231,7 +243,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
     res.json({
       message: "Login successful",
       token,
-      user: { userId: user.userId, name: user.name, email: user.email, role: user.role },
+      user: { userId: user.userId, name: user.name, email: user.email, role: user.role, tenantId },
     });
   } catch (error) {
     console.error("Admin login error:", error);
@@ -252,17 +264,26 @@ export const verifyToken = async (req: Request, res: Response): Promise<void> =>
       userId: string;
       email: string;
       role: string;
+      tenantId?: string;
     };
 
     // Allow master admin token without DB lookup
     const masterEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
     if (decoded.email.toLowerCase() === masterEmail) {
+      let tenantId: string | undefined = decoded.tenantId;
+      if (!tenantId) {
+        try {
+          const org = await prisma.organizations.findFirst({ where: { adminEmail: decoded.email } });
+          if (org?.id) tenantId = org.id;
+        } catch {}
+      }
       res.json({
         user: {
           userId: decoded.userId,
           name: "Admin",
           email: decoded.email,
           role: "admin",
+          tenantId,
         },
       });
       return;
@@ -283,6 +304,7 @@ export const verifyToken = async (req: Request, res: Response): Promise<void> =>
         name: user.name,
         email: user.email,
         role: user.role,
+        tenantId: user.tenantId,
       },
     });
   } catch (error) {
