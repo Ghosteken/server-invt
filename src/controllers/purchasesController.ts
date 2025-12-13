@@ -4,7 +4,7 @@ import { randomUUID } from "crypto";
 import { adjustPcsQuantity } from "../services/pcsInventoryService";
 import { withCache } from "../services/cache";
 import { appendNotification } from "../services/notificationService";
-import { getSupplierMetaFor, upsertSupplierMeta, addSupplierPayment, readSuppliersForTenant, writeSuppliersForTenant } from "../services/supplierPurchasesService";
+import { upsertSupplierMeta, addSupplierPayment } from "../services/supplierPurchasesService";
 import * as XLSX from "xlsx";
 import multer from "multer";
 export const upload = multer({ storage: multer.memoryStorage() });
@@ -33,6 +33,8 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
       const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
       const products = await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
       const productMap = new Map(products.map((p) => [p.productId, p.name] as const));
+      const metaRows = await prisma.supplierPurchaseMeta.findMany({ where: { purchaseId: { in: purchases.map((p) => p.purchaseId) } } });
+      const metaMap = new Map(metaRows.map((m) => [m.purchaseId, m]));
       const pageList = purchases.map((p) => ({
         purchaseId: p.purchaseId,
         productId: p.productId,
@@ -41,8 +43,8 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
         unitCost: p.unitCost,
         totalCost: p.totalCost,
         timestamp: p.timestamp,
-        supplierName: getSupplierMetaFor(p.purchaseId)?.supplierName || undefined,
-        supplierMobile: getSupplierMetaFor(p.purchaseId)?.supplierMobile || undefined,
+        supplierName: metaMap.get(p.purchaseId)?.supplierName || undefined,
+        supplierMobile: metaMap.get(p.purchaseId)?.supplierMobile || undefined,
       }));
       return { list: pageList, total: totalCount };
     });
@@ -66,8 +68,8 @@ export const deletePurchase = async (req: Request, res: Response): Promise<void>
     }
     // Reduce inventory based on stored unit meta (defaults to carton)
     try {
-      const meta = getSupplierMetaFor(id);
-      const unit = (meta?.unit === "pcs" ? "pcs" : "ctn") as "ctn" | "pcs";
+      const metaRow = await prisma.supplierPurchaseMeta.findUnique({ where: { purchaseId: id } });
+      const unit = ((metaRow?.unit === "pcs" ? "pcs" : "ctn") as "ctn" | "pcs");
       const p = await prisma.products.findFirst({ where: { productId: existing.productId, tenantId } });
       if (p) {
         const qty = Math.max(0, Number(existing.quantity) || 0);
@@ -99,10 +101,10 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
     const body = req.body || {};
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const date = body.date ? new Date(body.date) : new Date();
-    const supplierName: string | undefined = body.supplierName ? String(body.supplierName) : undefined;
-    const supplierMobile: string | undefined = body.supplierMobile ? String(body.supplierMobile) : undefined;
-    const paymentTerm: string | undefined = body.paymentTerm ? String(body.paymentTerm) : undefined;
-    const dueDate: string | undefined = body.dueDate ? String(body.dueDate) : undefined;
+      const supplierName: string | undefined = body.supplierName ? String(body.supplierName) : undefined;
+      const supplierMobile: string | undefined = body.supplierMobile ? String(body.supplierMobile) : undefined;
+      const paymentTerm: string | undefined = body.paymentTerm ? String(body.paymentTerm) : undefined;
+      const dueDate: string | undefined = body.dueDate ? String(body.dueDate) : undefined;
     const items: Array<{ productId?: string; name?: string; unit: "ctn"|"pcs"; quantity: number; unitCost: number; expiryDate?: string }> = Array.isArray(body.items) ? body.items : [];
     if (!items.length) {
       res.status(400).json({ message: "No items provided" });
@@ -231,10 +233,9 @@ export const updatePurchaseMeta = async (req: Request, res: Response): Promise<v
     const paymentTerm = body.paymentTerm !== undefined ? (body.paymentTerm ? String(body.paymentTerm) : null) : undefined;
     const dueDate = body.dueDate !== undefined ? (body.dueDate ? String(body.dueDate) : null) : undefined;
     upsertSupplierMeta({ purchaseId: id, supplierName, supplierMobile, paymentTerm, dueDate });
-    const meta = getSupplierMetaFor(id);
-    // Notify: purchase meta updated
-    appendNotification({ type: "purchase", message: `Updated purchase ${id} meta: supplier=${meta?.supplierName || "-"}, term=${meta?.paymentTerm || "-"}` });
-    res.json({ meta });
+      const meta = { purchaseId: id, supplierName: supplierName ?? null, supplierMobile: supplierMobile ?? null, paymentTerm: paymentTerm ?? null, dueDate: dueDate ?? null };
+      appendNotification({ type: "purchase", message: `Updated purchase ${id} meta: supplier=${meta.supplierName || "-"}, term=${meta.paymentTerm || "-"}` });
+      res.json({ meta });
   } catch (err) {
     console.error("updatePurchaseMeta error:", err);
     const msg = err instanceof Error ? err.message : "Failed to update purchase meta";
@@ -262,8 +263,8 @@ export const updatePurchase = async (req: Request, res: Response): Promise<void>
     const nextExpiryDate: string | undefined = body.expiryDate ? String(body.expiryDate) : undefined;
 
     // Determine old unit from meta (defaults to 'ctn' for backwards compat)
-    const meta = getSupplierMetaFor(id);
-    const oldUnit: "ctn" | "pcs" = (meta?.unit === "pcs" ? "pcs" : "ctn");
+    const metaRow = await prisma.supplierPurchaseMeta.findUnique({ where: { purchaseId: id } });
+    const oldUnit: "ctn" | "pcs" = (metaRow?.unit === "pcs" ? "pcs" : "ctn");
 
     // Fetch product records for inventory adjustments
     const oldProduct = await prisma.products.findFirst({ where: { productId: existing.productId, tenantId } });
@@ -363,12 +364,12 @@ export const getPurchasePrintOptions = async (req: Request, res: Response): Prom
 export const getSuppliers = async (req: Request, res: Response): Promise<void> => {
   try {
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
-    let list = readSuppliersForTenant(tenantId);
+    let list = await prisma.suppliers.findMany({ where: { tenantId }, orderBy: { name: "asc" }, select: { name: true, mobile: true } });
     if (!list.length) {
       const purchases = await prisma.purchases.findMany({ where: { tenantId } });
       const map = new Map<string, { name: string; mobile?: string | null }>();
       for (const p of purchases) {
-        const m = getSupplierMetaFor(p.purchaseId);
+        const m = await prisma.supplierPurchaseMeta.findUnique({ where: { purchaseId: p.purchaseId } });
         const n = String(m?.supplierName || "").trim();
         if (!n) continue;
         const key = n.toLowerCase();
@@ -376,7 +377,7 @@ export const getSuppliers = async (req: Request, res: Response): Promise<void> =
         const prev = map.get(key);
         map.set(key, { name: n, mobile: mobile ?? prev?.mobile ?? null });
       }
-      list = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+      list = Array.from(map.values()).map((s) => ({ name: s.name, mobile: s.mobile ?? null })).sort((a, b) => a.name.localeCompare(b.name));
     }
     res.json({ suppliers: list });
   } catch {
@@ -403,7 +404,7 @@ export const importSuppliers = async (req: Request, res: Response): Promise<void
       out.push({ name: n, mobile: mobile == null ? null : String(mobile) });
     }
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
-    const existing = readSuppliersForTenant(tenantId);
+    const existing = await prisma.suppliers.findMany({ where: { tenantId }, select: { name: true, mobile: true } });
     const byName = new Map<string, { name: string; mobile?: string | null }>();
     const add = (s: { name: string; mobile?: string | null }) => {
       const key = s.name.toLowerCase();
@@ -413,7 +414,13 @@ export const importSuppliers = async (req: Request, res: Response): Promise<void
     existing.forEach(add);
     out.forEach(add);
     const merged = Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
-    writeSuppliersForTenant(tenantId, merged);
+    for (const s of merged) {
+      await prisma.suppliers.upsert({
+        where: { tenantId_name: { tenantId, name: s.name } },
+        update: { mobile: s.mobile ?? undefined },
+        create: { id: randomUUID(), tenantId, name: s.name, mobile: s.mobile ?? undefined },
+      });
+    }
     res.json({ importedSuppliers: out.length });
   } catch (err) {
     res.status(500).json({ message: "Failed to import suppliers" });
@@ -423,12 +430,12 @@ export const importSuppliers = async (req: Request, res: Response): Promise<void
 export const exportSuppliersExcel = async (req: Request, res: Response): Promise<void> => {
   try {
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
-    let list = readSuppliersForTenant(tenantId);
+    let list = await prisma.suppliers.findMany({ where: { tenantId }, orderBy: { name: "asc" }, select: { name: true, mobile: true } });
     if (!list.length) {
       const purchases = await prisma.purchases.findMany({ where: { tenantId } });
       const map = new Map<string, { name: string; mobile?: string | null }>();
       for (const p of purchases) {
-        const m = getSupplierMetaFor(p.purchaseId);
+        const m = await prisma.supplierPurchaseMeta.findUnique({ where: { purchaseId: p.purchaseId } });
         const n = String(m?.supplierName || "").trim();
         if (!n) continue;
         const key = n.toLowerCase();
@@ -436,7 +443,7 @@ export const exportSuppliersExcel = async (req: Request, res: Response): Promise
         const prev = map.get(key);
         map.set(key, { name: n, mobile: mobile ?? prev?.mobile ?? null });
       }
-      list = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+      list = Array.from(map.values()).map((s) => ({ name: s.name, mobile: s.mobile ?? null })).sort((a, b) => a.name.localeCompare(b.name));
     }
     const rows = list.map((s) => ({ Name: s.name, Mobile: s.mobile ?? "" }));
     const wb = XLSX.utils.book_new();

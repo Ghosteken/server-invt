@@ -13,6 +13,7 @@ datasource db {
   // For local development with Postgres set: DATABASE_URL="postgresql://USER:PASSWORD@HOST:PORT/DATABASE"
   provider = "postgresql"
   url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model Users {
@@ -73,6 +74,8 @@ model Purchases {
   totalCost  Float
   tenantId   String   @default("default")
   product    Products @relation(fields: [productId], references: [productId])
+  supplierMeta SupplierPurchaseMeta? @relation("PurchaseMeta")
+  payments     SupplierPayments[]     @relation("PurchasePayments")
 }
 
 model Expenses {
@@ -398,4 +401,64 @@ model ExpenseCategories {
 
   @@unique([tenantId, name])
   @@map("expense_categories")
+}
+
+// Tenant-scoped bank accounts
+model Banks {
+  id        String   @id
+  tenantId  String   @default("default")
+  name      String
+  account   String
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@unique([tenantId, name, account])
+  @@map("banks")
+}
+
+model SupplierPurchaseMeta {
+  id             String   @id
+  tenantId       String   @default("default")
+  purchaseId     String   @unique
+  supplierName   String?
+  supplierMobile String?
+  paymentTerm    String?
+  date           DateTime?
+  dueDate        DateTime?
+  unit           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  purchase       Purchases @relation("PurchaseMeta", fields: [purchaseId], references: [purchaseId])
+
+  @@index([tenantId])
+  @@map("supplier_purchase_meta")
+}
+
+model SupplierPayments {
+  id          String   @id
+  tenantId    String   @default("default")
+  purchaseId  String
+  date        DateTime @default(now())
+  amount      Float
+  bankName    String
+  bankAccount String
+  notes       String?
+  createdAt   DateTime @default(now())
+  purchase    Purchases @relation("PurchasePayments", fields: [purchaseId], references: [purchaseId])
+
+  @@index([tenantId])
+  @@index([purchaseId])
+  @@map("supplier_payments")
+}
+
+model Suppliers {
+  id        String   @id
+  tenantId  String   @default("default")
+  name      String
+  mobile    String?
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("suppliers")
 }

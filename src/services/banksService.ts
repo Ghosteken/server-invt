@@ -1,78 +1,72 @@
-import fs from "fs";
-import path from "path";
+import prisma from "../db/prisma";
 
 type Bank = { name: string; account: string };
 type BanksFile = { tenants: Record<string, Bank[]> };
 
-const BANKS_PATH = path.join(process.cwd(), "assets", "banks.json");
+// Prisma-backed persistence replacing JSON file storage
 
-function readFile(): BanksFile {
+export async function readBanks(tenantId: string): Promise<Bank[]> {
   try {
-    if (!fs.existsSync(BANKS_PATH)) return { tenants: {} };
-    const raw = fs.readFileSync(BANKS_PATH, "utf-8");
-    const json = JSON.parse(raw);
-    const tenants = typeof json?.tenants === 'object' && json.tenants ? json.tenants as Record<string, Bank[]> : {};
-    return { tenants };
+    const db = prisma as any;
+    const rows: any[] = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+    return rows.map((r: any) => ({ name: r.name, account: r.account }));
   } catch {
-    return { tenants: {} };
+    return [];
   }
 }
 
-function writeFile(payload: BanksFile): void {
+export async function addBank(tenantId: string, bank: Bank): Promise<Bank[]> {
+  const name = String(bank.name).trim();
+  const account = String(bank.account).trim();
   try {
-    const dir = path.dirname(BANKS_PATH);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(BANKS_PATH, JSON.stringify(payload, null, 2), "utf-8");
+    const db = prisma as any;
+    const existing = await db.banks.findFirst({ where: { tenantId, name, account } });
+    if (!existing) {
+      await db.banks.create({ data: { id: crypto.randomUUID(), tenantId, name, account } as any });
+    }
+    const rows: any[] = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+    return rows.map((r: any) => ({ name: r.name, account: r.account }));
   } catch {
-    // ignore write errors
+    const db = prisma as any;
+    const rows: any[] = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } }).catch(() => []);
+    return rows.map((r: any) => ({ name: r.name, account: r.account }));
   }
 }
 
-export function readBanks(tenantId: string): Bank[] {
-  const file = readFile();
-  const list = file.tenants[tenantId] || [];
-  return Array.isArray(list) ? list : [];
-}
-
-export function addBank(tenantId: string, bank: Bank): Bank[] {
-  const file = readFile();
-  const list = Array.isArray(file.tenants[tenantId]) ? file.tenants[tenantId] as Bank[] : [];
-  const exists = list.find((b) => b.name === bank.name && b.account === bank.account);
-  if (!exists) list.push({ name: String(bank.name).trim(), account: String(bank.account).trim() });
-  file.tenants[tenantId] = list;
-  writeFile(file);
-  return list;
-}
-
-export function updateBank(
-  tenantId: string,
-  oldBank: Bank,
-  nextBank: Bank
-): Bank[] {
-  const file = readFile();
-  const list = Array.isArray(file.tenants[tenantId]) ? (file.tenants[tenantId] as Bank[]) : [];
-  const idx = list.findIndex((b) => b.name === oldBank.name && b.account === oldBank.account);
-  if (idx === -1) return list;
-  const next = { name: String(nextBank.name).trim(), account: String(nextBank.account).trim() };
-  list[idx] = next;
-  const seen = new Set<string>();
-  const deduped: Bank[] = [];
-  for (const b of list) {
-    const key = `${String(b.name).trim()}|${String(b.account).trim()}`;
-    if (seen.has(key)) continue;
-    seen.add(key);
-    deduped.push({ name: String(b.name).trim(), account: String(b.account).trim() });
+export async function updateBank(tenantId: string, oldBank: Bank, nextBank: Bank): Promise<Bank[]> {
+  const oldName = String(oldBank.name).trim();
+  const oldAccount = String(oldBank.account).trim();
+  const name = String(nextBank.name).trim();
+  const account = String(nextBank.account).trim();
+  try {
+    const db = prisma as any;
+    const existing = await db.banks.findFirst({ where: { tenantId, name: oldName, account: oldAccount } });
+    if (existing) {
+      await db.banks.update({ where: { id: existing.id }, data: { name, account } });
+    }
+    const rows: any[] = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+    return rows.map((r: any) => ({ name: r.name, account: r.account }));
+  } catch {
+    const db = prisma as any;
+    const rows: any[] = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } }).catch(() => []);
+    return rows.map((r: any) => ({ name: r.name, account: r.account }));
   }
-  file.tenants[tenantId] = deduped;
-  writeFile(file);
-  return deduped;
 }
 
-export function removeBank(tenantId: string, bank: Bank): Bank[] {
-  const file = readFile();
-  const list = Array.isArray(file.tenants[tenantId]) ? (file.tenants[tenantId] as Bank[]) : [];
-  const filtered = list.filter((b) => !(b.name === bank.name && b.account === bank.account));
-  file.tenants[tenantId] = filtered.map((b) => ({ name: String(b.name).trim(), account: String(b.account).trim() }));
-  writeFile(file);
-  return file.tenants[tenantId];
+export async function removeBank(tenantId: string, bank: Bank): Promise<Bank[]> {
+  const name = String(bank.name).trim();
+  const account = String(bank.account).trim();
+  try {
+    const db = prisma as any;
+    const existing = await db.banks.findFirst({ where: { tenantId, name, account } });
+    if (existing) {
+      await db.banks.delete({ where: { id: existing.id } });
+    }
+    const rows: any[] = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+    return rows.map((r: any) => ({ name: r.name, account: r.account }));
+  } catch {
+    const db = prisma as any;
+    const rows: any[] = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } }).catch(() => []);
+    return rows.map((r: any) => ({ name: r.name, account: r.account }));
+  }
 }

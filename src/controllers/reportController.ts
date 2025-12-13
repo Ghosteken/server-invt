@@ -2,7 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../db/prisma";
 import { Prisma } from "@prisma/client";
 import { readExpenses } from "../services/expensesService";
-import { getSupplierMetaFor } from "../services/supplierPurchasesService";
+
 
 export const getSalesReport = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -116,6 +116,8 @@ export const getFinancialReport = async (req: Request, res: Response): Promise<v
       ? await prisma.products.findMany({ where: { tenantId, productId: { in: purchaseProductIds } }, select: { productId: true, name: true } })
       : [];
     const purchaseProductNameMap = new Map(purchaseProducts.map((p) => [p.productId, p.name] as const));
+    const metaRows = await prisma.supplierPurchaseMeta.findMany({ where: { purchaseId: { in: purchaseRowsFull.map((p) => p.purchaseId) } } });
+    const metaMap = new Map(metaRows.map((m) => [m.purchaseId, m]));
     const purchaseItems = purchaseRowsFull.map((p) => ({
       purchaseId: p.purchaseId,
       productId: p.productId,
@@ -124,7 +126,7 @@ export const getFinancialReport = async (req: Request, res: Response): Promise<v
       unitCost: Number(p.unitCost || 0),
       totalCost: Number(p.totalCost || 0),
       timestamp: p.timestamp,
-      supplierName: getSupplierMetaFor(p.purchaseId)?.supplierName || undefined,
+      supplierName: metaMap.get(p.purchaseId)?.supplierName || undefined,
     }));
     const purchasesTotal = purchaseItems.reduce((sum, r) => sum + Number(r.totalCost || 0), 0);
 
@@ -170,11 +172,13 @@ export const getPurchasesReport = async (req: Request, res: Response): Promise<v
       : [];
     const productNameMap = new Map(products.map((p) => [p.productId, p.name] as const));
 
+    const metaRows2 = await prisma.supplierPurchaseMeta.findMany({ where: { purchaseId: { in: purchases.map((p) => p.purchaseId) } } });
+    const metaMap2 = new Map(metaRows2.map((m) => [m.purchaseId, m]));
     const items = purchases.map((p) => ({
       purchaseId: p.purchaseId,
       productId: p.productId,
       productName: productNameMap.get(p.productId) || undefined,
-      supplierName: getSupplierMetaFor(p.purchaseId)?.supplierName || undefined,
+      supplierName: metaMap2.get(p.purchaseId)?.supplierName || undefined,
       quantity: p.quantity,
       unitCost: Number(p.unitCost || 0),
       totalCost: Number(p.totalCost || 0),

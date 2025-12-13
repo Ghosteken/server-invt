@@ -213,7 +213,7 @@ router.get("/banks", async (req, res) => {
             { name: "Amagzy global ventures(Stanbic bank) FOR OPERATIONS", account: "0034297097" },
             { name: "Amagzy global ventures(GTbank)FOR MANUFACTURING", account: "0240198526" },
         ];
-        const tenantBanks = (0, banksService_1.readBanks)(tenantId);
+        const tenantBanks = await (0, banksService_1.readBanks)(tenantId);
         const list = tenantId === "default" ? [...banksDefault, ...tenantBanks] : tenantBanks;
         res.json({ banks: list });
     }
@@ -227,7 +227,7 @@ router.post("/banks", async (req, res) => {
         const { name, account } = Body.parse(req.body || {});
         const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
         const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
-        const list = (0, banksService_1.addBank)(tenantId, { name, account });
+        const list = await (0, banksService_1.addBank)(tenantId, { name, account });
         try {
             (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account created: ${name} - ${account}`, actorUserId: req.user?.userId });
         }
@@ -253,7 +253,7 @@ router.put("/banks", async (req, res) => {
         const { oldName, oldAccount, name, account } = Body.parse(req.body || {});
         const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
         const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
-        const list = (0, banksService_1.updateBank)(tenantId, { name: oldName, account: oldAccount }, { name, account });
+        const list = await (0, banksService_1.updateBank)(tenantId, { name: oldName, account: oldAccount }, { name, account });
         try {
             (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account updated: ${oldName} - ${oldAccount} → ${name} - ${account}`, actorUserId: req.user?.userId });
         }
@@ -274,7 +274,7 @@ router.delete("/banks", async (req, res) => {
         const { name, account } = Body.parse(req.body || {});
         const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
         const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
-        const list = (0, banksService_1.removeBank)(tenantId, { name, account });
+        const list = await (0, banksService_1.removeBank)(tenantId, { name, account });
         try {
             (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account removed: ${name} - ${account}`, actorUserId: req.user?.userId });
         }

@@ -70,6 +70,8 @@ const getPurchases = async (req, res) => {
             const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
             const products = await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
             const productMap = new Map(products.map((p) => [p.productId, p.name]));
+            const metaRows = await prisma_1.default.supplierPurchaseMeta.findMany({ where: { purchaseId: { in: purchases.map((p) => p.purchaseId) } } });
+            const metaMap = new Map(metaRows.map((m) => [m.purchaseId, m]));
             const pageList = purchases.map((p) => ({
                 purchaseId: p.purchaseId,
                 productId: p.productId,
@@ -78,8 +80,8 @@ const getPurchases = async (req, res) => {
                 unitCost: p.unitCost,
                 totalCost: p.totalCost,
                 timestamp: p.timestamp,
-                supplierName: (0, supplierPurchasesService_1.getSupplierMetaFor)(p.purchaseId)?.supplierName || undefined,
-                supplierMobile: (0, supplierPurchasesService_1.getSupplierMetaFor)(p.purchaseId)?.supplierMobile || undefined,
+                supplierName: metaMap.get(p.purchaseId)?.supplierName || undefined,
+                supplierMobile: metaMap.get(p.purchaseId)?.supplierMobile || undefined,
             }));
             return { list: pageList, total: totalCount };
         });
@@ -103,8 +105,8 @@ const deletePurchase = async (req, res) => {
         }
         // Reduce inventory based on stored unit meta (defaults to carton)
         try {
-            const meta = (0, supplierPurchasesService_1.getSupplierMetaFor)(id);
-            const unit = (meta?.unit === "pcs" ? "pcs" : "ctn");
+            const metaRow = await prisma_1.default.supplierPurchaseMeta.findUnique({ where: { purchaseId: id } });
+            const unit = (metaRow?.unit === "pcs" ? "pcs" : "ctn");
             const p = await prisma_1.default.products.findFirst({ where: { productId: existing.productId, tenantId } });
             if (p) {
                 const qty = Math.max(0, Number(existing.quantity) || 0);
@@ -270,9 +272,8 @@ const updatePurchaseMeta = async (req, res) => {
         const paymentTerm = body.paymentTerm !== undefined ? (body.paymentTerm ? String(body.paymentTerm) : null) : undefined;
         const dueDate = body.dueDate !== undefined ? (body.dueDate ? String(body.dueDate) : null) : undefined;
         (0, supplierPurchasesService_1.upsertSupplierMeta)({ purchaseId: id, supplierName, supplierMobile, paymentTerm, dueDate });
-        const meta = (0, supplierPurchasesService_1.getSupplierMetaFor)(id);
-        // Notify: purchase meta updated
-        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Updated purchase ${id} meta: supplier=${meta?.supplierName || "-"}, term=${meta?.paymentTerm || "-"}` });
+        const meta = { purchaseId: id, supplierName: supplierName ?? null, supplierMobile: supplierMobile ?? null, paymentTerm: paymentTerm ?? null, dueDate: dueDate ?? null };
+        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Updated purchase ${id} meta: supplier=${meta.supplierName || "-"}, term=${meta.paymentTerm || "-"}` });
         res.json({ meta });
     }
     catch (err) {
@@ -300,8 +301,8 @@ const updatePurchase = async (req, res) => {
         const nextUnit = body.unit === "pcs" ? "pcs" : (body.unit === "ctn" ? "ctn" : undefined);
         const nextExpiryDate = body.expiryDate ? String(body.expiryDate) : undefined;
         // Determine old unit from meta (defaults to 'ctn' for backwards compat)
-        const meta = (0, supplierPurchasesService_1.getSupplierMetaFor)(id);
-        const oldUnit = (meta?.unit === "pcs" ? "pcs" : "ctn");
+        const metaRow = await prisma_1.default.supplierPurchaseMeta.findUnique({ where: { purchaseId: id } });
+        const oldUnit = (metaRow?.unit === "pcs" ? "pcs" : "ctn");
         // Fetch product records for inventory adjustments
         const oldProduct = await prisma_1.default.products.findFirst({ where: { productId: existing.productId, tenantId } });
         if (!oldProduct) {
@@ -398,12 +399,12 @@ exports.getPurchasePrintOptions = getPurchasePrintOptions;
 const getSuppliers = async (req, res) => {
     try {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        let list = (0, supplierPurchasesService_1.readSuppliersForTenant)(tenantId);
+        let list = await prisma_1.default.suppliers.findMany({ where: { tenantId }, orderBy: { name: "asc" }, select: { name: true, mobile: true } });
         if (!list.length) {
             const purchases = await prisma_1.default.purchases.findMany({ where: { tenantId } });
             const map = new Map();
             for (const p of purchases) {
-                const m = (0, supplierPurchasesService_1.getSupplierMetaFor)(p.purchaseId);
+                const m = await prisma_1.default.supplierPurchaseMeta.findUnique({ where: { purchaseId: p.purchaseId } });
                 const n = String(m?.supplierName || "").trim();
                 if (!n)
                     continue;
@@ -412,7 +413,7 @@ const getSuppliers = async (req, res) => {
                 const prev = map.get(key);
                 map.set(key, { name: n, mobile: mobile ?? prev?.mobile ?? null });
             }
-            list = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+            list = Array.from(map.values()).map((s) => ({ name: s.name, mobile: s.mobile ?? null })).sort((a, b) => a.name.localeCompare(b.name));
         }
         res.json({ suppliers: list });
     }
@@ -445,7 +446,7 @@ const importSuppliers = async (req, res) => {
             out.push({ name: n, mobile: mobile == null ? null : String(mobile) });
         }
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        const existing = (0, supplierPurchasesService_1.readSuppliersForTenant)(tenantId);
+        const existing = await prisma_1.default.suppliers.findMany({ where: { tenantId }, select: { name: true, mobile: true } });
         const byName = new Map();
         const add = (s) => {
             const key = s.name.toLowerCase();
@@ -455,7 +456,13 @@ const importSuppliers = async (req, res) => {
         existing.forEach(add);
         out.forEach(add);
         const merged = Array.from(byName.values()).sort((a, b) => a.name.localeCompare(b.name));
-        (0, supplierPurchasesService_1.writeSuppliersForTenant)(tenantId, merged);
+        for (const s of merged) {
+            await prisma_1.default.suppliers.upsert({
+                where: { tenantId_name: { tenantId, name: s.name } },
+                update: { mobile: s.mobile ?? undefined },
+                create: { id: (0, crypto_1.randomUUID)(), tenantId, name: s.name, mobile: s.mobile ?? undefined },
+            });
+        }
         res.json({ importedSuppliers: out.length });
     }
     catch (err) {
@@ -466,12 +473,12 @@ exports.importSuppliers = importSuppliers;
 const exportSuppliersExcel = async (req, res) => {
     try {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        let list = (0, supplierPurchasesService_1.readSuppliersForTenant)(tenantId);
+        let list = await prisma_1.default.suppliers.findMany({ where: { tenantId }, orderBy: { name: "asc" }, select: { name: true, mobile: true } });
         if (!list.length) {
             const purchases = await prisma_1.default.purchases.findMany({ where: { tenantId } });
             const map = new Map();
             for (const p of purchases) {
-                const m = (0, supplierPurchasesService_1.getSupplierMetaFor)(p.purchaseId);
+                const m = await prisma_1.default.supplierPurchaseMeta.findUnique({ where: { purchaseId: p.purchaseId } });
                 const n = String(m?.supplierName || "").trim();
                 if (!n)
                     continue;
@@ -480,7 +487,7 @@ const exportSuppliersExcel = async (req, res) => {
                 const prev = map.get(key);
                 map.set(key, { name: n, mobile: mobile ?? prev?.mobile ?? null });
             }
-            list = Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+            list = Array.from(map.values()).map((s) => ({ name: s.name, mobile: s.mobile ?? null })).sort((a, b) => a.name.localeCompare(b.name));
         }
         const rows = list.map((s) => ({ Name: s.name, Mobile: s.mobile ?? "" }));
         const wb = XLSX.utils.book_new();

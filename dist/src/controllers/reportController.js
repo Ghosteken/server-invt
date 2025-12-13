@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPurchasesReport = exports.getFinancialReport = exports.getSalesReport = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
-const supplierPurchasesService_1 = require("../services/supplierPurchasesService");
 const getSalesReport = async (req, res) => {
     try {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
@@ -113,6 +112,8 @@ const getFinancialReport = async (req, res) => {
             ? await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: purchaseProductIds } }, select: { productId: true, name: true } })
             : [];
         const purchaseProductNameMap = new Map(purchaseProducts.map((p) => [p.productId, p.name]));
+        const metaRows = await prisma_1.default.supplierPurchaseMeta.findMany({ where: { purchaseId: { in: purchaseRowsFull.map((p) => p.purchaseId) } } });
+        const metaMap = new Map(metaRows.map((m) => [m.purchaseId, m]));
         const purchaseItems = purchaseRowsFull.map((p) => ({
             purchaseId: p.purchaseId,
             productId: p.productId,
@@ -121,7 +122,7 @@ const getFinancialReport = async (req, res) => {
             unitCost: Number(p.unitCost || 0),
             totalCost: Number(p.totalCost || 0),
             timestamp: p.timestamp,
-            supplierName: (0, supplierPurchasesService_1.getSupplierMetaFor)(p.purchaseId)?.supplierName || undefined,
+            supplierName: metaMap.get(p.purchaseId)?.supplierName || undefined,
         }));
         const purchasesTotal = purchaseItems.reduce((sum, r) => sum + Number(r.totalCost || 0), 0);
         // Expenses total from JSON store
@@ -163,11 +164,13 @@ const getPurchasesReport = async (req, res) => {
             ? await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } })
             : [];
         const productNameMap = new Map(products.map((p) => [p.productId, p.name]));
+        const metaRows2 = await prisma_1.default.supplierPurchaseMeta.findMany({ where: { purchaseId: { in: purchases.map((p) => p.purchaseId) } } });
+        const metaMap2 = new Map(metaRows2.map((m) => [m.purchaseId, m]));
         const items = purchases.map((p) => ({
             purchaseId: p.purchaseId,
             productId: p.productId,
             productName: productNameMap.get(p.productId) || undefined,
-            supplierName: (0, supplierPurchasesService_1.getSupplierMetaFor)(p.purchaseId)?.supplierName || undefined,
+            supplierName: metaMap2.get(p.purchaseId)?.supplierName || undefined,
             quantity: p.quantity,
             unitCost: Number(p.unitCost || 0),
             totalCost: Number(p.totalCost || 0),

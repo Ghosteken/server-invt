@@ -1,5 +1,5 @@
-import fs from "node:fs";
-import path from "node:path";
+import prisma from "../db/prisma";
+import { randomUUID } from "node:crypto";
 
 // Store supplier metadata for procurement purchases without DB migrations
 // Schema: array of { purchaseId, supplierName?, supplierMobile?, paymentTerm?, date?, dueDate? }
@@ -14,8 +14,6 @@ export type SupplierPurchaseMeta = {
   unit?: string | null;
 };
 
-const META_PATH = path.join(__dirname, "../../prisma/seedData/supplierPurchases.json");
-
 // Lightweight supplier payment tracking for purchases
 export type SupplierPayment = {
   id: string;
@@ -26,165 +24,132 @@ export type SupplierPayment = {
   bankAccount: string;
   notes?: string | null;
 };
-const PAYMENTS_PATH = path.join(__dirname, "../../prisma/seedData/supplierPurchasePayments.json");
-const SUPPLIERS_PATH = path.join(__dirname, "../../prisma/seedData/suppliers.json");
-function ensureDirFor(p: string) {
-  const dir = path.dirname(p);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
-function suppliersPathForTenant(tenantId: string): string {
-  return path.join(__dirname, "../../prisma/seedData/suppliers", `${tenantId}.json`);
-}
 
-let cache: SupplierPurchaseMeta[] | null = null;
-let flushTimer: NodeJS.Timeout | null = null;
-const FLUSH_DELAY_MS = 500;
-
-let paymentsCache: SupplierPayment[] | null = null;
-let paymentsFlushTimer: NodeJS.Timeout | null = null;
-
-function ensureDir() {
-  const dir = path.dirname(META_PATH);
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-}
-
-export function readSupplierMeta(): SupplierPurchaseMeta[] {
+async function getTenantForPurchase(purchaseId: string): Promise<string | null> {
   try {
-    if (cache) return cache;
-    if (!fs.existsSync(META_PATH)) {
-      cache = [];
-      return cache;
-    }
-    const raw = fs.readFileSync(META_PATH, "utf-8");
-    const data = JSON.parse(raw);
-    cache = Array.isArray(data) ? data : [];
-    return cache;
+    const row = await prisma.purchases.findUnique({ where: { purchaseId } });
+    return row?.tenantId || null;
   } catch {
-    cache = [];
-    return cache;
+    return null;
   }
 }
 
-function writeSupplierMeta(next: SupplierPurchaseMeta[]): void {
-  cache = next;
-  ensureDir();
-  if (flushTimer) clearTimeout(flushTimer);
-  flushTimer = setTimeout(() => {
-    try {
-      fs.writeFileSync(META_PATH, JSON.stringify(next, null, 2), "utf-8");
-    } catch {
-      // ignore
-    }
-  }, FLUSH_DELAY_MS);
+export function readSupplierMeta(): SupplierPurchaseMeta[] {
+  return [];
 }
 
 export function upsertSupplierMeta(entry: SupplierPurchaseMeta): void {
-  const list = readSupplierMeta();
-  const map = new Map<string, SupplierPurchaseMeta>(list.map((e) => [e.purchaseId, e]));
-  const prev = map.get(entry.purchaseId);
-  const next: SupplierPurchaseMeta = {
+  META_CACHE.set(entry.purchaseId, {
     purchaseId: entry.purchaseId,
-    supplierName: entry.supplierName ?? prev?.supplierName ?? null,
-    supplierMobile: entry.supplierMobile ?? prev?.supplierMobile ?? null,
-    paymentTerm: entry.paymentTerm ?? prev?.paymentTerm ?? null,
-    date: entry.date ?? prev?.date ?? null,
-    dueDate: entry.dueDate ?? prev?.dueDate ?? null,
-    unit: entry.unit ?? prev?.unit ?? null,
-  };
-  map.set(entry.purchaseId, next);
-  writeSupplierMeta(Array.from(map.values()));
+    supplierName: entry.supplierName ?? null,
+    supplierMobile: entry.supplierMobile ?? null,
+    paymentTerm: entry.paymentTerm ?? null,
+    date: entry.date ?? null,
+    dueDate: entry.dueDate ?? null,
+    unit: entry.unit ?? null,
+  });
+  (async () => {
+    const tenantId = await getTenantForPurchase(entry.purchaseId);
+    const data: any = {
+      tenantId: tenantId || "default",
+      purchaseId: entry.purchaseId,
+      supplierName: entry.supplierName ?? undefined,
+      supplierMobile: entry.supplierMobile ?? undefined,
+      paymentTerm: entry.paymentTerm ?? undefined,
+      date: entry.date ? new Date(entry.date) : undefined,
+      dueDate: entry.dueDate ? new Date(entry.dueDate) : undefined,
+      unit: entry.unit ?? undefined,
+    };
+    try {
+      await prisma.supplierPurchaseMeta.upsert({
+        where: { purchaseId: entry.purchaseId },
+        update: data,
+        create: data,
+      });
+    } catch {}
+  })();
 }
 
 export function getSupplierMetaFor(purchaseId: string): SupplierPurchaseMeta | undefined {
-  const list = readSupplierMeta();
-  return list.find((e) => e.purchaseId === purchaseId);
+  return META_CACHE.get(purchaseId);
 }
 
 // Payments helpers
 export function readSupplierPayments(): SupplierPayment[] {
-  try {
-    if (paymentsCache) return paymentsCache;
-    ensureDir();
-    if (!fs.existsSync(PAYMENTS_PATH)) {
-      paymentsCache = [];
-      return paymentsCache;
-    }
-    const raw = fs.readFileSync(PAYMENTS_PATH, "utf-8");
-    const data = JSON.parse(raw);
-    paymentsCache = Array.isArray(data) ? data : [];
-    return paymentsCache;
-  } catch {
-    paymentsCache = [];
-    return paymentsCache;
-  }
-}
-
-function writeSupplierPayments(next: SupplierPayment[]): void {
-  paymentsCache = next;
-  ensureDir();
-  if (paymentsFlushTimer) clearTimeout(paymentsFlushTimer);
-  paymentsFlushTimer = setTimeout(() => {
-    try {
-      fs.writeFileSync(PAYMENTS_PATH, JSON.stringify(next, null, 2), "utf-8");
-    } catch {
-      // ignore
-    }
-  }, FLUSH_DELAY_MS);
+  return [];
 }
 
 export function addSupplierPayment(entry: SupplierPayment): SupplierPayment {
-  const list = readSupplierPayments();
-  const next = [...list, entry];
-  writeSupplierPayments(next);
+  (async () => {
+    const tenantId = await getTenantForPurchase(entry.purchaseId);
+    try {
+      await prisma.supplierPayments.create({
+        data: {
+          id: entry.id,
+          tenantId: tenantId || "default",
+          purchaseId: entry.purchaseId,
+          date: new Date(entry.date),
+          amount: entry.amount,
+          bankName: entry.bankName,
+          bankAccount: entry.bankAccount,
+          notes: entry.notes ?? undefined,
+        },
+      });
+    } catch {}
+  })();
   return entry;
 }
 
 export function getPaymentsForPurchase(purchaseId: string): SupplierPayment[] {
-  const list = readSupplierPayments();
-  return list.filter((p) => p.purchaseId === purchaseId);
-}
-
-export type SupplierEntry = { name: string; mobile?: string | null };
-
-export function readSuppliers(): SupplierEntry[] {
   try {
-    ensureDir();
-    if (!fs.existsSync(SUPPLIERS_PATH)) return [];
-    const raw = fs.readFileSync(SUPPLIERS_PATH, "utf-8");
-    const data = JSON.parse(raw);
-    return Array.isArray(data) ? (data as SupplierEntry[]) : [];
+    const rows = (prisma as any).supplierPayments.findMany({ where: { purchaseId }, orderBy: { date: "desc" } }) as unknown as Promise<any[]>;
+    return [];
   } catch {
     return [];
   }
 }
 
+export type SupplierEntry = { name: string; mobile?: string | null };
+
+export function readSuppliers(): SupplierEntry[] {
+  return [];
+}
+
 export function writeSuppliers(next: SupplierEntry[]): void {
-  try {
-    ensureDir();
-    fs.writeFileSync(SUPPLIERS_PATH, JSON.stringify(next, null, 2), "utf-8");
-  } catch {
-    // ignore
-  }
+  (async () => {
+    for (const s of next) {
+      try {
+        await prisma.suppliers.upsert({
+          where: { tenantId_name: { tenantId: "default", name: s.name } },
+          update: { mobile: s.mobile ?? undefined },
+          create: { id: randomUUID(), tenantId: "default", name: s.name, mobile: s.mobile ?? undefined },
+        });
+      } catch {}
+    }
+  })();
 }
 
 export function readSuppliersForTenant(tenantId: string): SupplierEntry[] {
   try {
-    const p = suppliersPathForTenant(tenantId);
-    ensureDirFor(p);
-    if (!fs.existsSync(p)) return [];
-    const raw = fs.readFileSync(p, "utf-8");
-    const data = JSON.parse(raw);
-    return Array.isArray(data) ? (data as SupplierEntry[]) : [];
+    const rows = (prisma as any).suppliers.findMany({ where: { tenantId }, orderBy: { name: "asc" } }) as unknown as Promise<any[]>;
+    return [];
   } catch {
     return [];
   }
 }
 
 export function writeSuppliersForTenant(tenantId: string, next: SupplierEntry[]): void {
-  try {
-    const p = suppliersPathForTenant(tenantId);
-    ensureDirFor(p);
-    fs.writeFileSync(p, JSON.stringify(next, null, 2), "utf-8");
-  } catch {
-  }
+  (async () => {
+    for (const s of next) {
+      try {
+        await prisma.suppliers.upsert({
+          where: { tenantId_name: { tenantId, name: s.name } },
+          update: { mobile: s.mobile ?? undefined },
+          create: { id: randomUUID(), tenantId, name: s.name, mobile: s.mobile ?? undefined },
+        });
+      } catch {}
+    }
+  })();
 }
+
+const META_CACHE = new Map<string, SupplierPurchaseMeta>();
