@@ -7,6 +7,8 @@
     "build": "rimraf dist && tsc",
     "start": "node dist/index.js",
     "test": "jest",
+    "lint": "eslint \"src/**/*.{ts,tsx}\"",
+    "typecheck": "tsc --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed"
@@ -40,6 +42,7 @@
     "yamljs": "^0.3.0"
   },
   "devDependencies": {
+    "@eslint/js": "^9.14.0",
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.8.1",
     "@types/cors": "^2.8.19",
@@ -53,9 +56,14 @@
     "@types/uuid": "^10.0.0",
     "@types/swagger-ui-express": "^4.1.6",
     "@types/yamljs": "^0.2.34",
+    "@typescript-eslint/eslint-plugin": "^8.13.0",
+    "@typescript-eslint/parser": "^8.13.0",
+    "eslint": "^9.14.0",
+    "eslint-config-prettier": "^9.1.0",
     "jest": "^30.2.0",
     "nodemon": "^3.1.10",
     "supertest": "^7.1.4",
+    "typescript-eslint": "^8.13.0",
     "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
