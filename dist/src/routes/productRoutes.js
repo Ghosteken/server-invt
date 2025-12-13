@@ -9,7 +9,7 @@ const productController_1 = require("../controllers/productController");
 const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = (0, express_1.Router)();
 const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
-router.get("/", authMiddleware_1.authenticateToken, productController_1.getProducts);
+router.get("/", productController_1.getProducts);
 router.post("/", authMiddleware_1.authenticateToken, productController_1.createProduct);
 router.post("/import", authMiddleware_1.authenticateToken, upload.single("file"), productController_1.importProducts);
 router.get("/import/sample", authMiddleware_1.authenticateToken, productController_1.getImportSample);

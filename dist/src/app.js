@@ -56,13 +56,20 @@ function createApp() {
     app.use(body_parser_1.default.urlencoded({ extended: false }));
     app.use((0, cors_1.default)());
     // Rate limiter; configurable via env
+    const ipFromReq = (req) => {
+        const xf = req.headers?.["x-forwarded-for"];
+        const forwarded = Array.isArray(xf) ? xf[0] : xf;
+        const raw = req.ip || forwarded || req.socket?.remoteAddress || "";
+        const s = String(raw || "");
+        return s.startsWith("::ffff:") ? s.slice(7) : (s || "unknown");
+    };
     const limiter = (0, express_rate_limit_1.default)({
         windowMs: 60 * 1000,
         max: Number(process.env.RATE_LIMIT_MAX || 300),
         keyGenerator: (req) => {
             const tid = req.tenantId || req.user?.tenantId || "default";
-            const uid = req.user?.userId || req.ip;
-            return `${tid}:${uid}`;
+            const uid = req.user?.userId;
+            return uid ? `${tid}:${uid}` : `${tid}:${ipFromReq(req)}`;
         },
     });
     app.use(limiter);
