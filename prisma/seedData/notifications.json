@@ -633,5 +633,19 @@
     "message": "Processed manual invoice for Alice; updated 0 product(s).",
     "timestamp": "2025-12-13T14:52:31.849Z",
     "actorUserId": "tester"
+  },
+  {
+    "id": "1765663063632-hq663q",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-13T21:57:43.632Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765663063648-51916v",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-13T21:57:43.648Z",
+    "actorUserId": "tester"
   }
 ]
