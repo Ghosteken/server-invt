@@ -1,0 +1,28 @@
+name: Staging – Apply Prisma Migrations
+
+on:
+  push:
+    branches:
+      - staging
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Prisma migrations (staging)
+        env:
+            DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+            DIRECT_URL: ${{ secrets.STAGING_DIRECT_URL }}
+        run: npx prisma migrate deploy
