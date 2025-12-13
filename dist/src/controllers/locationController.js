@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteLocation = exports.updateLocation = exports.createLocation = exports.getLocations = void 0;
 const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../db/prisma"));
+const notificationService_1 = require("../services/notificationService");
 const getLocations = async (_req, res) => {
     try {
         const reqAny = _req;
@@ -34,6 +35,10 @@ const createLocation = async (req, res) => {
             return;
         }
         const created = await prisma_1.default.locations.create({ data: { id: (0, crypto_1.randomUUID)(), name, tenantId } });
+        try {
+            (0, notificationService_1.appendNotification)({ type: "location", message: `Location created: ${created.name}`, actorUserId: req.user?.userId });
+        }
+        catch { }
         res.status(201).json(created);
     }
     catch (err) {
@@ -58,6 +63,10 @@ const updateLocation = async (req, res) => {
             return;
         }
         const updated = await prisma_1.default.locations.update({ where: { id }, data: { name } });
+        try {
+            (0, notificationService_1.appendNotification)({ type: "location", message: `Location updated: ${existing.name} → ${updated.name}`, actorUserId: req.user?.userId });
+        }
+        catch { }
         res.json({ id: updated.id, name: updated.name });
     }
     catch (err) {
@@ -81,6 +90,10 @@ const deleteLocation = async (req, res) => {
             return;
         }
         await prisma_1.default.locations.delete({ where: { id } });
+        try {
+            (0, notificationService_1.appendNotification)({ type: "location", message: `Location deleted: ${existing.name}`, actorUserId: req.user?.userId });
+        }
+        catch { }
         res.json({ success: true });
     }
     catch (err) {

@@ -10,6 +10,7 @@ const featureFlagsService_1 = require("../services/featureFlagsService");
 const invoiceLayoutService_1 = require("../services/invoiceLayoutService");
 const financialLayoutService_1 = require("../services/financialLayoutService");
 const banksService_1 = require("../services/banksService");
+const notificationService_1 = require("../services/notificationService");
 const router = (0, express_1.Router)();
 // Use shared Prisma client
 const ALL_FEATURES = [
@@ -227,6 +228,10 @@ router.post("/banks", async (req, res) => {
         const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
         const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const list = (0, banksService_1.addBank)(tenantId, { name, account });
+        try {
+            (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account created: ${name} - ${account}`, actorUserId: req.user?.userId });
+        }
+        catch { }
         res.status(201).json({ banks: list });
     }
     catch (err) {
@@ -249,6 +254,10 @@ router.put("/banks", async (req, res) => {
         const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
         const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const list = (0, banksService_1.updateBank)(tenantId, { name: oldName, account: oldAccount }, { name, account });
+        try {
+            (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account updated: ${oldName} - ${oldAccount} → ${name} - ${account}`, actorUserId: req.user?.userId });
+        }
+        catch { }
         res.json({ banks: list });
     }
     catch (err) {
@@ -266,6 +275,10 @@ router.delete("/banks", async (req, res) => {
         const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
         const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const list = (0, banksService_1.removeBank)(tenantId, { name, account });
+        try {
+            (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account removed: ${name} - ${account}`, actorUserId: req.user?.userId });
+        }
+        catch { }
         res.json({ banks: list });
     }
     catch (err) {

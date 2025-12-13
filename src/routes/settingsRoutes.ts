@@ -6,6 +6,7 @@ import { readInvoiceLayout, writeInvoiceLayout } from "../services/invoiceLayout
 import { readFinancialLayout, writeFinancialLayout } from "../services/financialLayoutService";
 import { Request, Response } from "express";
 import { readBanks, addBank, updateBank, removeBank } from "../services/banksService";
+import { appendNotification } from "../services/notificationService";
 
 const router = Router();
 // Use shared Prisma client
@@ -226,6 +227,7 @@ router.post("/banks", async (req: Request, res: Response) => {
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
     const list = addBank(tenantId, { name, account });
+    try { appendNotification({ type: "bank", message: `Bank account created: ${name} - ${account}`, actorUserId: req.user?.userId }); } catch {}
     res.status(201).json({ banks: list });
   } catch (err) {
     if (err instanceof ZodError) {
@@ -248,6 +250,7 @@ router.put("/banks", async (req: Request, res: Response) => {
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
     const list = updateBank(tenantId, { name: oldName, account: oldAccount }, { name, account });
+    try { appendNotification({ type: "bank", message: `Bank account updated: ${oldName} - ${oldAccount} → ${name} - ${account}`, actorUserId: req.user?.userId }); } catch {}
     res.json({ banks: list });
   } catch (err) {
     if (err instanceof ZodError) {
@@ -265,6 +268,7 @@ router.delete("/banks", async (req: Request, res: Response) => {
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
     const list = removeBank(tenantId, { name, account });
+    try { appendNotification({ type: "bank", message: `Bank account removed: ${name} - ${account}`, actorUserId: req.user?.userId }); } catch {}
     res.json({ banks: list });
   } catch (err) {
     if (err instanceof ZodError) {
