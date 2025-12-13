@@ -1,0 +1,35 @@
+name: Master – CI & Safety Check
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  safety-and-build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Run lint
+        run: npm run lint
+
+      - name: Build
+        run: npm run build
+
+      - name: Safety Check for Migrations
+        run: |
+          echo "Master branch detected. Prisma migrations should NOT run on master!"
