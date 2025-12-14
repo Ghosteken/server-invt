@@ -90,6 +90,24 @@ const createUser = async (req, res) => {
             email: newUser.email,
             role: newUser.role,
         });
+        // If this is an admin created by an admin, mirror to OrgAdmins so Super Admin sees it
+        try {
+            if ((newUser.role || "").toLowerCase() === "admin") {
+                const existingOrgAdmin = await prisma_1.default.orgAdmins.findFirst({ where: { orgId: tenantId, email: newUser.email } });
+                const hashed = hashedPassword;
+                if (!existingOrgAdmin) {
+                    await prisma_1.default.orgAdmins.create({
+                        data: { id: (0, crypto_1.randomUUID)(), orgId: tenantId, name: newUser.name || "Admin", email: newUser.email, passwordHash: hashed },
+                    });
+                }
+                else {
+                    await prisma_1.default.orgAdmins.update({ where: { id: existingOrgAdmin.id }, data: { name: newUser.name || existingOrgAdmin.name, passwordHash: hashed } });
+                }
+            }
+        }
+        catch (mirrorErr) {
+            console.warn("createUser: failed to mirror admin into OrgAdmins", mirrorErr);
+        }
         (0, notificationService_1.appendNotification)({
             type: "user",
             message: `User created: ${newUser.name} (${newUser.email}) as ${newUser.role}`,
@@ -135,7 +153,35 @@ const deleteUser = async (req, res) => {
             return;
         }
         if (target.role === "admin") {
-            res.status(403).json({ message: "Cannot delete admin users" });
+            // Allow deletion of admin users only by the primary org admin (first admin created with Super Admin)
+            const org = await prisma_1.default.organizations.findUnique({ where: { id: tenantId } });
+            const requesterEmail = String(req.user?.email || "").toLowerCase();
+            const isPrimaryAdmin = org && requesterEmail && requesterEmail === String(org.adminEmail || "").toLowerCase();
+            if (!isPrimaryAdmin) {
+                res.status(403).json({ message: "Only the primary admin can delete admin users" });
+                return;
+            }
+            if (String(req.user?.userId || "") === String(userId)) {
+                res.status(403).json({ message: "Cannot delete current admin user" });
+                return;
+            }
+            // Proceed to delete admin user and mirror removal from OrgAdmins
+            await prisma_1.default.users.delete({ where: { userId } });
+            try {
+                const orgAdmin = await prisma_1.default.orgAdmins.findFirst({ where: { orgId: tenantId, email: target.email } });
+                if (orgAdmin) {
+                    await prisma_1.default.orgAdmins.delete({ where: { id: orgAdmin.id } });
+                }
+            }
+            catch (mirrorErr) {
+                console.warn("deleteUser: failed to mirror delete from OrgAdmins", mirrorErr);
+            }
+            res.json({ message: "Admin user deleted" });
+            (0, notificationService_1.appendNotification)({
+                type: "user",
+                message: `Admin user deleted: ${target.name} (${target.email})`,
+                actorUserId: req.user?.userId,
+            });
             return;
         }
         // Prevent deleting self

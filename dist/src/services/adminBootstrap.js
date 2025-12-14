@@ -63,22 +63,7 @@ async function syncOrgAdminsToUsers() {
     try {
         const orgs = await prisma.organizations.findMany();
         for (const org of orgs) {
-            const adminEmail = String(org.adminEmail || '').toLowerCase();
-            if (adminEmail) {
-                const existingUser = await prisma.users.findFirst({ where: { email: adminEmail } });
-                const hashed = org.adminPasswordHash || bcryptjs_1.default.hashSync('changeme', 10);
-                if (!existingUser) {
-                    await prisma.users.create({ data: { userId: (0, node_crypto_1.randomUUID)(), name: 'Admin', email: adminEmail, password: hashed, role: 'admin', tenantId: org.id } });
-                }
-                else {
-                    const next = { role: 'admin', tenantId: org.id };
-                    // Keep password hash in sync if it differs
-                    if (existingUser.password !== hashed)
-                        next.password = hashed;
-                    await prisma.users.update({ where: { userId: existingUser.userId }, data: next });
-                }
-            }
-            // Ensure all orgAdmins are represented in Users
+            // Ensure all orgAdmins are represented in Users (do not sync from organizations.adminEmail)
             const admins = await prisma.orgAdmins.findMany({ where: { orgId: org.id } });
             for (const a of admins) {
                 const email = String(a.email || '').toLowerCase();
