@@ -1199,7 +1199,23 @@ export const importProducts = async (
         }
         mergedItemsForJson.push({ ...item, productId: existing.productId });
       } else {
-        const newItemData = { ...item } as any;
+        const { __present, ...raw } = (item as any);
+        const allowed = new Set([
+          "productId",
+          "name",
+          "price",
+          "purchasePrice",
+          "stockQuantity",
+          "expiryDate",
+          "category",
+          "description",
+          "packSize",
+          "barcode",
+        ]);
+        const newItemData: any = {};
+        for (const k of Object.keys(raw)) {
+          if (allowed.has(k)) newItemData[k] = raw[k];
+        }
         if (newItemData.category) {
           const mapped = bestCategoryForValue(String(newItemData.category));
           newItemData.category = mapped ?? newItemData.category;
