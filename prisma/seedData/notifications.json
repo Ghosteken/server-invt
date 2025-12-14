@@ -654,5 +654,33 @@
     "message": "User deleted: babs (babs@amagzy.com)",
     "timestamp": "2025-12-14T14:56:14.616Z",
     "actorUserId": "85442d91-36dc-4f37-a217-d1f2efa8c6c1"
+  },
+  {
+    "id": "1765731644013-0th9ch",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-14T17:00:44.013Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765731644032-x5lcor",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-14T17:00:44.032Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765731884287-1ckb6p",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-14T17:04:44.287Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1765731884303-28kic0",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-14T17:04:44.303Z",
+    "actorUserId": "tester"
   }
 ]

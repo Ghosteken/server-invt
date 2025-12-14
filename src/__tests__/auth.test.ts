@@ -40,6 +40,13 @@ jest.mock('@prisma/client', () => {
         return data;
       }),
     },
+    orgAdmins: {
+      findFirst: jest.fn(async () => null),
+    },
+    organizations: {
+      findUnique: jest.fn(async () => null),
+      findFirst: jest.fn(async () => null),
+    }
   };
   return { PrismaClient: jest.fn(() => m) };
 });
@@ -78,13 +85,11 @@ describe('Auth and protected user routes', () => {
     expect(res.status).toBe(403);
   });
 
-  test('POST /auth/admin/login succeeds with master admin env credentials', async () => {
-    process.env.MASTER_ADMIN_EMAIL = 'root@saas.test';
-    process.env.MASTER_ADMIN_PASSWORD = 'rootpass';
+  test('POST /auth/admin/login succeeds for DB admin user', async () => {
     const app = buildApp();
     const res = await request(app)
       .post('/auth/admin/login')
-      .send({ email: 'root@saas.test', password: 'rootpass' });
+      .send({ email: 'admin@inventory.com', password: 'pass123' });
     expect(res.status).toBe(200);
     expect(res.body.user).toMatchObject({ role: 'admin' });
     expect(res.body).toHaveProperty('token');
