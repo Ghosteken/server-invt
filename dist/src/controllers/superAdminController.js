@@ -122,15 +122,6 @@ const listOrgAdmins = async (req, res) => {
                 await prisma_1.default.orgAdmins.create({ data: { id: (0, crypto_1.randomUUID)(), orgId: id, name: u.name, email: u.email, passwordHash: u.password } });
             }
         }
-        if (!tenantAdmins.length) {
-            const org = await prisma_1.default.organizations.findUnique({ where: { id } });
-            if (org) {
-                const already = await prisma_1.default.orgAdmins.findFirst({ where: { orgId: id, email: org.adminEmail } });
-                if (!already) {
-                    await prisma_1.default.orgAdmins.create({ data: { id: (0, crypto_1.randomUUID)(), orgId: id, name: "Admin", email: org.adminEmail, passwordHash: org.adminPasswordHash } });
-                }
-            }
-        }
         admins = await prisma_1.default.orgAdmins.findMany({ where: { orgId: id }, orderBy: { createdAt: "desc" } });
     }
     res.json({ admins: admins.map((a) => ({ id: a.id, name: a.name, email: a.email, isBlocked: a.isBlocked ?? false })) });

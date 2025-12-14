@@ -28,6 +28,7 @@ const reportRoutes_1 = __importDefault(require("./routes/reportRoutes"));
 const storeSalesRoutes_1 = __importDefault(require("./routes/storeSalesRoutes"));
 const storesRoutes_1 = __importDefault(require("./routes/storesRoutes"));
 const adminBootstrap_1 = require("./services/adminBootstrap");
+const legacyCleanup_1 = require("./services/legacyCleanup");
 const settingsRoutes_1 = __importDefault(require("./routes/settingsRoutes"));
 const purchasesRoutes_1 = __importDefault(require("./routes/purchasesRoutes"));
 const invoiceRoutes_1 = __importDefault(require("./routes/invoiceRoutes"));
@@ -224,6 +225,8 @@ try {
         });
         // Bootstrap defaults for first-run UX
         (0, bootstrapService_1.ensureDefaults)().catch((err) => console.warn("Bootstrap ensureDefaults failed:", err));
+        // One-time cleanup of legacy hardcoded admin account, before any syncing
+        (0, legacyCleanup_1.purgeDefaultAdminEmail)().catch((err) => console.warn("Bootstrap purgeDefaultAdminEmail failed:", err));
         // Sync org admins to Users so admin appears in tenant-scoped views
         (0, adminBootstrap_1.syncOrgAdminsToUsers)().catch((err) => console.warn("Bootstrap syncOrgAdminsToUsers failed:", err));
     });
@@ -262,10 +265,3 @@ process.on('SIGHUP', () => {
 setInterval(() => {
     console.log('keep-alive tick', new Date().toISOString());
 }, 10000);
-// Ensure admin user exists and is configured properly at startup (only if env is set)
-if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
-    (0, adminBootstrap_1.ensureAdminUser)();
-}
-else {
-    console.log("Server: ADMIN_EMAIL/ADMIN_PASSWORD not set; skipping admin bootstrap.");
-}

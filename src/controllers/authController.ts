@@ -3,11 +3,26 @@ import prisma from "../db/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
+import { readFlags } from "../services/featureFlagsService";
 
 // Use shared Prisma client
 // Load JWT secret from environment (server/index.ts calls dotenv.config()).
 // Fallback kept for local/dev convenience but you should set JWT_SECRET in production.
 const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";
+const ALL_FEATURES = [
+  "reports",
+  "storeSales",
+  "inventory",
+  "productTracker",
+  "products",
+  "customers",
+  "invoices",
+  "expenses",
+  "salesAgents",
+  "purchases",
+  "customerGroups",
+  "logistics",
+];
 
 const compareAsync = (p: string, h: string) => new Promise<boolean>((resolve) => bcrypt.compare(p, h, (err, res) => resolve(!!res)));
 const hashAsync = (p: string, rounds: number) => new Promise<string>((resolve, reject) => bcrypt.hash(p, rounds, (err, res) => { if (err) reject(err); else resolve(String(res)); }));
@@ -75,9 +90,9 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const normalizedEmail = String(email).toLowerCase();
     console.log(`auth: login request for email=${email}`);
 
-    // Disallow admin credential use on the regular login endpoint. Use /auth/admin/login instead.
-    const configuredAdminEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
-    if (normalizedEmail === configuredAdminEmail) {
+    // Disallow admin credential use on the regular login endpoint when configured via env; use /auth/admin/login instead.
+    const configuredAdminEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+    if (configuredAdminEmail && normalizedEmail === configuredAdminEmail) {
       res.status(403).json({ message: "Admin credentials are not allowed on this route. Use /auth/admin/login." });
       return;
     }
@@ -110,8 +125,19 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // No role elevation on the regular login route
 
     // Generate JWT token
+    let features: string[] = [];
+    try {
+      const tenantId = user.tenantId || "default";
+      const flags = await readFlags(tenantId);
+      const allowed: string[] = Array.isArray((flags as any)["__allowed__"]) ? (flags as any)["__allowed__"] : ALL_FEATURES;
+      const userFeatures: string[] = Array.isArray(flags[user.userId]) ? flags[user.userId] : [];
+      const isAdminUser = (user.role || "").toLowerCase() === "admin";
+      features = allowed
+        ? (userFeatures.length ? userFeatures.filter((f) => allowed.includes(f)) : (isAdminUser ? allowed.slice() : []))
+        : userFeatures;
+    } catch {}
     const token = jwt.sign(
-      { userId: user.userId, email: user.email, role: user.role, tenantId: user.tenantId },
+      { userId: user.userId, email: user.email, role: user.role, tenantId: user.tenantId, features },
       JWT_SECRET,
       { expiresIn: "24h" }
     );
@@ -140,30 +166,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
     const normalizedEmail = String(email).toLowerCase();
     console.log(`auth: admin login request for email=${email}`);
 
-    // Master admin path: authenticate purely against environment-configured credentials
-    const masterEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
-    const masterPassword = process.env.MASTER_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || "admin2@12ad";
-    if (normalizedEmail === masterEmail && password === masterPassword) {
-      const masterUser = {
-        userId: "master-admin",
-        name: "Admin",
-        email: masterEmail,
-        role: "admin",
-      };
-      let tenantId: string | undefined = undefined;
-      try {
-        const org = await prisma.organizations.findFirst({ where: { adminEmail: masterEmail } });
-        if (org?.id) tenantId = org.id;
-      } catch {}
-      const token = jwt.sign(
-        { userId: masterUser.userId, email: masterUser.email, role: masterUser.role, ...(tenantId ? { tenantId } : {}) },
-        JWT_SECRET,
-        { expiresIn: "24h" }
-      );
-      console.log(`auth: master admin login successful for ${normalizedEmail}`);
-      res.json({ message: "Login successful", token, user: { ...masterUser, tenantId } });
-      return;
-    }
+    // Master admin path removed; super admin login is handled via dedicated route under /super-admin
 
     // Org admin fallback: allow org admins to log in via this route
     const orgAdmin = await prisma.orgAdmins.findFirst({ where: { email: normalizedEmail } });
@@ -173,8 +176,18 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       if (org && org.isBlocked) { res.status(403).json({ message: "Organization is blocked" }); return; }
       const ok = await compareAsync(password, orgAdmin.passwordHash);
       if (ok) {
+        let features: string[] = [];
+        try {
+          const flags = await readFlags(orgAdmin.orgId);
+          const allowed: string[] = Array.isArray((flags as any)["__allowed__"]) ? (flags as any)["__allowed__"] : ALL_FEATURES;
+          const userFeatures: string[] = Array.isArray(flags[orgAdmin.id]) ? flags[orgAdmin.id] : [];
+          const isAdminUser = true;
+          features = allowed
+            ? (userFeatures.length ? userFeatures.filter((f) => allowed.includes(f)) : (isAdminUser ? allowed.slice() : []))
+            : userFeatures;
+        } catch {}
         const token = jwt.sign(
-          { userId: orgAdmin.id, email: orgAdmin.email, role: "org_admin", tenantId: orgAdmin.orgId },
+          { userId: orgAdmin.id, email: orgAdmin.email, role: "org_admin", tenantId: orgAdmin.orgId, features },
           JWT_SECRET,
           { expiresIn: "24h" }
         );
@@ -201,8 +214,8 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
 
     // If this email is the configured admin email, enforce admin role
     try {
-      const adminEmail = (process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
-      if (user.email.toLowerCase() === adminEmail && user.role !== "admin") {
+      const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+      if (adminEmail && user.email.toLowerCase() === adminEmail && user.role !== "admin") {
         await prisma.users.update({ where: { userId: user.userId }, data: { role: "admin" } });
       }
     } catch {}
@@ -233,8 +246,19 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
         if (org?.id) tenantId = org.id;
       } catch {}
     }
+    let features: string[] = [];
+    try {
+      const tId = tenantId || "default";
+      const flags = await readFlags(tId);
+      const allowed: string[] = Array.isArray((flags as any)["__allowed__"]) ? (flags as any)["__allowed__"] : ALL_FEATURES;
+      const userFeatures: string[] = Array.isArray(flags[user.userId]) ? flags[user.userId] : [];
+      const isAdminUser = true;
+      features = allowed
+        ? (userFeatures.length ? userFeatures.filter((f) => allowed.includes(f)) : (isAdminUser ? allowed.slice() : []))
+        : userFeatures;
+    } catch {}
     const token = jwt.sign(
-      { userId: user.userId, email: user.email, role: user.role, ...(tenantId ? { tenantId } : {}) },
+      { userId: user.userId, email: user.email, role: user.role, ...(tenantId ? { tenantId } : {}), features },
       JWT_SECRET,
       { expiresIn: "24h" }
     );
@@ -268,8 +292,8 @@ export const verifyToken = async (req: Request, res: Response): Promise<void> =>
     };
 
     // Allow master admin token without DB lookup
-    const masterEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
-    if (decoded.email.toLowerCase() === masterEmail) {
+    const masterEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+    if (masterEmail && decoded.email.toLowerCase() === masterEmail) {
       let tenantId: string | undefined = decoded.tenantId;
       if (!tenantId) {
         try {

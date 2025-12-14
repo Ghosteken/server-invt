@@ -318,36 +318,7 @@ async function main() {
     console.warn("Failed seeding Stores/Branches from assets:", e);
   }
 
-  // Ensure an admin user exists AFTER seeding base data
-  try {
-    const adminEmail = (process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
-    const adminPassword = process.env.ADMIN_PASSWORD || "admin2@12ad";
-    const existingAdmin = await prisma.users.findFirst({ where: { email: adminEmail } });
-    if (!existingAdmin) {
-      const hashedPassword = await bcrypt.hash(String(adminPassword), 10);
-      await prisma.users.create({
-        data: {
-          userId: "admin-user-id-123456",
-          name: "Admin User",
-          email: adminEmail,
-          password: hashedPassword,
-          role: "admin",
-        },
-      });
-      console.log(`Seeded admin user: ${adminEmail}`);
-    } else if (existingAdmin.role !== "admin") {
-      const hashedPassword = await bcrypt.hash(String(adminPassword), 10);
-      await prisma.users.update({
-        where: { userId: existingAdmin.userId },
-        data: { role: "admin", password: hashedPassword },
-      });
-      console.log(`Updated existing user to admin: ${adminEmail}`);
-    } else {
-      console.log(`Admin user already present: ${adminEmail}`);
-    }
-  } catch (e) {
-    console.error("Failed ensuring admin user:", e);
-  }
+  // Hardcoded admin seeding removed
 }
 
 main()

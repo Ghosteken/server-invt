@@ -22,7 +22,8 @@ import customerRoutes from "./routes/customerRoutes";
 import reportRoutes from "./routes/reportRoutes";
 import storeSalesRoutes from "./routes/storeSalesRoutes";
 import storesRoutes from "./routes/storesRoutes";
-import { ensureAdminUser, syncOrgAdminsToUsers } from "./services/adminBootstrap";
+import { syncOrgAdminsToUsers } from "./services/adminBootstrap";
+import { purgeDefaultAdminEmail } from "./services/legacyCleanup";
 import settingsRoutes from "./routes/settingsRoutes";
 import purchasesRoutes from "./routes/purchasesRoutes";
 import invoiceRoutes from "./routes/invoiceRoutes";
@@ -229,6 +230,8 @@ try {
     });
     // Bootstrap defaults for first-run UX
     ensureDefaults().catch((err) => console.warn("Bootstrap ensureDefaults failed:", err));
+    // One-time cleanup of legacy hardcoded admin account, before any syncing
+    purgeDefaultAdminEmail().catch((err) => console.warn("Bootstrap purgeDefaultAdminEmail failed:", err));
     // Sync org admins to Users so admin appears in tenant-scoped views
     syncOrgAdminsToUsers().catch((err) => console.warn("Bootstrap syncOrgAdminsToUsers failed:", err));
   });
@@ -276,9 +279,3 @@ setInterval(() => {
   console.log('keep-alive tick', new Date().toISOString());
 }, 10_000);
 
-// Ensure admin user exists and is configured properly at startup (only if env is set)
-if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
-  ensureAdminUser();
-} else {
-  console.log("Server: ADMIN_EMAIL/ADMIN_PASSWORD not set; skipping admin bootstrap.");
-}
