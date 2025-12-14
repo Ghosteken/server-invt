@@ -51,33 +51,7 @@ export async function ensureDefaults(): Promise<void> {
         console.warn("[bootstrap] Failed removing placeholder Location:", err);
       }
     }
-
-    const agentCount = await prisma.salesAgents.count();
-    if (agentCount === 0) {
-      try {
-        await prisma.salesAgents.create({ data: { id: randomUUID(), name: "Default Sales Agent" } });
-        console.log("[bootstrap] Created default Sales Agent: Default Sales Agent");
-      } catch (err) {
-        console.warn("[bootstrap] Failed creating default Sales Agent:", err);
-      }
-    } else if (agentCount > 1) {
-      // Remove placeholder if real agents exist
-      try {
-        const placeholder = await prisma.salesAgents.findFirst({ where: { name: "Default Sales Agent" } });
-        if (placeholder) {
-          await prisma.salesAgents.delete({ where: { id: placeholder.id } });
-          console.log("[bootstrap] Removed placeholder Sales Agent: Default Sales Agent");
-        }
-        // Fix known typo introduced in seed data
-        const typo = await prisma.salesAgents.findFirst({ where: { name: "Beatuty Benson" } });
-        if (typo) {
-          await prisma.salesAgents.update({ where: { id: typo.id }, data: { name: "Beauty Benson" } });
-          console.log("[bootstrap] Corrected sales agent name: Beatuty -> Beauty Benson");
-        }
-      } catch (err) {
-        console.warn("[bootstrap] Failed removing placeholder Sales Agent:", err);
-      }
-    }
+    
   } catch (err) {
     console.warn("[bootstrap] ensureDefaults encountered an error:", err);
   }

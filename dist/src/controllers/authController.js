@@ -8,10 +8,25 @@ const prisma_1 = __importDefault(require("../db/prisma"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const crypto_1 = require("crypto");
+const featureFlagsService_1 = require("../services/featureFlagsService");
 // Use shared Prisma client
 // Load JWT secret from environment (server/index.ts calls dotenv.config()).
 // Fallback kept for local/dev convenience but you should set JWT_SECRET in production.
 const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";
+const ALL_FEATURES = [
+    "reports",
+    "storeSales",
+    "inventory",
+    "productTracker",
+    "products",
+    "customers",
+    "invoices",
+    "expenses",
+    "salesAgents",
+    "purchases",
+    "customerGroups",
+    "logistics",
+];
 const compareAsync = (p, h) => new Promise((resolve) => bcryptjs_1.default.compare(p, h, (err, res) => resolve(!!res)));
 const hashAsync = (p, rounds) => new Promise((resolve, reject) => bcryptjs_1.default.hash(p, rounds, (err, res) => { if (err)
     reject(err);
@@ -70,9 +85,9 @@ const login = async (req, res) => {
         const { email, password } = req.body;
         const normalizedEmail = String(email).toLowerCase();
         console.log(`auth: login request for email=${email}`);
-        // Disallow admin credential use on the regular login endpoint. Use /auth/admin/login instead.
-        const configuredAdminEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
-        if (normalizedEmail === configuredAdminEmail) {
+        // Disallow admin credential use on the regular login endpoint when configured via env; use /auth/admin/login instead.
+        const configuredAdminEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+        if (configuredAdminEmail && normalizedEmail === configuredAdminEmail) {
             res.status(403).json({ message: "Admin credentials are not allowed on this route. Use /auth/admin/login." });
             return;
         }
@@ -99,7 +114,19 @@ const login = async (req, res) => {
         }
         // No role elevation on the regular login route
         // Generate JWT token
-        const token = jsonwebtoken_1.default.sign({ userId: user.userId, email: user.email, role: user.role, tenantId: user.tenantId }, JWT_SECRET, { expiresIn: "24h" });
+        let features = [];
+        try {
+            const tenantId = user.tenantId || "default";
+            const flags = await (0, featureFlagsService_1.readFlags)(tenantId);
+            const allowed = Array.isArray(flags["__allowed__"]) ? flags["__allowed__"] : ALL_FEATURES;
+            const userFeatures = Array.isArray(flags[user.userId]) ? flags[user.userId] : [];
+            const isAdminUser = (user.role || "").toLowerCase() === "admin";
+            features = allowed
+                ? (userFeatures.length ? userFeatures.filter((f) => allowed.includes(f)) : (isAdminUser ? allowed.slice() : []))
+                : userFeatures;
+        }
+        catch { }
+        const token = jsonwebtoken_1.default.sign({ userId: user.userId, email: user.email, role: user.role, tenantId: user.tenantId, features }, JWT_SECRET, { expiresIn: "24h" });
         console.log(`auth: login successful for ${email}`);
         res.json({
             message: "Login successful",
@@ -124,21 +151,7 @@ const adminLogin = async (req, res) => {
         const { email, password } = req.body;
         const normalizedEmail = String(email).toLowerCase();
         console.log(`auth: admin login request for email=${email}`);
-        // Master admin path: authenticate purely against environment-configured credentials
-        const masterEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
-        const masterPassword = process.env.MASTER_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD || "admin2@12ad";
-        if (normalizedEmail === masterEmail && password === masterPassword) {
-            const masterUser = {
-                userId: "master-admin",
-                name: "Admin",
-                email: masterEmail,
-                role: "admin",
-            };
-            const token = jsonwebtoken_1.default.sign({ userId: masterUser.userId, email: masterUser.email, role: masterUser.role }, JWT_SECRET, { expiresIn: "24h" });
-            console.log(`auth: master admin login successful for ${normalizedEmail}`);
-            res.json({ message: "Login successful", token, user: masterUser });
-            return;
-        }
+        // Master admin path removed; super admin login is handled via dedicated route under /super-admin
         // Org admin fallback: allow org admins to log in via this route
         const orgAdmin = await prisma_1.default.orgAdmins.findFirst({ where: { email: normalizedEmail } });
         if (orgAdmin) {
@@ -153,7 +166,18 @@ const adminLogin = async (req, res) => {
             }
             const ok = await compareAsync(password, orgAdmin.passwordHash);
             if (ok) {
-                const token = jsonwebtoken_1.default.sign({ userId: orgAdmin.id, email: orgAdmin.email, role: "org_admin", tenantId: orgAdmin.orgId }, JWT_SECRET, { expiresIn: "24h" });
+                let features = [];
+                try {
+                    const flags = await (0, featureFlagsService_1.readFlags)(orgAdmin.orgId);
+                    const allowed = Array.isArray(flags["__allowed__"]) ? flags["__allowed__"] : ALL_FEATURES;
+                    const userFeatures = Array.isArray(flags[orgAdmin.id]) ? flags[orgAdmin.id] : [];
+                    const isAdminUser = true;
+                    features = allowed
+                        ? (userFeatures.length ? userFeatures.filter((f) => allowed.includes(f)) : (isAdminUser ? allowed.slice() : []))
+                        : userFeatures;
+                }
+                catch { }
+                const token = jsonwebtoken_1.default.sign({ userId: orgAdmin.id, email: orgAdmin.email, role: "org_admin", tenantId: orgAdmin.orgId, features }, JWT_SECRET, { expiresIn: "24h" });
                 res.json({ message: "Login successful", token, user: { userId: orgAdmin.id, name: orgAdmin.name, email: orgAdmin.email, role: "org_admin" } });
                 return;
             }
@@ -175,8 +199,8 @@ const adminLogin = async (req, res) => {
         }
         // If this email is the configured admin email, enforce admin role
         try {
-            const adminEmail = (process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
-            if (user.email.toLowerCase() === adminEmail && user.role !== "admin") {
+            const adminEmail = (process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+            if (adminEmail && user.email.toLowerCase() === adminEmail && user.role !== "admin") {
                 await prisma_1.default.users.update({ where: { userId: user.userId }, data: { role: "admin" } });
             }
         }
@@ -195,12 +219,33 @@ const adminLogin = async (req, res) => {
             res.status(403).json({ message: "Not an admin account" });
             return;
         }
-        const token = jsonwebtoken_1.default.sign({ userId: user.userId, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: "24h" });
+        let tenantId = user.tenantId;
+        if (!tenantId) {
+            try {
+                const org = await prisma_1.default.organizations.findFirst({ where: { adminEmail: user.email } });
+                if (org?.id)
+                    tenantId = org.id;
+            }
+            catch { }
+        }
+        let features = [];
+        try {
+            const tId = tenantId || "default";
+            const flags = await (0, featureFlagsService_1.readFlags)(tId);
+            const allowed = Array.isArray(flags["__allowed__"]) ? flags["__allowed__"] : ALL_FEATURES;
+            const userFeatures = Array.isArray(flags[user.userId]) ? flags[user.userId] : [];
+            const isAdminUser = true;
+            features = allowed
+                ? (userFeatures.length ? userFeatures.filter((f) => allowed.includes(f)) : (isAdminUser ? allowed.slice() : []))
+                : userFeatures;
+        }
+        catch { }
+        const token = jsonwebtoken_1.default.sign({ userId: user.userId, email: user.email, role: user.role, ...(tenantId ? { tenantId } : {}), features }, JWT_SECRET, { expiresIn: "24h" });
         console.log(`auth: admin login successful for ${email}`);
         res.json({
             message: "Login successful",
             token,
-            user: { userId: user.userId, name: user.name, email: user.email, role: user.role },
+            user: { userId: user.userId, name: user.name, email: user.email, role: user.role, tenantId },
         });
     }
     catch (error) {
@@ -218,14 +263,24 @@ const verifyToken = async (req, res) => {
         }
         const decoded = jsonwebtoken_1.default.verify(token, JWT_SECRET);
         // Allow master admin token without DB lookup
-        const masterEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "admin@inventory.com").toLowerCase();
-        if (decoded.email.toLowerCase() === masterEmail) {
+        const masterEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "").trim().toLowerCase();
+        if (masterEmail && decoded.email.toLowerCase() === masterEmail) {
+            let tenantId = decoded.tenantId;
+            if (!tenantId) {
+                try {
+                    const org = await prisma_1.default.organizations.findFirst({ where: { adminEmail: decoded.email } });
+                    if (org?.id)
+                        tenantId = org.id;
+                }
+                catch { }
+            }
             res.json({
                 user: {
                     userId: decoded.userId,
                     name: "Admin",
                     email: decoded.email,
                     role: "admin",
+                    tenantId,
                 },
             });
             return;
@@ -243,6 +298,7 @@ const verifyToken = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
+                tenantId: user.tenantId,
             },
         });
     }

@@ -5,7 +5,6 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.ensureDefaults = ensureDefaults;
 const prisma_1 = __importDefault(require("../db/prisma"));
-const crypto_1 = require("crypto");
 /**
  * Ensure baseline entities exist for first-run UX.
  * - Creates a default Location and Sales Agent if tables are empty.
@@ -56,35 +55,6 @@ async function ensureDefaults() {
             }
             catch (err) {
                 console.warn("[bootstrap] Failed removing placeholder Location:", err);
-            }
-        }
-        const agentCount = await prisma_1.default.salesAgents.count();
-        if (agentCount === 0) {
-            try {
-                await prisma_1.default.salesAgents.create({ data: { id: (0, crypto_1.randomUUID)(), name: "Default Sales Agent" } });
-                console.log("[bootstrap] Created default Sales Agent: Default Sales Agent");
-            }
-            catch (err) {
-                console.warn("[bootstrap] Failed creating default Sales Agent:", err);
-            }
-        }
-        else if (agentCount > 1) {
-            // Remove placeholder if real agents exist
-            try {
-                const placeholder = await prisma_1.default.salesAgents.findFirst({ where: { name: "Default Sales Agent" } });
-                if (placeholder) {
-                    await prisma_1.default.salesAgents.delete({ where: { id: placeholder.id } });
-                    console.log("[bootstrap] Removed placeholder Sales Agent: Default Sales Agent");
-                }
-                // Fix known typo introduced in seed data
-                const typo = await prisma_1.default.salesAgents.findFirst({ where: { name: "Beatuty Benson" } });
-                if (typo) {
-                    await prisma_1.default.salesAgents.update({ where: { id: typo.id }, data: { name: "Beauty Benson" } });
-                    console.log("[bootstrap] Corrected sales agent name: Beatuty -> Beauty Benson");
-                }
-            }
-            catch (err) {
-                console.warn("[bootstrap] Failed removing placeholder Sales Agent:", err);
             }
         }
     }
