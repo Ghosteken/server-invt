@@ -85,12 +85,7 @@ const login = async (req, res) => {
         const { email, password } = req.body;
         const normalizedEmail = String(email).toLowerCase();
         console.log(`auth: login request for email=${email}`);
-        // Disallow admin credential use on the regular login endpoint when configured via env; use /auth/admin/login instead.
         const configuredAdminEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "").trim().toLowerCase();
-        if (configuredAdminEmail && normalizedEmail === configuredAdminEmail) {
-            res.status(403).json({ message: "Admin credentials are not allowed on this route. Use /auth/admin/login." });
-            return;
-        }
         // Find user
         let user = await prisma_1.default.users.findFirst({
             where: { email: normalizedEmail },

@@ -2183,8 +2183,7 @@ export const getPcsSample = async (
     const rows = tenantId === "default" ? pcs.map((e) => {
       const match = byName.get(String(e.name).toLowerCase());
       return {
-        ProductId: match?.productId ?? "",
-        ProductDescription: e.name,
+        Name: e.name,
         Barcode: (match as any)?.barcode ?? "",
         PackSize: e.packSize ?? (match as any)?.packSize ?? "",
         Category: match?.category ?? "",
@@ -2197,8 +2196,7 @@ export const getPcsSample = async (
     }) : [];
 
     const headerPcs = [
-      "ProductId",
-      "ProductDescription",
+      "Name",
       "Barcode",
       "PackSize",
       "Category",
@@ -2238,8 +2236,7 @@ export const exportPcsExcel = async (
     const rows = pcs.map((e) => {
       const match = byName.get(String(e.name).toLowerCase());
       return {
-        ProductId: match?.productId ?? "",
-        ProductDescription: e.name,
+        Name: e.name,
         Barcode: (match as any)?.barcode ?? "",
         PackSize: e.packSize ?? match?.packSize ?? "",
         Category: match?.category ?? "",
@@ -2252,8 +2249,7 @@ export const exportPcsExcel = async (
     });
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows, { header: [
-      "ProductId",
-      "ProductDescription",
+      "Name",
       "Barcode",
       "PackSize",
       "Category",
