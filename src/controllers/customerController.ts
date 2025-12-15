@@ -500,7 +500,7 @@ export const exportCustomersExcel = async (req: Request, res: Response): Promise
     const products = await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
     const nameById = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
 
-    const customersSheetRows = customers.map((c) => ({
+    const customersSheetRows = customers.map((c: any) => ({
       CustomerId: c.customerId,
       Name: c.name,
       Mobile: c.mobile ?? "",
