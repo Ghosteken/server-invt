@@ -275,7 +275,7 @@ export const importCustomers = async (req: Request, res: Response): Promise<void
     const existingByMobile = mobilesSet.size
       ? await prisma.customers.findMany({ where: { tenantId, mobile: { in: Array.from(mobilesSet.values()) } }, select: { mobile: true } })
       : [];
-    const existingMobileSet = new Set<string>(existingByMobile.map((e) => String(e.mobile)));
+    const existingMobileSet = new Set<string>(existingByMobile.map((e: any) => String(e.mobile)));
 
     const nameOrClauses = Array.from(namesNoMobileSet.values()).map((n) => ({ name: { equals: n, mode: "insensitive" as const } }));
     const existingByName = nameOrClauses.length
@@ -496,9 +496,9 @@ export const exportCustomersExcel = async (req: Request, res: Response): Promise
     const tenantId = req.tenantId || req.user?.tenantId || "default";
     const customers = await prisma.customers.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
     const purchases = await prisma.customerPurchases.findMany({ where: { tenantId }, orderBy: { timestamp: "desc" } });
-    const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
+    const productIds = Array.from(new Set(purchases.map((p: any) => p.productId)));
     const products = await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
-    const nameById = new Map(products.map((p) => [p.productId, p.name] as const));
+    const nameById = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
 
     const customersSheetRows = customers.map((c) => ({
       CustomerId: c.customerId,

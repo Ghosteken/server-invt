@@ -2071,7 +2071,7 @@ export const getImportSample = async (
     const norm = (s: string | null | undefined) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
     const keyOf = (name: string, packSize: string | null | undefined) => `${norm(name)}|${norm(packSize ?? null)}`;
 
-    let rows: any[] = products.map((p) => ({
+    let rows: any[] = products.map((p: any) => ({
       Name: p.name,
       Barcode: (p as any).barcode ?? "",
       PackSize: (p as any).packSize ?? "",
@@ -2083,7 +2083,7 @@ export const getImportSample = async (
       Description: (p as any).description ?? "",
     }));
 
-    const seen = new Set<string>(products.map((p) => keyOf(p.name, (p as any).packSize ?? null)));
+    const seen = new Set<string>(products.map((p: any) => keyOf(p.name, (p as any).packSize ?? null)));
 
     const samplePath = path.join(__dirname, "../../assets/barcode-products.xlsx");
     if (fs.existsSync(samplePath)) {
@@ -2094,7 +2094,7 @@ export const getImportSample = async (
       const normalizeKey = (k: string) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
 
       const existingCategoriesRaw = await prisma.products.findMany({ select: { category: true }, where: { tenantId, category: { not: null } } });
-      const existingCategories = Array.from(new Set(existingCategoriesRaw.map((r) => String(r.category))));
+      const existingCategories = Array.from(new Set(existingCategoriesRaw.map((r: any) => String(r.category))));
       const similarity = (a: string, b: string): number => {
         const ta = a.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
         const tb = b.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
@@ -2178,7 +2178,7 @@ export const getPcsSample = async (
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const pcs = await readPcsInventory(tenantId);
     const products = await prisma.products.findMany({ where: { tenantId } });
-    const byName = new Map(products.map((p) => [String(p.name).toLowerCase(), p] as const));
+    const byName = new Map<string, any>(products.map((p: any) => [String(p.name).toLowerCase(), p] as const));
 
     const rows = tenantId === "default" ? pcs.map((e) => {
       const match = byName.get(String(e.name).toLowerCase());
@@ -2234,7 +2234,7 @@ export const exportPcsExcel = async (
   try {
     const pcs = await readPcsInventory();
     const products = await prisma.products.findMany({});
-    const byName = new Map(products.map((p) => [String(p.name).toLowerCase(), p] as const));
+    const byName = new Map<string, any>(products.map((p: any) => [String(p.name).toLowerCase(), p] as const));
     const rows = pcs.map((e) => {
       const match = byName.get(String(e.name).toLowerCase());
       return {
