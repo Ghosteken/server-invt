@@ -2166,8 +2166,7 @@ const getPcsSample = async (req, res) => {
         const rows = tenantId === "default" ? pcs.map((e) => {
             const match = byName.get(String(e.name).toLowerCase());
             return {
-                ProductId: match?.productId ?? "",
-                ProductDescription: e.name,
+                Name: e.name,
                 Barcode: match?.barcode ?? "",
                 PackSize: e.packSize ?? match?.packSize ?? "",
                 Category: match?.category ?? "",
@@ -2179,8 +2178,7 @@ const getPcsSample = async (req, res) => {
             };
         }) : [];
         const headerPcs = [
-            "ProductId",
-            "ProductDescription",
+            "Name",
             "Barcode",
             "PackSize",
             "Category",
@@ -2215,8 +2213,7 @@ const exportPcsExcel = async (req, res) => {
         const rows = pcs.map((e) => {
             const match = byName.get(String(e.name).toLowerCase());
             return {
-                ProductId: match?.productId ?? "",
-                ProductDescription: e.name,
+                Name: e.name,
                 Barcode: match?.barcode ?? "",
                 PackSize: e.packSize ?? match?.packSize ?? "",
                 Category: match?.category ?? "",
@@ -2229,8 +2226,7 @@ const exportPcsExcel = async (req, res) => {
         });
         const wb = xlsx_1.default.utils.book_new();
         const ws = xlsx_1.default.utils.json_to_sheet(rows, { header: [
-                "ProductId",
-                "ProductDescription",
+                "Name",
                 "Barcode",
                 "PackSize",
                 "Category",
