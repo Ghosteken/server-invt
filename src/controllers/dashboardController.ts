@@ -24,7 +24,7 @@ export const getDashboardMetrics = async (
         ? envNum
         : 5;
 
-    // Total products currently in inventory (stockQuantity > 0)
+    // Total products currently in inventory (CTN > 0)
     const totalProducts = await withCache(`t=${tenantId}:metrics:totalProducts:inventory`, 60, async () => prisma.products.count({ where: { tenantId, ...nonInventoryFilter } }));
     const lowStockCount = await withCache(
       `t=${tenantId}:metrics:lowStock:${LOW_STOCK_THRESHOLD}`,
@@ -35,10 +35,86 @@ export const getDashboardMetrics = async (
         })
     );
 
+    // PCS inventory counts (separate)
+    const { pcsInventoryCount, lowStockPcsCount, combinedInventoryCount, combinedLowStockCount } = await withCache(
+      `t=${tenantId}:metrics:pcs-and-combined:${LOW_STOCK_THRESHOLD}`,
+      60,
+      async () => {
+        const pcs = await readPcsInventory(tenantId);
+        const pcsInStock = pcs.filter((e: any) => Number(e.quantity || 0) > 0);
+        const pcsInventoryCountLocal = pcsInStock.length;
+        const lowPcsCountLocal = pcsInStock.filter((e: any) => Number(e.quantity || 0) <= LOW_STOCK_THRESHOLD).length;
+        // Build union of names: CTN in-stock + PCS in-stock
+        const ctnInStock = await prisma.products.findMany({
+          where: { tenantId, ...nonInventoryFilter },
+          select: { name: true, stockQuantity: true },
+        });
+        const nameSet = new Set<string>();
+        for (const p of ctnInStock) nameSet.add(String(p.name).toLowerCase());
+        for (const e of pcsInStock) nameSet.add(String(e.name || "").toLowerCase());
+        const combinedCountLocal = nameSet.size;
+        // Combined low-stock: union of names with CTN 1..T OR PCS 1..T
+        const ctnLow = await prisma.products.findMany({
+          where: { tenantId, stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
+          select: { name: true },
+        });
+        const lowNameSet = new Set<string>();
+        for (const p of ctnLow) lowNameSet.add(String(p.name).toLowerCase());
+        for (const e of pcsInStock) {
+          const q = Number(e.quantity || 0);
+          if (q > 0 && q <= LOW_STOCK_THRESHOLD) {
+            lowNameSet.add(String(e.name || "").toLowerCase());
+          }
+        }
+        const combinedLowLocal = lowNameSet.size;
+        return {
+          pcsInventoryCount: pcsInventoryCountLocal,
+          lowStockPcsCount: lowPcsCountLocal,
+          combinedInventoryCount: combinedCountLocal,
+          combinedLowStockCount: combinedLowLocal,
+        };
+      }
+    );
+
     const inventoryValue = await withCache(`t=${tenantId}:metrics:inventoryValue`, 60, async () => {
       const productsBasic = await prisma.products.findMany({ where: { tenantId, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
       return productsBasic.reduce((sum: number, p: { price: unknown; stockQuantity: number }) => sum + (Number(p.price) * p.stockQuantity), 0);
     });
+
+    // Derive PCS inventory value using per-piece price: price / packCount
+    const inventoryValuePcs = await withCache(`t=${tenantId}:metrics:inventoryValuePcs:${LOW_STOCK_THRESHOLD}`, 60, async () => {
+      const pcs = await readPcsInventory(tenantId);
+      const inStock = pcs.filter((e: any) => Number(e.quantity || 0) > 0);
+      if (!inStock.length) return 0;
+      const products = await prisma.products.findMany({
+        where: { tenantId },
+        select: { productId: true, name: true, price: true, packSize: true },
+      });
+      const byId = new Map<string, { price: number; packSize?: string | null; name: string }>();
+      const byName = new Map<string, { price: number; packSize?: string | null; name: string }>();
+      for (const p of products) {
+        const rec = { price: Number((p as any).price || 0), packSize: (p as any).packSize ?? null, name: String((p as any).name || "") };
+        byId.set(String((p as any).productId), rec);
+        byName.set(String(rec.name).toLowerCase(), rec);
+      }
+      const extractPackCount = (ps?: string | null): number | null => {
+        if (!ps) return null;
+        const m = String(ps).match(/(\d{1,4})/);
+        if (!m) return null;
+        const n = Number(m[1]);
+        return Number.isFinite(n) && n > 0 ? n : null;
+      };
+      let total = 0;
+      for (const e of inStock) {
+        const match = (e.productId && byId.get(String(e.productId))) || byName.get(String(e.name || "").toLowerCase()) || null;
+        const price = match?.price || 0;
+        const pcsPack = extractPackCount(e.packSize ?? match?.packSize ?? null);
+        const perPiece = pcsPack ? (price / pcsPack) : 0;
+        total += (perPiece * Number(e.quantity || 0));
+      }
+      return total;
+    });
+    const inventoryValueCombined = inventoryValue + inventoryValuePcs;
 
     const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const sales7dTotal = await withCache(`t=${tenantId}:metrics:sales7d`, 60, async () => {
@@ -82,6 +158,16 @@ export const getDashboardMetrics = async (
       totalProducts,
       lowStockCount,
       lowStockThreshold: LOW_STOCK_THRESHOLD,
+      // New fields (non-breaking): separate CTN/PCS and combined counts
+      totalProductsCtn: totalProducts,
+      totalProductsPcs: pcsInventoryCount,
+      totalProductsCombined: combinedInventoryCount,
+      lowStockPcsCount,
+      lowStockCombinedCount: combinedLowStockCount,
+      // Extended inventory value (non-breaking): CTN/PCS and combined
+      inventoryValueCtn: inventoryValue,
+      inventoryValuePcs,
+      inventoryValueCombined,
       inventoryValue,
       sales7dTotal,
       popularProducts,
