@@ -8,8 +8,8 @@ export const getLocations = async (_req: Request, res: Response): Promise<void> 
     const reqAny = _req as any;
     const tenantId = reqAny.tenantId || _req.user?.tenantId || "default";
     const where: any = { tenantId, name: { not: "Main Warehouse" } };
-    const locations = await prisma.locations.findMany({ where, orderBy: { name: "asc" } });
-    res.json({ locations: locations.map((l) => ({ id: l.id, name: l.name })) });
+    const locations = await prisma.locations.findMany({ where, orderBy: { name: "asc" }, select: { id: true, name: true } });
+    res.json({ locations: locations.map((l: { id: string; name: string }) => ({ id: l.id, name: l.name })) });
   } catch (err) {
     console.error("getLocations error:", err);
     res.status(500).json({ message: "Failed to load locations" });

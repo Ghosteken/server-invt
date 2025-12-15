@@ -30,12 +30,12 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
     const { list, total } = await withCache(cacheKey, 30, async () => {
       const totalCount = await prisma.purchases.count({ where });
       const purchases = await prisma.purchases.findMany({ where, orderBy: { timestamp: "desc" }, skip: (page - 1) * limit, take: limit });
-      const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
+      const productIds = Array.from(new Set(purchases.map((p: any) => p.productId)));
       const products = await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
-      const productMap = new Map(products.map((p) => [p.productId, p.name] as const));
-      const metaRows = await prisma.supplierPurchaseMeta.findMany({ where: { purchaseId: { in: purchases.map((p) => p.purchaseId) } } });
-      const metaMap = new Map(metaRows.map((m) => [m.purchaseId, m]));
-      const pageList = purchases.map((p) => ({
+      const productMap = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
+      const metaRows = await prisma.supplierPurchaseMeta.findMany({ where: { purchaseId: { in: purchases.map((p: any) => p.purchaseId) } } });
+      const metaMap = new Map<string, any>(metaRows.map((m: any) => [m.purchaseId, m]));
+      const pageList = purchases.map((p: any) => ({
         purchaseId: p.purchaseId,
         productId: p.productId,
         productName: productMap.get(p.productId) || undefined,
@@ -377,7 +377,7 @@ export const getSuppliers = async (req: Request, res: Response): Promise<void> =
         const prev = map.get(key);
         map.set(key, { name: n, mobile: mobile ?? prev?.mobile ?? null });
       }
-      list = Array.from(map.values()).map((s) => ({ name: s.name, mobile: s.mobile ?? null })).sort((a, b) => a.name.localeCompare(b.name));
+      list = Array.from(map.values()).map((s: any) => ({ name: s.name, mobile: s.mobile ?? null })).sort((a, b) => a.name.localeCompare(b.name));
     }
     res.json({ suppliers: list });
   } catch {
@@ -445,7 +445,7 @@ export const exportSuppliersExcel = async (req: Request, res: Response): Promise
       }
       list = Array.from(map.values()).map((s) => ({ name: s.name, mobile: s.mobile ?? null })).sort((a, b) => a.name.localeCompare(b.name));
     }
-    const rows = list.map((s) => ({ Name: s.name, Mobile: s.mobile ?? "" }));
+    const rows = list.map((s: any) => ({ Name: s.name, Mobile: s.mobile ?? "" }));
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(rows, { header: ["Name", "Mobile"] });
     XLSX.utils.book_append_sheet(wb, ws, "Suppliers");

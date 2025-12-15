@@ -301,14 +301,14 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
       res.json({ invoices: [], total: 0 });
       return;
     }
-    const customerIds = Array.from(new Set(invoices.map((i) => i.customerId))).filter(Boolean);
+    const customerIds = Array.from(new Set(invoices.map((i: any) => i.customerId))).filter(Boolean);
     const customers = customerIds.length
       ? await prisma.customers.findMany({ where: { tenantId, customerId: { in: customerIds } } })
       : [];
-    const customerMap = new Map(customers.map((c) => [c.customerId, c.name] as const));
+    const customerMap = new Map(customers.map((c: any) => [c.customerId, c.name] as const));
     const list = await Promise.all(
-      invoices.map(async (inv) => {
-        const paymentsSum = inv.payments.reduce((acc, p) => acc + p.amount, 0);
+      invoices.map(async (inv: any) => {
+        const paymentsSum = inv.payments.reduce((acc: number, p: any) => acc + p.amount, 0);
         const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
         const meta = await getInvoiceMeta(inv.invoiceId);
         return { ...inv, status, customerName: customerMap.get(inv.customerId), invoiceNumber: meta?.invoiceNumber || undefined } as any;
@@ -367,7 +367,7 @@ export const getInvoiceById = async (req: Request, res: Response): Promise<void>
       res.status(404).json({ message: "Invoice not found" });
       return;
     }
-    const paymentsSum = inv.payments.reduce((acc, p) => acc + p.amount, 0);
+    const paymentsSum = inv.payments.reduce((acc: number, p: any) => acc + p.amount, 0);
     const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
     const meta = await getInvoiceMeta(inv.invoiceId);
     res.json({ ...inv, status, invoiceNumber: meta?.invoiceNumber || undefined });
@@ -411,7 +411,7 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
       return { id: randomUUID(), productId: it.productId || null, name: displayName || "", unit: it.unit, quantity, unitPrice, subtotal: quantity * unitPrice };
     })) : existing.items;
 
-    const totals = computeTotals(updatedItems.map((i) => ({ quantity: i.quantity, unitPrice: i.unitPrice })), vatPercent, discountPercent);
+    const totals = computeTotals(updatedItems.map((i: any) => ({ quantity: i.quantity, unitPrice: i.unitPrice })), vatPercent, discountPercent);
     // Resolve normalized display names if IDs provided
     let nextLocation = body.location ?? existing.location;
     let nextSalesAgent = body.salesAgent ?? existing.salesAgent;
@@ -447,7 +447,7 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
         totalWithVAT: totals.totalWithVAT,
         items: body.items ? {
           deleteMany: { invoiceId: id },
-          create: updatedItems.map((h) => ({ id: h.id, productId: h.productId || null, name: h.name, unit: h.unit, quantity: h.quantity, unitPrice: h.unitPrice, subtotal: h.subtotal })),
+          create: updatedItems.map((h: any) => ({ id: h.id, productId: h.productId || null, name: h.name, unit: h.unit, quantity: h.quantity, unitPrice: h.unitPrice, subtotal: h.subtotal })),
         } : undefined,
       },
       include: { items: true, payments: true },
@@ -552,7 +552,7 @@ export const addPayment = async (req: Request, res: Response): Promise<void> => 
         tenantId,
       },
     });
-    const paymentsSum = (inv.payments || []).reduce((acc, p) => acc + p.amount, 0) + payment.amount;
+    const paymentsSum = (inv.payments || []).reduce((acc: number, p: any) => acc + p.amount, 0) + payment.amount;
     const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
     const updatedInv = await prisma.invoices.update({ where: { invoiceId: id }, data: { status } });
     appendNotification({ type: "invoice", message: `Payment added for invoice ${id}: ₦${payment.amount.toFixed(2)} (${payment.bankName})`, actorUserId: req.user?.userId });

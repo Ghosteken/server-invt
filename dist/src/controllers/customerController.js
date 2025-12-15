@@ -62,9 +62,9 @@ const getCustomers = async (req, res) => {
         const customers = await prisma_1.default.customers.findMany({ where, orderBy: { createdAt: "desc" } });
         // Fetch purchases grouped by customer
         const purchases = await prisma_1.default.customerPurchases.findMany({ where: { tenantId } });
-        const productIds = Array.from(new Set(purchases.map(p => p.productId)));
+        const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
         const products = await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
-        const nameById = new Map(products.map(p => [p.productId, p.name]));
+        const nameById = new Map(products.map((p) => [p.productId, p.name]));
         const byCustomer = new Map();
         for (const p of purchases) {
             const list = byCustomer.get(p.customerId) || [];

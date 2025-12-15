@@ -64,7 +64,7 @@ export const listOrgs = async (req: Request, res: Response): Promise<void> => {
       }
     } catch {}
   }
-  res.json({ orgs: orgs.map((o) => ({ id: o.id, name: o.name, apiBaseUrl: o.apiBaseUrl, adminEmail: o.adminEmail, isBlocked: (o as any).isBlocked ?? false, createdAt: o.createdAt })) });
+  res.json({ orgs: orgs.map((o: any) => ({ id: o.id, name: o.name, apiBaseUrl: o.apiBaseUrl, adminEmail: o.adminEmail, isBlocked: (o as any).isBlocked ?? false, createdAt: o.createdAt })) });
 };
 
 export const createOrg = async (req: Request, res: Response): Promise<void> => {
@@ -114,7 +114,7 @@ export const listOrgAdmins = async (req: Request, res: Response): Promise<void> 
     }
     admins = await prisma.orgAdmins.findMany({ where: { orgId: id }, orderBy: { createdAt: "desc" } });
   }
-  res.json({ admins: admins.map((a) => ({ id: a.id, name: a.name, email: a.email, isBlocked: (a as any).isBlocked ?? false })) });
+  res.json({ admins: admins.map((a: any) => ({ id: a.id, name: a.name, email: a.email, isBlocked: (a as any).isBlocked ?? false })) });
 };
 
 export const createOrgAdmin = async (req: Request, res: Response): Promise<void> => {

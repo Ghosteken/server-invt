@@ -117,7 +117,7 @@ const getLowStockProducts = async (req, res) => {
             });
         });
         res.set("Cache-Control", "public, max-age=30");
-        res.json(products.map(p => ({ ...p, price: Number(p.price) })));
+        res.json(products.map((p) => ({ ...p, price: Number(p.price) })));
     }
     catch (error) {
         res.status(500).json({ message: "Error retrieving low-stock products" });
@@ -137,7 +137,7 @@ const getExpiringProducts = async (req, res) => {
             select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true }
         });
         res.set("Cache-Control", "public, max-age=30");
-        res.json(products.map(p => ({ ...p, price: Number(p.price) })));
+        res.json(products.map((p) => ({ ...p, price: Number(p.price) })));
     }
     catch (error) {
         res.status(500).json({ message: "Error retrieving expiring products" });
@@ -161,12 +161,12 @@ const getDeadStockProducts = async (req, res) => {
         });
         const latestByProduct = new Map(grouped.map((g) => [g.productId, g._max.timestamp ? new Date(g._max.timestamp) : null]));
         const allProducts = await prisma_1.default.products.findMany({ where: { tenantId, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true } });
-        const dead = allProducts.filter(p => {
+        const dead = allProducts.filter((p) => {
             const last = latestByProduct.get(p.productId) || null;
             return !last || last < since;
         });
         res.set("Cache-Control", "public, max-age=30");
-        res.json(dead.map(d => ({ ...d, price: Number(d.price) })));
+        res.json(dead.map((d) => ({ ...d, price: Number(d.price) })));
     }
     catch (error) {
         res.status(500).json({ message: "Error retrieving dead stock products" });

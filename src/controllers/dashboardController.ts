@@ -37,7 +37,7 @@ export const getDashboardMetrics = async (
 
     const inventoryValue = await withCache(`t=${tenantId}:metrics:inventoryValue`, 60, async () => {
       const productsBasic = await prisma.products.findMany({ where: { tenantId, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
-      return productsBasic.reduce((sum, p) => sum + (Number(p.price) * p.stockQuantity), 0);
+      return productsBasic.reduce((sum: number, p: { price: unknown; stockQuantity: number }) => sum + (Number(p.price) * p.stockQuantity), 0);
     });
 
     const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
@@ -67,14 +67,14 @@ export const getDashboardMetrics = async (
     if (popularGrouped.length) {
       const ids = popularGrouped.map((g) => g.productId);
       const details = await prisma.products.findMany({ where: { tenantId, productId: { in: ids }, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
-      popularProducts = details.map((d) => ({
+      popularProducts = details.map((d: { productId: string; name: string; price: unknown; stockQuantity: number }) => ({
         ...d,
         price: Number(d.price),
         purchaseCount: popularGrouped.find((g) => g.productId === d.productId)?._count.productId || 0,
       }));
     } else {
       const fallback = await prisma.products.findMany({ where: { tenantId, ...nonInventoryFilter }, take: 5, orderBy: { stockQuantity: 'desc' }, select: { productId: true, name: true, price: true, stockQuantity: true } });
-      popularProducts = fallback.map((d) => ({ ...d, price: Number(d.price), purchaseCount: 0 }));
+      popularProducts = fallback.map((d: { productId: string; name: string; price: unknown; stockQuantity: number }) => ({ ...d, price: Number(d.price), purchaseCount: 0 }));
     }
 
     res.set("Cache-Control", "public, max-age=60");
@@ -128,7 +128,7 @@ export const getLowStockProducts = async (req: Request, res: Response): Promise<
       });
     });
     res.set("Cache-Control", "public, max-age=30");
-    res.json(products.map(p => ({ ...p, price: Number(p.price) })));
+    res.json(products.map((p: { price: unknown }) => ({ ...p, price: Number(p.price) })));
   } catch (error) {
     res.status(500).json({ message: "Error retrieving low-stock products" });
   }
@@ -148,7 +148,7 @@ export const getExpiringProducts = async (req: Request, res: Response): Promise<
       select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true }
     });
     res.set("Cache-Control", "public, max-age=30");
-    res.json(products.map(p => ({ ...p, price: Number(p.price) })));
+    res.json(products.map((p: { price: unknown }) => ({ ...p, price: Number(p.price) })));
   } catch (error) {
     res.status(500).json({ message: "Error retrieving expiring products" });
   }
@@ -173,12 +173,12 @@ export const getDeadStockProducts = async (req: Request, res: Response): Promise
     const latestByProduct = new Map<string, Date | null>(grouped.map((g: any) => [g.productId, g._max.timestamp ? new Date(g._max.timestamp) : null]));
 
     const allProducts = await prisma.products.findMany({ where: { tenantId, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true } });
-    const dead = allProducts.filter(p => {
+    const dead = allProducts.filter((p: { productId: string }) => {
       const last = latestByProduct.get(p.productId) || null;
       return !last || last < since;
     });
     res.set("Cache-Control", "public, max-age=30");
-    res.json(dead.map(d => ({ ...d, price: Number(d.price) })));
+    res.json(dead.map((d: { price: unknown }) => ({ ...d, price: Number(d.price) })));
   } catch (error) {
     res.status(500).json({ message: "Error retrieving dead stock products" });
   }
@@ -202,10 +202,10 @@ export const getTopCustomers = async (req: Request, res: Response): Promise<void
     });
     const ids = grouped.map((g: any) => g.customerId);
     const customers = await prisma.customers.findMany({ where: { tenantId, customerId: { in: ids } }, select: { customerId: true, name: true, mobile: true, city: true, state: true, country: true } });
-    const result = customers.map((c) => ({
+    const result = customers.map((c: { customerId: string }) => ({
       ...c,
       totalPurchaseValue: Number(grouped.find((g: any) => g.customerId === c.customerId)?._sum.totalCost || 0),
-    })).sort((a, b) => b.totalPurchaseValue - a.totalPurchaseValue);
+    })).sort((a: any, b: any) => b.totalPurchaseValue - a.totalPurchaseValue);
     res.set("Cache-Control", "public, max-age=60");
     res.json(result);
   } catch (error) {
@@ -243,7 +243,7 @@ export const getLowStockPcs = async (req: Request, res: Response): Promise<void>
         // Low-stock threshold: 1..threshold (inclusive)
         .filter((e) => (e.quantity || 0) <= threshold)
         .filter((e) => (search ? e.name.toLowerCase().includes(search) : true))
-        .map((e) => ({
+        .map((e: { name: string; quantity: number; packSize?: string | null; productId?: string | null }) => ({
           name: e.name,
           pcsQuantity: e.quantity,
           packSize: e.packSize ?? null,

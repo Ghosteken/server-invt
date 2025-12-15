@@ -13,7 +13,7 @@ export type PcsEntry = {
 export const readPcsInventory = async (tenantId = "default"): Promise<PcsEntry[]> => {
   try {
     const rows = await prisma.pcsInventory.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
-    return rows.map((r) => ({ name: r.name, quantity: r.quantity, productId: r.productId ?? null, packSize: r.packSize ?? null, tenantId: r.tenantId }));
+    return rows.map((r: any) => ({ name: r.name, quantity: r.quantity, productId: r.productId ?? null, packSize: r.packSize ?? null, tenantId: r.tenantId }));
   } catch {
     try {
       const jsonPath = path.join(__dirname, "../../prisma/seedData/pcsInventory.json");

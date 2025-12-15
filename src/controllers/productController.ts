@@ -233,7 +233,7 @@ export const exportProductsExcel = async (
   try {
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const products = await prisma.products.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
-    const rows = products.map((p) => ({
+    const rows = products.map((p: any) => ({
       Name: p.name,
       Barcode: (p as any).barcode ?? "",
       PackSize: (p as any).packSize ?? "",
@@ -241,7 +241,7 @@ export const exportProductsExcel = async (
       PurchasePrice: p.purchasePrice ?? "",
       SalesPrice: p.price ?? "",
       Quantity: p.stockQuantity ?? 0,
-      ExpiryDate: p.expiryDate ? new Date(p.expiryDate).toLocaleDateString() : "",
+      ExpiryDate: p.expiryDate instanceof Date ? p.expiryDate.toLocaleDateString() : "",
       Description: (p as any).description ?? "",
     }));
     const wb = XLSX.utils.book_new();
@@ -302,10 +302,10 @@ export const getProductMovements = async (
       orderBy: { timestamp: "desc" },
     });
 
-    const saleDates = Array.from(new Set(sales.map((s) => s.timestamp.toISOString())));
-    const saleCustomerIds = Array.from(new Set(sales.map((s) => s.customerId).filter(Boolean)));
+    const saleDates: string[] = Array.from(new Set<string>(sales.map((s: any) => s.timestamp.toISOString())));
+    const saleCustomerIds: string[] = Array.from(new Set<string>(sales.map((s: any) => s.customerId).filter(Boolean as any)));
     const candidateInvoices = saleDates.length && saleCustomerIds.length
-      ? await prisma.invoices.findMany({ where: { date: { in: saleDates.map((d) => new Date(d)) }, customerId: { in: saleCustomerIds } } })
+      ? await prisma.invoices.findMany({ where: { date: { in: saleDates.map((d: string) => new Date(d)) }, customerId: { in: saleCustomerIds } } })
       : [];
     const invoiceByPair = new Map<string, { invoiceId: string }>();
     for (const inv of candidateInvoices) {
@@ -316,7 +316,7 @@ export const getProductMovements = async (
       const meta = await getInvoiceMeta(inv.invoiceId);
       if (meta?.invoiceNumber) numberById.set(inv.invoiceId, meta.invoiceNumber);
     }
-    const saleItems = sales.map((s) => {
+    const saleItems = sales.map((s: any) => {
       const pair = `${s.customerId}|${s.timestamp.toISOString()}`;
       const inv = invoiceByPair.get(pair);
       const invoiceId = inv?.invoiceId;
@@ -331,7 +331,7 @@ export const getProductMovements = async (
         invoiceNumber,
       };
     });
-    const purchaseItems = purchases.map((p) => ({
+    const purchaseItems = purchases.map((p: any) => ({
       kind: "purchase" as const,
       timestamp: p.timestamp,
       quantity: Number(p.quantity || 0),
@@ -387,10 +387,10 @@ export const getPcsProducts = async (req: Request, res: Response): Promise<void>
     };
 
     // Build indices for quick matching
-    const byExact = new Map(products.map(p => [p.name.toLowerCase(), p] as const));
+    const byExact = new Map<string, any>(products.map((p: any) => [p.name.toLowerCase(), p]));
     const byNorm = new Map<string, { product: any; toks: Set<string> }>();
-    for (const p of products) {
-      const toks = new Set(tokensOf(p.name).filter(t => !FILLER_TOKENS.has(t)));
+    for (const p of products as any[]) {
+      const toks = new Set(tokensOf(p.name).filter((t: string) => !FILLER_TOKENS.has(t)));
       byNorm.set(normalizeWithSynonyms(p.name), { product: p, toks });
     }
 
@@ -408,7 +408,7 @@ export const getPcsProducts = async (req: Request, res: Response): Promise<void>
 
     for (const e of pcs) {
       const exact = byExact.get(e.name.toLowerCase());
-      let matched = exact ?? null;
+      let matched: any = exact ?? null;
       if (!matched) {
         const etoks = new Set(tokensOf(e.name).filter(t => !FILLER_TOKENS.has(t)));
         // Score candidates by token overlap; prefer pack match when available
@@ -1103,7 +1103,7 @@ export const importProducts = async (
 
     // Precompute existing categories for similarity matching for new items (tenant-scoped)
     const existingCategoriesRaw = await prisma.products.findMany({ select: { category: true }, where: { tenantId, category: { not: null } } });
-    const existingCategories = Array.from(new Set(existingCategoriesRaw.map(r => String(r.category))));
+    const existingCategories: string[] = Array.from(new Set<string>(existingCategoriesRaw.map((r: { category: string | null }) => String(r.category))));
     const stripPlural = (t: string) => t.replace(/s\b/g, "");
     const normalizeToken = (t: string) => {
       let x = t.toLowerCase();
@@ -1129,7 +1129,7 @@ export const importProducts = async (
     };
     const bestCategoryForValue = (value: string): string | null => {
       let best: { cat: string; score: number } | null = null;
-      for (const cat of existingCategories) {
+      for (const cat of existingCategories as string[]) {
         const s = jaccard(value, cat);
         if (!best || s > best.score) best = { cat, score: s };
       }
@@ -1151,9 +1151,9 @@ export const importProducts = async (
       return bestScore >= 0.6 ? best : null;
     };
 
-    const idList = Array.from(new Set(productsToInsert.map(p => p.productId)));
+    const idList = Array.from(new Set(productsToInsert.map((p: any) => p.productId)));
     const existingById = idList.length ? await prisma.products.findMany({ where: { tenantId, productId: { in: idList } } }) : [];
-    const idMap = new Map(existingById.map(p => [p.productId, p] as const));
+    const idMap = new Map<string, any>(existingById.map((p: any) => [p.productId, p]));
 
     const batchedUpdates: Array<{ where: { productId: string }, data: any }> = [];
     const batchedCreates: Array<any> = [];
@@ -1244,7 +1244,7 @@ export const importProducts = async (
     // Purge products missing from the uploaded sheet (by Name+PackSize or matching Barcode)
     try {
       const normalizeText = (s: string | null | undefined) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
-      const presentKeys = new Set(productsToInsert.map((p) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`));
+      const presentKeys = new Set(productsToInsert.map((p: any) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`));
       const presentBarcodes = new Set(
         productsToInsert
           .map((p) => (p.barcode ? String(p.barcode).trim() : null))
@@ -1278,7 +1278,7 @@ export const importProducts = async (
         let placed = false;
         for (const cluster of clusters) {
           // If any member is sufficiently similar and pack size matches, place into cluster
-          if (cluster.some(m => samePack(m, p) && jaccard(m.name, p.name) >= SIM_THRESHOLD)) {
+          if (cluster.some((m: Prod) => samePack(m, p) && jaccard(m.name, p.name) >= SIM_THRESHOLD)) {
             cluster.push(p);
             placed = true;
             break;
@@ -1290,7 +1290,7 @@ export const importProducts = async (
       for (const arr of clusters) {
         if (arr.length <= 1) continue;
         // Prefer categorized row as canonical
-        arr.sort((a, b) => {
+        arr.sort((a: Prod, b: Prod) => {
           const ac = a.category ? 1 : 0;
           const bc = b.category ? 1 : 0;
           if (ac !== bc) return bc - ac;
@@ -1365,7 +1365,7 @@ export const importProducts = async (
       }
       // Prepare category list for mapping
       const catRows = await prisma.products.findMany({ where: { category: { not: null } }, select: { category: true } });
-      const categoriesList = Array.from(new Set(catRows.map(r => (r.category as string))));
+      const categoriesList: string[] = Array.from(new Set(catRows.map((r: { category: string | null }) => String(r.category || "")).filter((s: string) => s.length > 0)));
       const mapCategory = (val: string | null) => {
         if (!val) return null;
         // 1) Split on common separators like '/', '-', '&', ',' and pick the strongest segment
@@ -1397,8 +1397,8 @@ export const importProducts = async (
 
         // 3) Otherwise, rank by similarity and prefer the shortest best match
         const ranked = categoriesList
-          .map(c => ({ c, s: Math.max(...segments.map(seg => jaccard(seg, c))) }))
-          .sort((a, b) => {
+          .map((c: string) => ({ c, s: Math.max(...segments.map((seg: string) => jaccard(seg, c))) }))
+          .sort((a: { c: string; s: number }, b: { c: string; s: number }) => {
             if (a.s !== b.s) return b.s - a.s;
             return a.c.length - b.c.length;
           });
@@ -2071,7 +2071,7 @@ export const getImportSample = async (
     const norm = (s: string | null | undefined) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
     const keyOf = (name: string, packSize: string | null | undefined) => `${norm(name)}|${norm(packSize ?? null)}`;
 
-    let rows: any[] = products.map((p) => ({
+    let rows: any[] = products.map((p: any) => ({
       Name: p.name,
       Barcode: (p as any).barcode ?? "",
       PackSize: (p as any).packSize ?? "",
@@ -2083,7 +2083,7 @@ export const getImportSample = async (
       Description: (p as any).description ?? "",
     }));
 
-    const seen = new Set<string>(products.map((p) => keyOf(p.name, (p as any).packSize ?? null)));
+    const seen = new Set<string>(products.map((p: any) => keyOf(p.name, (p as any).packSize ?? null)));
 
     const samplePath = path.join(__dirname, "../../assets/barcode-products.xlsx");
     if (fs.existsSync(samplePath)) {
@@ -2094,7 +2094,7 @@ export const getImportSample = async (
       const normalizeKey = (k: string) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
 
       const existingCategoriesRaw = await prisma.products.findMany({ select: { category: true }, where: { tenantId, category: { not: null } } });
-      const existingCategories = Array.from(new Set(existingCategoriesRaw.map((r) => String(r.category))));
+      const existingCategories: string[] = Array.from(new Set<string>(existingCategoriesRaw.map((r: any) => String(r.category))));
       const similarity = (a: string, b: string): number => {
         const ta = a.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
         const tb = b.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
@@ -2106,7 +2106,7 @@ export const getImportSample = async (
       };
       const bestCategoryForName = (name: string): string | null => {
         let best: { cat: string; score: number } | null = null;
-        for (const cat of existingCategories) {
+        for (const cat of existingCategories as string[]) {
           const s = similarity(name, cat);
           if (!best || s > best.score) best = { cat, score: s };
         }
@@ -2178,7 +2178,7 @@ export const getPcsSample = async (
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const pcs = await readPcsInventory(tenantId);
     const products = await prisma.products.findMany({ where: { tenantId } });
-    const byName = new Map(products.map((p) => [String(p.name).toLowerCase(), p] as const));
+    const byName = new Map<string, any>(products.map((p: any) => [String(p.name).toLowerCase(), p] as const));
 
     const rows = tenantId === "default" ? pcs.map((e) => {
       const match = byName.get(String(e.name).toLowerCase());
@@ -2234,7 +2234,7 @@ export const exportPcsExcel = async (
   try {
     const pcs = await readPcsInventory();
     const products = await prisma.products.findMany({});
-    const byName = new Map(products.map((p) => [String(p.name).toLowerCase(), p] as const));
+    const byName = new Map<string, any>(products.map((p: any) => [String(p.name).toLowerCase(), p] as const));
     const rows = pcs.map((e) => {
       const match = byName.get(String(e.name).toLowerCase());
       return {
@@ -2284,7 +2284,7 @@ export const getProductUpdatesLast = async (
     // Enrich with product names for display
     const ids = Object.keys(last);
     const products = ids.length ? await prisma.products.findMany({ where: { productId: { in: ids } } }) : [];
-    const nameMap = new Map(products.map(p => [p.productId, p.name] as const));
+    const nameMap = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
     const payload = ids.map((id) => ({ productId: id, name: nameMap.get(id) || "Unknown", last: last[id] }));
     res.json(payload);
   } catch (err) {

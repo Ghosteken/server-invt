@@ -54,7 +54,7 @@ export const listExpenses = async (req: Request, res: Response): Promise<void> =
       if (to) where.timestamp.lte = to;
     }
     const rows = await prisma.expenses.findMany({ where, orderBy: { timestamp: "desc" } });
-    const expenses = rows.map((r) => ({ id: r.expenseId, category: r.category, name: r.category, amount: r.amount, date: r.timestamp.toISOString().slice(0, 10) }));
+    const expenses = rows.map((r: { expenseId: string; category: string | null; amount: number; timestamp: Date }) => ({ id: r.expenseId, category: r.category, name: r.category, amount: r.amount, date: r.timestamp.toISOString().slice(0, 10) }));
     res.json({ expenses });
   } catch (err) {
     res.status(500).json({ message: "Error retrieving expenses" });
@@ -143,7 +143,7 @@ export const getExpenseCategories = async (_req: Request, res: Response): Promis
     const reqAny = _req as any;
     const tenantId = reqAny.tenantId || _req.user?.tenantId || "default";
     const rows = await prisma.expenseByCategory.findMany({ where: { tenantId }, select: { category: true } });
-    const categories = Array.from(new Set(rows.map((r) => (r.category || "").toLowerCase()).filter(Boolean)));
+    const categories = Array.from(new Set(rows.map((r: { category: string | null }) => (r.category || "").toLowerCase()).filter(Boolean)));
     res.json({ categories });
   } catch (err) {
     res.status(500).json({ message: "Failed to load expense categories" });
