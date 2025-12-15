@@ -7,7 +7,7 @@ export const getSalesAgents = async (req: Request, res: Response): Promise<void>
     const tenantId = req.tenantId || req.user?.tenantId || "default";
     const search = String(req.query.search || "").trim().toLowerCase();
     const invs = await prisma.invoices.findMany({ where: { tenantId }, select: { salesAgentId: true, salesAgent: true } });
-    const ids = Array.from(new Set(invs.map((i) => i.salesAgentId).filter(Boolean))) as string[];
+    const ids = Array.from(new Set(invs.map((i: any) => i.salesAgentId).filter(Boolean))) as string[];
     const byKey = new Map<string, { id: string; name: string; mobile?: string | null; email?: string | null }>();
     const normalized = (s: string) => s.trim().toLowerCase();
     // Include all manually created agents for this tenant
@@ -26,7 +26,7 @@ export const getSalesAgents = async (req: Request, res: Response): Promise<void>
         if (!byKey.has(key)) byKey.set(key, { id: a.id, name: a.name, mobile: a.mobile ?? null, email: a.email ?? null });
       }
     }
-    for (const i of invs) {
+    for (const i of invs as any[]) {
       const n = String(i.salesAgent || "").trim();
       if (!n) continue;
       const key = normalized(n);
@@ -122,11 +122,11 @@ export const getAgentInvoices = async (req: Request, res: Response): Promise<voi
     });
 
     // Hydrate customer names
-    const customerIds = Array.from(new Set(invoices.map((i) => i.customerId))).filter(Boolean);
+    const customerIds = Array.from(new Set(invoices.map((i: any) => i.customerId))).filter(Boolean);
     const customers = customerIds.length ? await prisma.customers.findMany({ where: { customerId: { in: customerIds } } }) : [];
-    const customerMap = new Map(customers.map((c) => [c.customerId, c.name] as const));
+    const customerMap = new Map<string, string>(customers.map((c: any) => [c.customerId, c.name] as const));
 
-    const list = invoices.map((inv) => ({ ...inv, customerName: customerMap.get(inv.customerId) }));
+    const list = invoices.map((inv: any) => ({ ...inv, customerName: customerMap.get(inv.customerId) }));
     res.json({ invoices: list });
   } catch (err) {
     console.error("getAgentInvoices error:", err);

@@ -176,14 +176,14 @@ export const getStoreBranchSales = async (req: Request, res: Response): Promise<
       where: { tenantId, customerId: customer.customerId },
       orderBy: { timestamp: "desc" },
     });
-    const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
+    const productIds = Array.from(new Set(purchases.map((p: any) => p.productId)));
     const products = await prisma.products.findMany({
       where: { tenantId, productId: { in: productIds } },
       select: { productId: true, name: true, expiryDate: true },
     });
-    const productMap = new Map(products.map((p) => [p.productId, p] as const));
+    const productMap = new Map<string, any>(products.map((p: any) => [p.productId, p] as const));
 
-    const sales = purchases.map((p) => ({
+    const sales = purchases.map((p: any) => ({
       id: p.id,
       productId: p.productId,
       productName: productMap.get(p.productId)?.name || undefined,

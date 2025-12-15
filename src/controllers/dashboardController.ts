@@ -205,7 +205,7 @@ export const getTopCustomers = async (req: Request, res: Response): Promise<void
     const result = customers.map((c: { customerId: string }) => ({
       ...c,
       totalPurchaseValue: Number(grouped.find((g: any) => g.customerId === c.customerId)?._sum.totalCost || 0),
-    })).sort((a, b) => b.totalPurchaseValue - a.totalPurchaseValue);
+    })).sort((a: any, b: any) => b.totalPurchaseValue - a.totalPurchaseValue);
     res.set("Cache-Control", "public, max-age=60");
     res.json(result);
   } catch (error) {
