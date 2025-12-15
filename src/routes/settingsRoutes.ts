@@ -214,7 +214,7 @@ router.get("/banks", authenticateToken, async (req: Request, res: Response) => {
       { name: "Amagzy global ventures(GTbank)FOR MANUFACTURING", account: "0240198526" },
     ];
     const tenantBanks = await readBanks(tenantId);
-    const list = [...banksDefault, ...tenantBanks];
+    const list = tenantId === "default" ? [...banksDefault, ...tenantBanks] : tenantBanks;
     res.json({ banks: list });
   } catch {
     res.status(500).json({ banks: [] });
