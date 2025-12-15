@@ -7,6 +7,7 @@ import { readFinancialLayout, writeFinancialLayout } from "../services/financial
 import { Request, Response } from "express";
 import { readBanks, addBank, updateBank, removeBank } from "../services/banksService";
 import { appendNotification } from "../services/notificationService";
+import { authenticateToken, requireAdmin } from "../middleware/authMiddleware";
 
 const router = Router();
 // Use shared Prisma client
@@ -201,7 +202,7 @@ router.put("/financial-layout", async (req, res) => {
 });
 
 // Tenant-scoped bank accounts list
-router.get("/banks", async (req: Request, res: Response) => {
+router.get("/banks", authenticateToken, async (req: Request, res: Response) => {
   try {
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
@@ -213,14 +214,14 @@ router.get("/banks", async (req: Request, res: Response) => {
       { name: "Amagzy global ventures(GTbank)FOR MANUFACTURING", account: "0240198526" },
     ];
     const tenantBanks = await readBanks(tenantId);
-    const list = tenantId === "default" ? [...banksDefault, ...tenantBanks] : tenantBanks;
+    const list = [...banksDefault, ...tenantBanks];
     res.json({ banks: list });
   } catch {
     res.status(500).json({ banks: [] });
   }
 });
 
-router.post("/banks", async (req: Request, res: Response) => {
+router.post("/banks", authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const Body = z.object({ name: z.string().min(1), account: z.string().min(1) });
     const { name, account } = Body.parse(req.body || {});
@@ -238,7 +239,7 @@ router.post("/banks", async (req: Request, res: Response) => {
   }
 });
 
-router.put("/banks", async (req: Request, res: Response) => {
+router.put("/banks", authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const Body = z.object({
       oldName: z.string().min(1),
@@ -261,7 +262,7 @@ router.put("/banks", async (req: Request, res: Response) => {
   }
 });
 
-router.delete("/banks", async (req: Request, res: Response) => {
+router.delete("/banks", authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
     const Body = z.object({ name: z.string().min(1), account: z.string().min(1) });
     const { name, account } = Body.parse(req.body || {});

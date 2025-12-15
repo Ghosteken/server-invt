@@ -22,7 +22,7 @@ export async function addBank(tenantId: string, bank: Bank): Promise<Bank[]> {
     const db = prisma as any;
     const existing = await db.banks.findFirst({ where: { tenantId, name, account } });
     if (!existing) {
-      await db.banks.create({ data: { id: crypto.randomUUID(), tenantId, name, account } as any });
+      await db.banks.create({ data: { id: cryptoRandom(), tenantId, name, account } as any });
     }
     const rows: any[] = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
     return rows.map((r: any) => ({ name: r.name, account: r.account }));
@@ -50,6 +50,15 @@ export async function updateBank(tenantId: string, oldBank: Bank, nextBank: Bank
     const db = prisma as any;
     const rows: any[] = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } }).catch(() => []);
     return rows.map((r: any) => ({ name: r.name, account: r.account }));
+  }
+}
+
+function cryptoRandom(): string {
+  try {
+    const { randomUUID } = require("crypto");
+    return randomUUID();
+  } catch {
+    return Math.random().toString(36).slice(2);
   }
 }
 
