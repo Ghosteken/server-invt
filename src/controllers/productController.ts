@@ -233,7 +233,7 @@ export const exportProductsExcel = async (
   try {
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const products = await prisma.products.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
-    const rows = products.map((p) => ({
+    const rows = products.map((p: any) => ({
       Name: p.name,
       Barcode: (p as any).barcode ?? "",
       PackSize: (p as any).packSize ?? "",
@@ -241,7 +241,7 @@ export const exportProductsExcel = async (
       PurchasePrice: p.purchasePrice ?? "",
       SalesPrice: p.price ?? "",
       Quantity: p.stockQuantity ?? 0,
-      ExpiryDate: p.expiryDate ? new Date(p.expiryDate).toLocaleDateString() : "",
+      ExpiryDate: p.expiryDate instanceof Date ? p.expiryDate.toLocaleDateString() : "",
       Description: (p as any).description ?? "",
     }));
     const wb = XLSX.utils.book_new();
@@ -302,10 +302,10 @@ export const getProductMovements = async (
       orderBy: { timestamp: "desc" },
     });
 
-    const saleDates = Array.from(new Set(sales.map((s) => s.timestamp.toISOString())));
-    const saleCustomerIds = Array.from(new Set(sales.map((s) => s.customerId).filter(Boolean)));
+    const saleDates: string[] = Array.from(new Set<string>(sales.map((s: any) => s.timestamp.toISOString())));
+    const saleCustomerIds: string[] = Array.from(new Set<string>(sales.map((s: any) => s.customerId).filter(Boolean as any)));
     const candidateInvoices = saleDates.length && saleCustomerIds.length
-      ? await prisma.invoices.findMany({ where: { date: { in: saleDates.map((d) => new Date(d)) }, customerId: { in: saleCustomerIds } } })
+      ? await prisma.invoices.findMany({ where: { date: { in: saleDates.map((d: string) => new Date(d)) }, customerId: { in: saleCustomerIds } } })
       : [];
     const invoiceByPair = new Map<string, { invoiceId: string }>();
     for (const inv of candidateInvoices) {
@@ -316,7 +316,7 @@ export const getProductMovements = async (
       const meta = await getInvoiceMeta(inv.invoiceId);
       if (meta?.invoiceNumber) numberById.set(inv.invoiceId, meta.invoiceNumber);
     }
-    const saleItems = sales.map((s) => {
+    const saleItems = sales.map((s: any) => {
       const pair = `${s.customerId}|${s.timestamp.toISOString()}`;
       const inv = invoiceByPair.get(pair);
       const invoiceId = inv?.invoiceId;
@@ -331,7 +331,7 @@ export const getProductMovements = async (
         invoiceNumber,
       };
     });
-    const purchaseItems = purchases.map((p) => ({
+    const purchaseItems = purchases.map((p: any) => ({
       kind: "purchase" as const,
       timestamp: p.timestamp,
       quantity: Number(p.quantity || 0),
@@ -387,10 +387,10 @@ export const getPcsProducts = async (req: Request, res: Response): Promise<void>
     };
 
     // Build indices for quick matching
-    const byExact = new Map(products.map(p => [p.name.toLowerCase(), p] as const));
+    const byExact = new Map<string, any>(products.map((p: any) => [p.name.toLowerCase(), p]));
     const byNorm = new Map<string, { product: any; toks: Set<string> }>();
-    for (const p of products) {
-      const toks = new Set(tokensOf(p.name).filter(t => !FILLER_TOKENS.has(t)));
+    for (const p of products as any[]) {
+      const toks = new Set(tokensOf(p.name).filter((t: string) => !FILLER_TOKENS.has(t)));
       byNorm.set(normalizeWithSynonyms(p.name), { product: p, toks });
     }
 
@@ -408,7 +408,7 @@ export const getPcsProducts = async (req: Request, res: Response): Promise<void>
 
     for (const e of pcs) {
       const exact = byExact.get(e.name.toLowerCase());
-      let matched = exact ?? null;
+      let matched: any = exact ?? null;
       if (!matched) {
         const etoks = new Set(tokensOf(e.name).filter(t => !FILLER_TOKENS.has(t)));
         // Score candidates by token overlap; prefer pack match when available

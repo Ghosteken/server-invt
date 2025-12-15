@@ -237,7 +237,7 @@ const exportProductsExcel = async (req, res) => {
             PurchasePrice: p.purchasePrice ?? "",
             SalesPrice: p.price ?? "",
             Quantity: p.stockQuantity ?? 0,
-            ExpiryDate: p.expiryDate ? new Date(p.expiryDate).toLocaleDateString() : "",
+            ExpiryDate: p.expiryDate instanceof Date ? p.expiryDate.toLocaleDateString() : "",
             Description: p.description ?? "",
         }));
         const wb = xlsx_1.default.utils.book_new();
@@ -378,10 +378,10 @@ const getPcsProducts = async (req, res) => {
             return normSimple(a) === normSimple(b);
         };
         // Build indices for quick matching
-        const byExact = new Map(products.map(p => [p.name.toLowerCase(), p]));
+        const byExact = new Map(products.map((p) => [p.name.toLowerCase(), p]));
         const byNorm = new Map();
         for (const p of products) {
-            const toks = new Set(tokensOf(p.name).filter(t => !FILLER_TOKENS.has(t)));
+            const toks = new Set(tokensOf(p.name).filter((t) => !FILLER_TOKENS.has(t)));
             byNorm.set(normalizeWithSynonyms(p.name), { product: p, toks });
         }
         // Accumulate results with deduplication by matched product or normalized name

@@ -28,9 +28,9 @@ export const getCustomers = async (req: Request, res: Response): Promise<void> =
 
     // Fetch purchases grouped by customer
     const purchases = await prisma.customerPurchases.findMany({ where: { tenantId } });
-    const productIds = Array.from(new Set(purchases.map(p => p.productId)));
+    const productIds = Array.from(new Set(purchases.map((p: any) => p.productId)));
     const products = await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
-    const nameById = new Map(products.map(p => [p.productId, p.name] as const));
+    const nameById = new Map<string, string>(products.map((p: { productId: string; name: string }) => [p.productId, p.name]));
     const byCustomer = new Map<string, Array<{ id: string; productId: string; productName: string; quantity: number; totalCost: number }>>();
     for (const p of purchases) {
       const list = byCustomer.get(p.customerId) || [];
@@ -38,7 +38,7 @@ export const getCustomers = async (req: Request, res: Response): Promise<void> =
       byCustomer.set(p.customerId, list);
     }
 
-    const result = customers.map((c) => ({
+    const result = customers.map((c: any) => ({
       customerId: c.customerId,
       name: c.name,
       mobile: c.mobile,
@@ -277,11 +277,11 @@ export const importCustomers = async (req: Request, res: Response): Promise<void
       : [];
     const existingMobileSet = new Set<string>(existingByMobile.map((e) => String(e.mobile)));
 
-    const nameOrClauses = Array.from(namesNoMobileSet.values()).map((n) => ({ name: { equals: n, mode: "insensitive" as Prisma.QueryMode } }));
+    const nameOrClauses = Array.from(namesNoMobileSet.values()).map((n) => ({ name: { equals: n, mode: "insensitive" as const } }));
     const existingByName = nameOrClauses.length
       ? await prisma.customers.findMany({ where: { tenantId, OR: nameOrClauses }, select: { name: true } })
       : [];
-    const existingNameSet = new Set<string>(existingByName.map((e) => String(e.name).toLowerCase()));
+    const existingNameSet = new Set<string>(existingByName.map((e: { name: string | null }) => String(e.name).toLowerCase()));
 
     const toCreate: Array<{ customerId: string; name: string; mobile: string | null; address: string | null; city: string | null; state: string | null; country: string | null; tenantId: string }> = [];
 
@@ -511,9 +511,9 @@ export const exportCustomersExcel = async (req: Request, res: Response): Promise
       CreatedAt: c.createdAt.toISOString(),
     }));
 
-    const purchasesSheetRows = purchases.map((p) => ({
+    const purchasesSheetRows = purchases.map((p: any) => ({
       CustomerId: p.customerId,
-      CustomerName: customers.find((c) => c.customerId === p.customerId)?.name ?? "",
+      CustomerName: customers.find((c: any) => c.customerId === p.customerId)?.name ?? "",
       ProductId: p.productId,
       ProductName: nameById.get(p.productId) ?? "",
       Quantity: p.quantity,
