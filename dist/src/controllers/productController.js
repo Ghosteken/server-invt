@@ -2259,7 +2259,7 @@ const getProductUpdatesLast = async (req, res) => {
         // Enrich with product names for display
         const ids = Object.keys(last);
         const products = ids.length ? await prisma_1.default.products.findMany({ where: { productId: { in: ids } } }) : [];
-        const nameMap = new Map(products.map(p => [p.productId, p.name]));
+        const nameMap = new Map(products.map((p) => [p.productId, p.name]));
         const payload = ids.map((id) => ({ productId: id, name: nameMap.get(id) || "Unknown", last: last[id] }));
         res.json(payload);
     }

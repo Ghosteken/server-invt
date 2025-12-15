@@ -1103,7 +1103,7 @@ export const importProducts = async (
 
     // Precompute existing categories for similarity matching for new items (tenant-scoped)
     const existingCategoriesRaw = await prisma.products.findMany({ select: { category: true }, where: { tenantId, category: { not: null } } });
-    const existingCategories = Array.from(new Set(existingCategoriesRaw.map((r: { category: string | null }) => String(r.category))));
+    const existingCategories: string[] = Array.from(new Set<string>(existingCategoriesRaw.map((r: { category: string | null }) => String(r.category))));
     const stripPlural = (t: string) => t.replace(/s\b/g, "");
     const normalizeToken = (t: string) => {
       let x = t.toLowerCase();
@@ -1129,7 +1129,7 @@ export const importProducts = async (
     };
     const bestCategoryForValue = (value: string): string | null => {
       let best: { cat: string; score: number } | null = null;
-      for (const cat of existingCategories) {
+      for (const cat of existingCategories as string[]) {
         const s = jaccard(value, cat);
         if (!best || s > best.score) best = { cat, score: s };
       }
@@ -2094,7 +2094,7 @@ export const getImportSample = async (
       const normalizeKey = (k: string) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
 
       const existingCategoriesRaw = await prisma.products.findMany({ select: { category: true }, where: { tenantId, category: { not: null } } });
-      const existingCategories = Array.from(new Set(existingCategoriesRaw.map((r: any) => String(r.category))));
+      const existingCategories: string[] = Array.from(new Set<string>(existingCategoriesRaw.map((r: any) => String(r.category))));
       const similarity = (a: string, b: string): number => {
         const ta = a.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
         const tb = b.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
@@ -2106,7 +2106,7 @@ export const getImportSample = async (
       };
       const bestCategoryForName = (name: string): string | null => {
         let best: { cat: string; score: number } | null = null;
-        for (const cat of existingCategories) {
+        for (const cat of existingCategories as string[]) {
           const s = similarity(name, cat);
           if (!best || s > best.score) best = { cat, score: s };
         }
@@ -2284,7 +2284,7 @@ export const getProductUpdatesLast = async (
     // Enrich with product names for display
     const ids = Object.keys(last);
     const products = ids.length ? await prisma.products.findMany({ where: { productId: { in: ids } } }) : [];
-    const nameMap = new Map(products.map(p => [p.productId, p.name] as const));
+    const nameMap = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
     const payload = ids.map((id) => ({ productId: id, name: nameMap.get(id) || "Unknown", last: last[id] }));
     res.json(payload);
   } catch (err) {
