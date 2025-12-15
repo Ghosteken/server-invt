@@ -66,13 +66,14 @@ describe('Auth and protected user routes', () => {
         expect(res.body).toHaveProperty('token');
         expect(res.body.user).toMatchObject({ email: 'user@example.com', role: 'user' });
     });
-    test('POST /auth/login forbids admin credentials on regular route', async () => {
+    test('POST /auth/login succeeds for admin credentials on regular route', async () => {
         process.env.ADMIN_EMAIL = 'admin@inventory.com';
         const app = buildApp();
         const res = await (0, supertest_1.default)(app)
             .post('/auth/login')
             .send({ email: 'admin@inventory.com', password: 'pass123' });
-        expect(res.status).toBe(403);
+        expect(res.status).toBe(200);
+        expect(res.body.user).toMatchObject({ role: 'admin' });
     });
     test('POST /auth/login fails for blocked account', async () => {
         const app = buildApp();
@@ -81,10 +82,10 @@ describe('Auth and protected user routes', () => {
             .send({ email: 'blocked@example.com', password: 'pass123' });
         expect(res.status).toBe(403);
     });
-    test('POST /auth/admin/login succeeds for DB admin user', async () => {
+    test('POST /auth/login returns admin token for admin user', async () => {
         const app = buildApp();
         const res = await (0, supertest_1.default)(app)
-            .post('/auth/admin/login')
+            .post('/auth/login')
             .send({ email: 'admin@inventory.com', password: 'pass123' });
         expect(res.status).toBe(200);
         expect(res.body.user).toMatchObject({ role: 'admin' });
