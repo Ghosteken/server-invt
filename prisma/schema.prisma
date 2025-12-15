@@ -16,6 +16,18 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
+model Banks {
+  id        String   @id
+  tenantId  String   @default("default")
+  name      String
+  account   String
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@unique([tenantId, name, account])
+  @@map("banks")
+}
+
 model Users {
   userId    String  @id
   name      String
