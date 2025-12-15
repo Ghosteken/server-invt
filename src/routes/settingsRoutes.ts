@@ -206,15 +206,8 @@ router.get("/banks", authenticateToken, async (req: Request, res: Response) => {
   try {
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
-    const banksDefault = [
-      { name: "Amagzy global vic limited(Zenith bank) FOR SUPPLIES", account: "1017679715" },
-      { name: "Amagzy global vic limited FCMB(FOR SUPPLIES)", account: "2002076509" },
-      { name: "Amagzy global ventures(Sterling bank) FOR CHEQUES", account: "0501928477" },
-      { name: "Amagzy global ventures(Stanbic bank) FOR OPERATIONS", account: "0034297097" },
-      { name: "Amagzy global ventures(GTbank)FOR MANUFACTURING", account: "0240198526" },
-    ];
     const tenantBanks = await readBanks(tenantId);
-    const list = tenantId === "default" ? [...banksDefault, ...tenantBanks] : tenantBanks;
+    const list = tenantBanks;
     res.json({ banks: list });
   } catch {
     res.status(500).json({ banks: [] });
