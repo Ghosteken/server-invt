@@ -541,20 +541,28 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       }
       if (!name) continue;
 
-      let qty = coerceNumber(
-        kv["pcs quantity"] ?? kv["pcs"] ?? kv["quantity"] ?? kv["qty"] ?? kv["pcs qty"] ?? kv["qty pcs"] ?? kv["quantity pcs"] ?? kv["pieces"] ?? kv["pcs count"] ?? kv["count pcs"]
-      );
-      // Fallback: first numeric-like cell in the row
-      if (qty == null) {
-        for (const key of Object.keys(kv)) {
-          const n = coerceNumber(kv[key]);
-          if (n != null) {
-            qty = n;
-            break;
-          }
+      const qtyCandidates = [
+        "pcs quantity",
+        "pcsquantity",
+        "pcs",
+        "quantity",
+        "qty",
+        "pcs qty",
+        "pcsqty",
+        "qty pcs",
+        "quantity pcs",
+        "pieces",
+        "pcs count",
+        "count pcs",
+      ];
+      let qty: number | null = null;
+      for (const key of qtyCandidates) {
+        const n = coerceNumber(kv[key]);
+        if (n != null) {
+          qty = n;
+          break;
         }
       }
-      // If quantity is still missing, import the item with quantity 0
       if (qty == null) qty = 0;
       const packSize = kv["pack size"] ?? kv["pack"] ?? kv["packsize"] ?? null;
       const productId = kv["productid"] ?? kv["sku"] ?? null;
@@ -689,6 +697,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
         if (should("description")) dataUpdate.description = item.description ?? target.description ?? null;
         if (should("packsize")) dataUpdate.packSize = item.packSize ?? target.packSize ?? null;
         if (should("barcode")) dataUpdate.barcode = item.barcode ?? target.barcode ?? null;
+        dataUpdate.stockQuantity = Math.max(0, Number(item.pcsQuantity || 0));
         if (Object.keys(dataUpdate).length > 0) {
           const existing = target;
           const updated = await prisma.products.update({ where: { productId: target.productId }, data: dataUpdate });
