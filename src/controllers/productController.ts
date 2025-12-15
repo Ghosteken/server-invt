@@ -1103,7 +1103,7 @@ export const importProducts = async (
 
     // Precompute existing categories for similarity matching for new items (tenant-scoped)
     const existingCategoriesRaw = await prisma.products.findMany({ select: { category: true }, where: { tenantId, category: { not: null } } });
-    const existingCategories = Array.from(new Set(existingCategoriesRaw.map(r => String(r.category))));
+    const existingCategories = Array.from(new Set(existingCategoriesRaw.map((r: { category: string | null }) => String(r.category))));
     const stripPlural = (t: string) => t.replace(/s\b/g, "");
     const normalizeToken = (t: string) => {
       let x = t.toLowerCase();
@@ -1151,9 +1151,9 @@ export const importProducts = async (
       return bestScore >= 0.6 ? best : null;
     };
 
-    const idList = Array.from(new Set(productsToInsert.map(p => p.productId)));
+    const idList = Array.from(new Set(productsToInsert.map((p: any) => p.productId)));
     const existingById = idList.length ? await prisma.products.findMany({ where: { tenantId, productId: { in: idList } } }) : [];
-    const idMap = new Map(existingById.map(p => [p.productId, p] as const));
+    const idMap = new Map<string, any>(existingById.map((p: any) => [p.productId, p]));
 
     const batchedUpdates: Array<{ where: { productId: string }, data: any }> = [];
     const batchedCreates: Array<any> = [];
@@ -1244,7 +1244,7 @@ export const importProducts = async (
     // Purge products missing from the uploaded sheet (by Name+PackSize or matching Barcode)
     try {
       const normalizeText = (s: string | null | undefined) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
-      const presentKeys = new Set(productsToInsert.map((p) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`));
+      const presentKeys = new Set(productsToInsert.map((p: any) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`));
       const presentBarcodes = new Set(
         productsToInsert
           .map((p) => (p.barcode ? String(p.barcode).trim() : null))
@@ -1278,7 +1278,7 @@ export const importProducts = async (
         let placed = false;
         for (const cluster of clusters) {
           // If any member is sufficiently similar and pack size matches, place into cluster
-          if (cluster.some(m => samePack(m, p) && jaccard(m.name, p.name) >= SIM_THRESHOLD)) {
+          if (cluster.some((m: Prod) => samePack(m, p) && jaccard(m.name, p.name) >= SIM_THRESHOLD)) {
             cluster.push(p);
             placed = true;
             break;
@@ -1290,7 +1290,7 @@ export const importProducts = async (
       for (const arr of clusters) {
         if (arr.length <= 1) continue;
         // Prefer categorized row as canonical
-        arr.sort((a, b) => {
+        arr.sort((a: Prod, b: Prod) => {
           const ac = a.category ? 1 : 0;
           const bc = b.category ? 1 : 0;
           if (ac !== bc) return bc - ac;
@@ -1365,7 +1365,7 @@ export const importProducts = async (
       }
       // Prepare category list for mapping
       const catRows = await prisma.products.findMany({ where: { category: { not: null } }, select: { category: true } });
-      const categoriesList = Array.from(new Set(catRows.map(r => (r.category as string))));
+      const categoriesList: string[] = Array.from(new Set(catRows.map((r: { category: string | null }) => String(r.category || "")).filter((s: string) => s.length > 0)));
       const mapCategory = (val: string | null) => {
         if (!val) return null;
         // 1) Split on common separators like '/', '-', '&', ',' and pick the strongest segment
@@ -1397,8 +1397,8 @@ export const importProducts = async (
 
         // 3) Otherwise, rank by similarity and prefer the shortest best match
         const ranked = categoriesList
-          .map(c => ({ c, s: Math.max(...segments.map(seg => jaccard(seg, c))) }))
-          .sort((a, b) => {
+          .map((c: string) => ({ c, s: Math.max(...segments.map((seg: string) => jaccard(seg, c))) }))
+          .sort((a: { c: string; s: number }, b: { c: string; s: number }) => {
             if (a.s !== b.s) return b.s - a.s;
             return a.c.length - b.c.length;
           });

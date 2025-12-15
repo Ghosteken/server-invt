@@ -8,7 +8,7 @@ export const listStores = async (req: Request, res: Response): Promise<void> => 
     const search = (req.query.search || "").toString().trim().toLowerCase();
     const stores = await prisma.stores.findMany({ where: { tenantId }, include: { branches: true }, orderBy: { name: "asc" } });
     const filtered = search
-      ? stores.filter((s) => s.name.toLowerCase().includes(search))
+      ? stores.filter((s: any) => s.name.toLowerCase().includes(search))
       : stores;
     res.json({ stores: filtered });
   } catch (err) {

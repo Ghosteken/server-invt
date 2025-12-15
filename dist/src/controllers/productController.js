@@ -1062,7 +1062,7 @@ const importProducts = async (req, res) => {
         }
         // Precompute existing categories for similarity matching for new items (tenant-scoped)
         const existingCategoriesRaw = await prisma_1.default.products.findMany({ select: { category: true }, where: { tenantId, category: { not: null } } });
-        const existingCategories = Array.from(new Set(existingCategoriesRaw.map(r => String(r.category))));
+        const existingCategories = Array.from(new Set(existingCategoriesRaw.map((r) => String(r.category))));
         const stripPlural = (t) => t.replace(/s\b/g, "");
         const normalizeToken = (t) => {
             let x = t.toLowerCase();
@@ -1121,9 +1121,9 @@ const importProducts = async (req, res) => {
             }
             return bestScore >= 0.6 ? best : null;
         };
-        const idList = Array.from(new Set(productsToInsert.map(p => p.productId)));
+        const idList = Array.from(new Set(productsToInsert.map((p) => p.productId)));
         const existingById = idList.length ? await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: idList } } }) : [];
-        const idMap = new Map(existingById.map(p => [p.productId, p]));
+        const idMap = new Map(existingById.map((p) => [p.productId, p]));
         const batchedUpdates = [];
         const batchedCreates = [];
         for (const item of productsToInsert) {
@@ -1257,7 +1257,7 @@ const importProducts = async (req, res) => {
                 let placed = false;
                 for (const cluster of clusters) {
                     // If any member is sufficiently similar and pack size matches, place into cluster
-                    if (cluster.some(m => samePack(m, p) && jaccard(m.name, p.name) >= SIM_THRESHOLD)) {
+                    if (cluster.some((m) => samePack(m, p) && jaccard(m.name, p.name) >= SIM_THRESHOLD)) {
                         cluster.push(p);
                         placed = true;
                         break;
@@ -1353,7 +1353,7 @@ const importProducts = async (req, res) => {
             }
             // Prepare category list for mapping
             const catRows = await prisma_1.default.products.findMany({ where: { category: { not: null } }, select: { category: true } });
-            const categoriesList = Array.from(new Set(catRows.map(r => r.category)));
+            const categoriesList = Array.from(new Set(catRows.map((r) => String(r.category || "")).filter((s) => s.length > 0)));
             const mapCategory = (val) => {
                 if (!val)
                     return null;
@@ -1387,7 +1387,7 @@ const importProducts = async (req, res) => {
                 }
                 // 3) Otherwise, rank by similarity and prefer the shortest best match
                 const ranked = categoriesList
-                    .map(c => ({ c, s: Math.max(...segments.map(seg => jaccard(seg, c))) }))
+                    .map((c) => ({ c, s: Math.max(...segments.map((seg) => jaccard(seg, c))) }))
                     .sort((a, b) => {
                     if (a.s !== b.s)
                         return b.s - a.s;
