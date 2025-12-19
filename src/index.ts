@@ -29,6 +29,7 @@ import purchasesRoutes from "./routes/purchasesRoutes";
 import invoiceRoutes from "./routes/invoiceRoutes";
 import salesAgentRoutes from "./routes/salesAgentRoutes";
 import locationRoutes from "./routes/locationRoutes";
+import contactRoutes from "./routes/contactRoutes";
 import superAdminRoutes from "./routes/superAdminRoutes";
 import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
@@ -121,6 +122,7 @@ app.use("/invoices", invoiceRoutes); // http://localhost:8000/invoices
 app.use("/purchases", purchasesRoutes); // http://localhost:8000/purchases
 app.use("/sales-agents", salesAgentRoutes); // http://localhost:8000/sales-agents
 app.use("/locations", locationRoutes); // http://localhost:8000/locations
+app.use("/contact", contactRoutes); // http://localhost:8000/contact
 app.use("/super-admin", superAdminRoutes); // http://localhost:8000/super-admin
 
 try {

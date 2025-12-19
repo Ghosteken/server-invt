@@ -21,6 +21,7 @@ import purchasesRoutes from "./routes/purchasesRoutes";
 import invoiceRoutes from "./routes/invoiceRoutes";
 import salesAgentRoutes from "./routes/salesAgentRoutes";
 import locationRoutes from "./routes/locationRoutes";
+import contactRoutes from "./routes/contactRoutes";
 
 export function createApp() {
   dotenv.config();
@@ -100,6 +101,7 @@ export function createApp() {
   app.use("/invoices", invoiceRoutes);
   app.use("/sales-agents", salesAgentRoutes);
   app.use("/locations", locationRoutes);
+  app.use("/contact", contactRoutes);
 
   return app;
 }
