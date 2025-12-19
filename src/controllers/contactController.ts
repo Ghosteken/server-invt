@@ -18,19 +18,25 @@ export const sendContactEmail = async (req: Request, res: Response): Promise<voi
       return;
     }
 
+    const user = process.env.EMAIL_USER.trim();
+    const pass = process.env.EMAIL_PASS.trim();
+    const to = (process.env.EMAIL_TO || user).trim();
+
+    console.log(`Attempting to send email from ${user} to ${to}...`);
+
     // Create transporter
     const transporter = nodemailer.createTransport({
       service: "gmail",
       auth: {
-        user: process.env.EMAIL_USER,
-        pass: process.env.EMAIL_PASS,
+        user: user,
+        pass: pass,
       },
     });
 
     // Email options
     const mailOptions = {
-      from: process.env.EMAIL_USER,
-      to: process.env.EMAIL_TO || process.env.EMAIL_USER, // Send to self if EMAIL_TO is not set
+      from: user,
+      to: to, // Send to self if EMAIL_TO is not set
       replyTo: email,
       subject: `New Contact Form Submission from ${name}`,
       text: `
