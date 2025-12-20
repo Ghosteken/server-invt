@@ -116,29 +116,31 @@ const createInvoice = async (req, res) => {
                 resolvedCustomerId = created.customerId;
             }
         }
-        // Hydrate items with default prices if missing
-        const hydrated = await Promise.all(items.map(async (it) => {
+        const productIds = Array.from(new Set(items.map((it) => it.productId).filter(Boolean)));
+        const products = productIds.length ? await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } } }) : [];
+        const byId = new Map(products.map((p) => [p.productId, p]));
+        const hydrated = items.map((it) => {
             let unitPrice = typeof it.unitPrice === "number" ? it.unitPrice : undefined;
-            let displayName = it.name;
-            if (it.productId) {
-                const p = await prisma_1.default.products.findFirst({ where: { productId: it.productId, tenantId } });
+            const p = it.productId ? byId.get(it.productId) : undefined;
+            let displayName = it.name || (p ? p.name : undefined);
+            if (unitPrice === undefined) {
                 if (p) {
-                    displayName = displayName || p.name;
-                    if (unitPrice === undefined) {
-                        if (it.unit === "pcs") {
-                            const pack = Number((p.packSize || "").replace(/\D+/g, "")) || 1;
-                            unitPrice = p.price / Math.max(pack, 1);
-                        }
-                        else {
-                            unitPrice = p.price;
-                        }
+                    if (it.unit === "pcs") {
+                        const pack = Number(String(p.packSize || "").replace(/\D+/g, "")) || 1;
+                        unitPrice = Number(p.price) / Math.max(pack, 1);
                     }
+                    else {
+                        unitPrice = Number(p.price);
+                    }
+                }
+                else {
+                    unitPrice = 0;
                 }
             }
             unitPrice = unitPrice ?? 0;
             const quantity = Math.max(1, Number(it.quantity) || 1);
             return { productId: it.productId, name: displayName, unit: it.unit, quantity, unitPrice, subtotal: quantity * unitPrice };
-        }));
+        });
         const totals = computeTotals(hydrated, vatPercent, discountPercent);
         const invoiceId = (0, crypto_1.randomUUID)();
         // Resolve normalized names if IDs provided
@@ -192,55 +194,52 @@ const createInvoice = async (req, res) => {
         catch (error) {
             console.warn("Socket emission failed for createInvoice", error);
         }
-        // After creating invoice, deduct stock and record purchases for each item
+        const pcsTotals = new Map();
+        const ctnTotals = new Map();
+        const purchaseRows = [];
         for (const h of hydrated) {
             const qty = Math.max(0, Number(h.quantity) || 0);
             const unitPrice = Number(h.unitPrice || 0);
             const totalCost = unitPrice * qty;
             if (h.unit === "pcs") {
-                const nameForPcs = (h.name || "").trim();
-                if (nameForPcs) {
-                    // Adjust PCS inventory maintained in JSON store
-                    await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: nameForPcs, delta: -qty, tenantId });
-                }
-                // Record purchase if linked to a product
+                const key = String(h.name || "").trim().toLowerCase();
+                if (key)
+                    pcsTotals.set(key, (pcsTotals.get(key) || 0) + qty);
                 if (h.productId) {
-                    await prisma_1.default.customerPurchases.create({
-                        data: {
-                            id: (0, crypto_1.randomUUID)(),
-                            customerId: resolvedCustomerId,
-                            productId: h.productId,
-                            timestamp: created.date,
-                            quantity: qty,
-                            unitPrice,
-                            totalCost,
-                            tenantId,
-                        },
-                    });
+                    purchaseRows.push({ id: (0, crypto_1.randomUUID)(), customerId: resolvedCustomerId, productId: h.productId, timestamp: created.date, quantity: qty, unitPrice, totalCost, tenantId });
                 }
             }
             else {
-                // Carton unit: deduct from product stock (clamped at 0) and record purchase
                 if (h.productId) {
-                    const p = await prisma_1.default.products.findFirst({ where: { productId: h.productId, tenantId } });
-                    if (p) {
-                        const newQty = Math.max(0, Number(p.stockQuantity) - qty);
-                        await prisma_1.default.products.update({ where: { productId: h.productId }, data: { stockQuantity: newQty } });
-                        await prisma_1.default.customerPurchases.create({
-                            data: {
-                                id: (0, crypto_1.randomUUID)(),
-                                customerId: resolvedCustomerId,
-                                productId: h.productId,
-                                timestamp: created.date,
-                                quantity: qty,
-                                unitPrice,
-                                totalCost,
-                                tenantId,
-                            },
-                        });
-                    }
+                    ctnTotals.set(h.productId, { qty: (ctnTotals.get(h.productId)?.qty || 0) + qty });
+                    purchaseRows.push({ id: (0, crypto_1.randomUUID)(), customerId: resolvedCustomerId, productId: h.productId, timestamp: created.date, quantity: qty, unitPrice, totalCost, tenantId });
                 }
             }
+        }
+        const pcsPromises = [];
+        for (const [name, qty] of pcsTotals.entries()) {
+            pcsPromises.push((0, pcsInventoryService_1.adjustPcsQuantity)({ name, delta: -qty, tenantId }));
+        }
+        if (pcsPromises.length)
+            await Promise.all(pcsPromises);
+        if (ctnTotals.size) {
+            const ids = Array.from(ctnTotals.keys());
+            const prods = ids.length ? await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: ids } } }) : [];
+            const map = new Map(prods.map((p) => [p.productId, p]));
+            const updates = ids
+                .map((pid) => {
+                const p = map.get(pid);
+                if (!p)
+                    return null;
+                const nextQty = Math.max(0, Number(p.stockQuantity) - Number(ctnTotals.get(pid)?.qty || 0));
+                return prisma_1.default.products.update({ where: { productId: pid }, data: { stockQuantity: nextQty } });
+            })
+                .filter(Boolean);
+            if (updates.length)
+                await prisma_1.default.$transaction(updates);
+        }
+        if (purchaseRows.length) {
+            await prisma_1.default.customerPurchases.createMany({ data: purchaseRows });
         }
         (0, notificationService_1.appendNotification)({ type: "invoice", message: `Invoice created: ${created.invoiceId} (${created.location})`, actorUserId: req.user?.userId });
         await maybeNotifyDueSoon(created, req.user?.userId);
@@ -281,6 +280,9 @@ const getInvoices = async (req, res) => {
     try {
         const search = (req.query.search || "").toString().trim().toLowerCase();
         const agentId = (req.query.agentId || "").toString().trim();
+        const customerIdQ = (req.query.customerId || "").toString().trim();
+        const customerQ = (req.query.customer || "").toString().trim().toLowerCase();
+        const locationQ = (req.query.location || "").toString().trim();
         const from = req.query.from ? new Date(String(req.query.from)) : undefined;
         const to = req.query.to ? new Date(String(req.query.to)) : undefined;
         const statusQ = (req.query.status || "").toString().trim().toLowerCase();
@@ -290,6 +292,12 @@ const getInvoices = async (req, res) => {
         const where = { tenantId };
         if (agentId) {
             where.OR = [{ salesAgentId: agentId }];
+        }
+        if (customerIdQ) {
+            where.customerId = customerIdQ;
+        }
+        if (locationQ) {
+            where.location = { contains: locationQ, mode: "insensitive" };
         }
         if (from || to) {
             where.date = {};
@@ -332,6 +340,9 @@ const getInvoices = async (req, res) => {
                 (inv.customerName || "").toLowerCase().includes(search) ||
                 inv.location.toLowerCase().includes(search));
         });
+        if (customerQ) {
+            filtered = filtered.filter((inv) => (inv.customerName || "").toLowerCase().includes(customerQ));
+        }
         if (statusQ === "paid" || statusQ === "unpaid" || statusQ === "partial") {
             filtered = filtered.filter((inv) => inv.status === statusQ);
         }
