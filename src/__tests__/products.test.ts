@@ -38,7 +38,14 @@ describe("GET /products search", () => {
     const callArgs = prismaMock.products.findMany.mock.calls[0][0];
     expect(callArgs).toMatchObject({
       where: {
-        name: { contains: "nutella", mode: "insensitive" },
+        OR: [
+          { name: { contains: "nutella", mode: "insensitive" } },
+          { category: { contains: "nutella", mode: "insensitive" } },
+          { description: { contains: "nutella", mode: "insensitive" } },
+          { barcode: { contains: "nutella", mode: "insensitive" } },
+          { packSize: { contains: "nutella", mode: "insensitive" } },
+        ],
+        tenantId: "default",
       },
       orderBy: { name: "asc" },
     });
