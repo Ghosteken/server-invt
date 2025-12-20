@@ -276,6 +276,9 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
   try {
     const search = (req.query.search || "").toString().trim().toLowerCase();
     const agentId = (req.query.agentId || "").toString().trim();
+    const customerIdQ = (req.query.customerId || "").toString().trim();
+    const customerQ = (req.query.customer || "").toString().trim().toLowerCase();
+    const locationQ = (req.query.location || "").toString().trim();
     const from = req.query.from ? new Date(String(req.query.from)) : undefined;
     const to = req.query.to ? new Date(String(req.query.to)) : undefined;
     const statusQ = (req.query.status || "").toString().trim().toLowerCase();
@@ -285,6 +288,12 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
     const where: any = { tenantId };
     if (agentId) {
       where.OR = [ { salesAgentId: agentId } ];
+    }
+    if (customerIdQ) {
+      where.customerId = customerIdQ;
+    }
+    if (locationQ) {
+      where.location = { contains: locationQ, mode: "insensitive" };
     }
     if (from || to) {
       where.date = {};
@@ -328,6 +337,9 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
         inv.location.toLowerCase().includes(search)
       );
     });
+    if (customerQ) {
+      filtered = filtered.filter((inv) => (inv.customerName || "").toLowerCase().includes(customerQ));
+    }
     if (statusQ === "paid" || statusQ === "unpaid" || statusQ === "partial") {
       filtered = filtered.filter((inv) => inv.status === statusQ);
     }
