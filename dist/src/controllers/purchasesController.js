@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.exportSuppliersExcel = exports.importSuppliers = exports.getSuppliers = exports.getPurchasePrintOptions = exports.updatePurchase = exports.updatePurchaseMeta = exports.addPurchasePayment = exports.createPurchase = exports.deletePurchase = exports.getPurchases = exports.upload = void 0;
+exports.deleteSupplier = exports.updateSupplier = exports.createSupplier = exports.exportSuppliersExcel = exports.importSuppliers = exports.getSuppliers = exports.getPurchasePrintOptions = exports.updatePurchase = exports.updatePurchaseMeta = exports.addPurchasePayment = exports.createPurchase = exports.deletePurchase = exports.getPurchases = exports.upload = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const crypto_1 = require("crypto");
 const pcsInventoryService_1 = require("../services/pcsInventoryService");
@@ -126,6 +126,14 @@ const deletePurchase = async (req, res) => {
         await prisma_1.default.purchases.delete({ where: { purchaseId: id } });
         // Notify: purchase deleted
         (0, notificationService_1.appendNotification)({ type: "purchase", message: `Deleted purchase ${id}` });
+        try {
+            const io = req.app.get("io");
+            io.emit("purchase:deleted", { purchaseId: id });
+            io.emit("dashboard:refresh", { tenantId });
+        }
+        catch (error) {
+            console.warn("Socket emission failed for deletePurchase", error);
+        }
         res.json({ success: true });
     }
     catch (err) {
@@ -200,6 +208,32 @@ const createPurchase = async (req, res) => {
             // Notify: purchase item created
             (0, notificationService_1.appendNotification)({ type: "purchase", message: `Purchased ${quantity} ${it.unit} of '${p.name}' for ₦${totalCost.toLocaleString("en")}` });
         }
+        try {
+            const io = req.app.get("io");
+            // We might be creating multiple purchases in one go, but the client list expects individual purchase items.
+            // We can emit each one or a bulk event. Since the UI is a list of purchases, emitting each one is safer for now.
+            for (const p of created) {
+                // Re-fetch full object with meta if possible, or construct it.
+                // Fetching is safer to ensure consistency with getPurchases
+                const full = await prisma_1.default.purchases.findUnique({ where: { purchaseId: p.purchaseId } });
+                if (full) {
+                    const meta = await prisma_1.default.supplierPurchaseMeta.findUnique({ where: { purchaseId: p.purchaseId } });
+                    // We need to attach product name which getPurchases returns
+                    const product = await prisma_1.default.products.findUnique({ where: { productId: p.productId } });
+                    const payload = {
+                        ...full,
+                        productName: product?.name,
+                        supplierName: meta?.supplierName,
+                        supplierMobile: meta?.supplierMobile
+                    };
+                    io.emit("purchase:created", payload);
+                }
+            }
+            io.emit("dashboard:refresh", { tenantId });
+        }
+        catch (error) {
+            console.warn("Socket emission failed for createPurchase", error);
+        }
         res.json({ success: true, purchases: created });
     }
     catch (err) {
@@ -246,9 +280,21 @@ const addPurchasePayment = async (req, res) => {
             bankAccount,
             notes,
         });
-        res.status(201).json({ payment });
         // Notify: supplier payment added
         (0, notificationService_1.appendNotification)({ type: "purchase", message: `Added supplier payment ₦${amount.toLocaleString("en")} to purchase ${id} (${bankName})` });
+        try {
+            const io = req.app.get("io");
+            const updatedWithMeta = await prisma_1.default.purchases.findUnique({ where: { purchaseId: id }, include: { payments: true } });
+            if (updatedWithMeta) {
+                io.emit("purchase:updated", updatedWithMeta);
+                const tenantId = req.tenantId || req.user?.tenantId || "default";
+                io.emit("dashboard:refresh", { tenantId });
+            }
+        }
+        catch (error) {
+            console.warn("Socket emission failed for addPurchasePayment", error);
+        }
+        res.status(201).json({ payment });
     }
     catch (err) {
         console.error("addPurchasePayment error:", err);
@@ -399,7 +445,7 @@ exports.getPurchasePrintOptions = getPurchasePrintOptions;
 const getSuppliers = async (req, res) => {
     try {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        let list = await prisma_1.default.suppliers.findMany({ where: { tenantId }, orderBy: { name: "asc" }, select: { name: true, mobile: true } });
+        let list = await prisma_1.default.suppliers.findMany({ where: { tenantId }, orderBy: { name: "asc" }, select: { id: true, name: true, mobile: true } });
         if (!list.length) {
             const purchases = await prisma_1.default.purchases.findMany({ where: { tenantId } });
             const map = new Map();
@@ -413,7 +459,7 @@ const getSuppliers = async (req, res) => {
                 const prev = map.get(key);
                 map.set(key, { name: n, mobile: mobile ?? prev?.mobile ?? null });
             }
-            list = Array.from(map.values()).map((s) => ({ name: s.name, mobile: s.mobile ?? null })).sort((a, b) => a.name.localeCompare(b.name));
+            list = Array.from(map.values()).map((s) => ({ id: (0, crypto_1.randomUUID)(), name: s.name, mobile: s.mobile ?? null })).sort((a, b) => a.name.localeCompare(b.name));
         }
         res.json({ suppliers: list });
     }
@@ -505,3 +551,69 @@ const exportSuppliersExcel = async (req, res) => {
 exports.exportSuppliersExcel = exportSuppliersExcel;
 // Suppliers utilities for routes file
 // `upload` is defined once at the top of this file for reuse
+// Create a supplier
+const createSupplier = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const name = String((req.body || {}).name || "").trim();
+        const mobile = String((req.body || {}).mobile || "").trim() || null;
+        if (!name) {
+            res.status(400).json({ message: "Supplier name is required" });
+            return;
+        }
+        const exists = await prisma_1.default.suppliers.findFirst({ where: { tenantId, name } });
+        if (exists) {
+            res.status(409).json({ message: "Supplier already exists" });
+            return;
+        }
+        await prisma_1.default.suppliers.create({ data: { id: (0, crypto_1.randomUUID)(), tenantId, name, mobile: mobile || undefined } });
+        res.status(201).json({ supplier: { name, mobile } });
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to create supplier" });
+    }
+};
+exports.createSupplier = createSupplier;
+// Update a supplier
+const updateSupplier = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const id = String(req.params.id || "").trim();
+        const changes = req.body || {};
+        const existing = await prisma_1.default.suppliers.findUnique({ where: { id } });
+        if (!existing || existing.tenantId !== tenantId) {
+            res.status(404).json({ message: "Supplier not found" });
+            return;
+        }
+        const next = await prisma_1.default.suppliers.update({
+            where: { id },
+            data: {
+                ...(changes.name !== undefined ? { name: String(changes.name).trim() } : {}),
+                ...(changes.mobile !== undefined ? { mobile: String(changes.mobile).trim() || null } : {}),
+            },
+        });
+        res.json({ supplier: { id: next.id, name: next.name, mobile: next.mobile } });
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to update supplier" });
+    }
+};
+exports.updateSupplier = updateSupplier;
+// Delete a supplier
+const deleteSupplier = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const id = String(req.params.id || "").trim();
+        const existing = await prisma_1.default.suppliers.findUnique({ where: { id } });
+        if (!existing || existing.tenantId !== tenantId) {
+            res.status(404).json({ message: "Supplier not found" });
+            return;
+        }
+        await prisma_1.default.suppliers.delete({ where: { id } });
+        res.json({ success: true });
+    }
+    catch (err) {
+        res.status(500).json({ message: "Failed to delete supplier" });
+    }
+};
+exports.deleteSupplier = deleteSupplier;

@@ -15,4 +15,7 @@ router.get("/:id/print-options", authMiddleware_1.authenticateToken, purchasesCo
 router.get("/suppliers", authMiddleware_1.authenticateToken, purchasesController_1.getSuppliers);
 router.post("/suppliers/import", authMiddleware_1.authenticateToken, purchasesController_1.upload.single("file"), purchasesController_1.importSuppliers);
 router.get("/suppliers/export/excel", authMiddleware_1.authenticateToken, purchasesController_1.exportSuppliersExcel);
+router.post("/suppliers", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, purchasesController_1.createSupplier);
+router.put("/suppliers/:id", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, purchasesController_1.updateSupplier);
+router.delete("/suppliers/:id", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, purchasesController_1.deleteSupplier);
 exports.default = router;

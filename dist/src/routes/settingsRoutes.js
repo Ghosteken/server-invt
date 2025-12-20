@@ -11,6 +11,7 @@ const invoiceLayoutService_1 = require("../services/invoiceLayoutService");
 const financialLayoutService_1 = require("../services/financialLayoutService");
 const banksService_1 = require("../services/banksService");
 const notificationService_1 = require("../services/notificationService");
+const authMiddleware_1 = require("../middleware/authMiddleware");
 const router = (0, express_1.Router)();
 // Use shared Prisma client
 const ALL_FEATURES = [
@@ -22,6 +23,7 @@ const ALL_FEATURES = [
     "customers",
     "invoices",
     "expenses",
+    "expenseApproval",
     "salesAgents",
     "purchases",
     "customerGroups",
@@ -202,26 +204,19 @@ router.put("/financial-layout", async (req, res) => {
     }
 });
 // Tenant-scoped bank accounts list
-router.get("/banks", async (req, res) => {
+router.get("/banks", authMiddleware_1.authenticateToken, async (req, res) => {
     try {
         const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
         const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
-        const banksDefault = [
-            { name: "Amagzy global vic limited(Zenith bank) FOR SUPPLIES", account: "1017679715" },
-            { name: "Amagzy global vic limited FCMB(FOR SUPPLIES)", account: "2002076509" },
-            { name: "Amagzy global ventures(Sterling bank) FOR CHEQUES", account: "0501928477" },
-            { name: "Amagzy global ventures(Stanbic bank) FOR OPERATIONS", account: "0034297097" },
-            { name: "Amagzy global ventures(GTbank)FOR MANUFACTURING", account: "0240198526" },
-        ];
         const tenantBanks = await (0, banksService_1.readBanks)(tenantId);
-        const list = tenantId === "default" ? [...banksDefault, ...tenantBanks] : tenantBanks;
+        const list = tenantBanks;
         res.json({ banks: list });
     }
     catch {
         res.status(500).json({ banks: [] });
     }
 });
-router.post("/banks", async (req, res) => {
+router.post("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, async (req, res) => {
     try {
         const Body = zod_1.z.object({ name: zod_1.z.string().min(1), account: zod_1.z.string().min(1) });
         const { name, account } = Body.parse(req.body || {});
@@ -242,7 +237,7 @@ router.post("/banks", async (req, res) => {
         res.status(500).json({ message: "Failed to create bank account" });
     }
 });
-router.put("/banks", async (req, res) => {
+router.put("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, async (req, res) => {
     try {
         const Body = zod_1.z.object({
             oldName: zod_1.z.string().min(1),
@@ -268,7 +263,7 @@ router.put("/banks", async (req, res) => {
         res.status(500).json({ message: "Failed to update bank account" });
     }
 });
-router.delete("/banks", async (req, res) => {
+router.delete("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, async (req, res) => {
     try {
         const Body = zod_1.z.object({ name: zod_1.z.string().min(1), account: zod_1.z.string().min(1) });
         const { name, account } = Body.parse(req.body || {});
