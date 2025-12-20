@@ -183,6 +183,20 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
       await upsertInvoiceMeta({ invoiceId, invoiceNumber: invoiceNumber.trim(), tenantId });
     }
 
+    const createdWithMeta = {
+      ...created,
+      invoiceNumber: invoiceNumber?.trim() || undefined,
+      customerName: resolvedCustomerId ? (await prisma.customers.findUnique({ where: { customerId: resolvedCustomerId } }))?.name : undefined
+    };
+
+    try {
+      const io = req.app.get("io");
+      io.emit("invoice:created", createdWithMeta);
+      io.emit("dashboard:refresh", { tenantId });
+    } catch (error) {
+      console.warn("Socket emission failed for createInvoice", error);
+    }
+
     // After creating invoice, deduct stock and record purchases for each item
     for (const h of hydrated) {
       const qty = Math.max(0, Number(h.quantity) || 0);
@@ -523,7 +537,17 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
     }
     await maybeNotifyDueSoon(updated as any, req.user?.userId);
     const meta = await getInvoiceMeta(id, req.tenantId || req.user?.tenantId || "default");
-    res.json({ ...updated, invoiceNumber: meta?.invoiceNumber || undefined });
+    
+    const updatedWithMeta = { ...updated, invoiceNumber: meta?.invoiceNumber || undefined };
+    try {
+        const io = req.app.get("io");
+        io.emit("invoice:updated", updatedWithMeta);
+        io.emit("dashboard:refresh", { tenantId: req.tenantId || req.user?.tenantId || "default" });
+    } catch (error) {
+        console.warn("Socket emission failed for updateInvoice", error);
+    }
+    
+    res.json(updatedWithMeta);
   } catch (err) {
     console.error("updateInvoice error:", err);
     res.status(500).json({ message: "Failed to update invoice" });
@@ -556,6 +580,22 @@ export const addPayment = async (req: Request, res: Response): Promise<void> => 
     const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
     const updatedInv = await prisma.invoices.update({ where: { invoiceId: id }, data: { status } });
     appendNotification({ type: "invoice", message: `Payment added for invoice ${id}: ₦${payment.amount.toFixed(2)} (${payment.bankName})`, actorUserId: req.user?.userId });
+
+    const fullInvoice = await prisma.invoices.findUnique({
+      where: { invoiceId: id },
+      include: { items: true, payments: true },
+    });
+    if (fullInvoice) {
+      const meta = await getInvoiceMeta(id, tenantId);
+      try {
+        const io = req.app.get("io");
+        io.emit("invoice:updated", { ...fullInvoice, invoiceNumber: meta?.invoiceNumber });
+        io.emit("dashboard:refresh", { tenantId });
+      } catch (error) {
+        console.warn("Socket emission failed for addPayment", error);
+      }
+    }
+
     res.status(201).json({ payment, invoice: updatedInv });
   } catch (err) {
     console.error("addPayment error:", err);
@@ -609,6 +649,15 @@ export const deleteInvoice = async (req: Request, res: Response): Promise<void> 
     // Remove meta on delete for cleanliness
     try { await removeInvoiceMeta(id); } catch {}
     appendNotification({ type: "invoice", message: `Invoice deleted: ${id}`, actorUserId: req.user?.userId });
+    
+    try {
+      const io = req.app.get("io");
+      io.emit("invoice:deleted", { invoiceId: id });
+      io.emit("dashboard:refresh", { tenantId });
+    } catch (error) {
+      console.warn("Socket emission failed for deleteInvoice", error);
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error("deleteInvoice error:", err);
