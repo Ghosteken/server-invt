@@ -21,6 +21,7 @@ const ALL_FEATURES = [
   "customers",
   "invoices",
   "expenses",
+  "expenseApproval",
   "salesAgents",
   "purchases",
   "customerGroups",

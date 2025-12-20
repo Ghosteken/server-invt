@@ -364,7 +364,7 @@ export const getPurchasePrintOptions = async (req: Request, res: Response): Prom
 export const getSuppliers = async (req: Request, res: Response): Promise<void> => {
   try {
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
-    let list = await prisma.suppliers.findMany({ where: { tenantId }, orderBy: { name: "asc" }, select: { name: true, mobile: true } });
+    let list = await prisma.suppliers.findMany({ where: { tenantId }, orderBy: { name: "asc" }, select: { id: true, name: true, mobile: true } });
     if (!list.length) {
       const purchases = await prisma.purchases.findMany({ where: { tenantId } });
       const map = new Map<string, { name: string; mobile?: string | null }>();
@@ -377,7 +377,7 @@ export const getSuppliers = async (req: Request, res: Response): Promise<void> =
         const prev = map.get(key);
         map.set(key, { name: n, mobile: mobile ?? prev?.mobile ?? null });
       }
-      list = Array.from(map.values()).map((s: any) => ({ name: s.name, mobile: s.mobile ?? null })).sort((a, b) => a.name.localeCompare(b.name));
+      list = Array.from(map.values()).map((s: any) => ({ id: randomUUID(), name: s.name, mobile: s.mobile ?? null })).sort((a, b) => a.name.localeCompare(b.name));
     }
     res.json({ suppliers: list });
   } catch {
@@ -460,3 +460,54 @@ export const exportSuppliersExcel = async (req: Request, res: Response): Promise
 
 // Suppliers utilities for routes file
 // `upload` is defined once at the top of this file for reuse
+
+// Create a supplier
+export const createSupplier = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const name = String((req.body || {}).name || "").trim();
+    const mobile = String((req.body || {}).mobile || "").trim() || null;
+    if (!name) { res.status(400).json({ message: "Supplier name is required" }); return; }
+    const exists = await prisma.suppliers.findFirst({ where: { tenantId, name } });
+    if (exists) { res.status(409).json({ message: "Supplier already exists" }); return; }
+    await prisma.suppliers.create({ data: { id: randomUUID(), tenantId, name, mobile: mobile || undefined } });
+    res.status(201).json({ supplier: { name, mobile } });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to create supplier" });
+  }
+};
+
+// Update a supplier
+export const updateSupplier = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const id = String(req.params.id || "").trim();
+    const changes = req.body || {};
+    const existing = await prisma.suppliers.findUnique({ where: { id } });
+    if (!existing || existing.tenantId !== tenantId) { res.status(404).json({ message: "Supplier not found" }); return; }
+    const next = await prisma.suppliers.update({
+      where: { id },
+      data: {
+        ...(changes.name !== undefined ? { name: String(changes.name).trim() } : {}),
+        ...(changes.mobile !== undefined ? { mobile: String(changes.mobile).trim() || null } : {}),
+      },
+    });
+    res.json({ supplier: { id: next.id, name: next.name, mobile: next.mobile } });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to update supplier" });
+  }
+};
+
+// Delete a supplier
+export const deleteSupplier = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const id = String(req.params.id || "").trim();
+    const existing = await prisma.suppliers.findUnique({ where: { id } });
+    if (!existing || existing.tenantId !== tenantId) { res.status(404).json({ message: "Supplier not found" }); return; }
+    await prisma.suppliers.delete({ where: { id } });
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ message: "Failed to delete supplier" });
+  }
+};
