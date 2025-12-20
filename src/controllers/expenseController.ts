@@ -54,24 +54,14 @@ export const listExpenses = async (req: Request, res: Response): Promise<void> =
       if (to) where.timestamp.lte = to;
     }
     const rows = await prisma.expenses.findMany({ where, orderBy: { timestamp: "desc" } });
-    const ids = rows.map((r) => r.expenseId);
-    const logs = ids.length ? await prisma.auditLogs.findMany({ where: { tenantId, resourceType: "expense", resourceId: { in: ids } }, orderBy: { timestamp: "desc" } }) : [];
-    const statusMap = new Map<string, "approved" | "rejected" | "pending">();
-    for (const lg of logs) {
-      const rid = lg.resourceId || "";
-      if (statusMap.has(rid)) continue;
-      const act = String(lg.action || "").toLowerCase();
-      if (act.includes("expense.approve")) statusMap.set(rid, "approved");
-      else if (act.includes("expense.reject")) statusMap.set(rid, "rejected");
-      else if (act.includes("expense.revoke")) statusMap.set(rid, "pending");
-    }
-    const expenses = rows.map((r: { expenseId: string; category: string | null; amount: number; timestamp: Date }) => ({
+    
+    const expenses = rows.map((r: { expenseId: string; category: string | null; amount: number; timestamp: Date; status: string }) => ({
       id: r.expenseId,
       category: r.category,
       name: r.category,
       amount: r.amount,
       date: r.timestamp.toISOString().slice(0, 10),
-      status: statusMap.get(r.expenseId) || "pending",
+      status: r.status || "pending",
     }));
     res.json({ expenses });
   } catch (err) {
@@ -95,7 +85,7 @@ export const createExpense = async (req: Request, res: Response): Promise<void> 
       res.status(400).json({ message: "category, name, and amount are required" });
       return;
     }
-    const created = await prisma.expenses.create({ data: { expenseId: randomUUID(), category, amount, timestamp: date, tenantId } });
+    const created = await prisma.expenses.create({ data: { expenseId: randomUUID(), category, amount, timestamp: date, tenantId, status: "pending" } });
     appendNotification({ type: "expense", message: `Created expense '${name}' (${category}) ₦${amount.toLocaleString("en")}` });
     
     // Emit socket event
@@ -136,10 +126,10 @@ export const updateExpenseController = async (req: Request, res: Response): Prom
     // Emit socket event
     const io = req.app.get("io");
     if (io) {
-      io.emit("expense:updated", { id: next.expenseId, category: next.category, name: next.category, amount: next.amount, date: next.timestamp.toISOString().slice(0, 10) });
+      io.emit("expense:updated", { id: next.expenseId, category: next.category, name: next.category, amount: next.amount, date: next.timestamp.toISOString().slice(0, 10), status: next.status });
     }
 
-    res.json({ expense: { id: next.expenseId, category: next.category, name: next.category, amount: next.amount, date: next.timestamp.toISOString().slice(0, 10) } });
+    res.json({ expense: { id: next.expenseId, category: next.category, name: next.category, amount: next.amount, date: next.timestamp.toISOString().slice(0, 10), status: next.status } });
   } catch (err) {
     res.status(500).json({ message: "Failed to update expense" });
   }
@@ -184,6 +174,12 @@ export const approveExpense = async (req: Request, res: Response): Promise<void>
     if (!id) { res.status(400).json({ message: "Missing expense id" }); return; }
     const existing = await prisma.expenses.findFirst({ where: { expenseId: id, tenantId } });
     if (!existing) { res.status(404).json({ message: "Expense not found" }); return; }
+    
+    await prisma.expenses.update({
+      where: { expenseId: id },
+      data: { status: "approved" },
+    });
+
     await prisma.auditLogs.create({
       data: {
         id: randomUUID(),
@@ -218,6 +214,12 @@ export const rejectExpense = async (req: Request, res: Response): Promise<void> 
     if (!id) { res.status(400).json({ message: "Missing expense id" }); return; }
     const existing = await prisma.expenses.findFirst({ where: { expenseId: id, tenantId } });
     if (!existing) { res.status(404).json({ message: "Expense not found" }); return; }
+
+    await prisma.expenses.update({
+      where: { expenseId: id },
+      data: { status: "rejected" },
+    });
+
     await prisma.auditLogs.create({
       data: {
         id: randomUUID(),
@@ -252,6 +254,12 @@ export const revokeExpense = async (req: Request, res: Response): Promise<void> 
     if (!id) { res.status(400).json({ message: "Missing expense id" }); return; }
     const existing = await prisma.expenses.findFirst({ where: { expenseId: id, tenantId } });
     if (!existing) { res.status(404).json({ message: "Expense not found" }); return; }
+
+    await prisma.expenses.update({
+      where: { expenseId: id },
+      data: { status: "pending" },
+    });
+
     await prisma.auditLogs.create({
       data: {
         id: randomUUID(),

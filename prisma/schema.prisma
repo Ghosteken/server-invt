@@ -85,6 +85,7 @@ model Expenses {
   amount    Float
   timestamp DateTime
   tenantId  String   @default("default")
+  status    String   @default("pending") // pending, approved, rejected
 }
 
 model SalesSummary {
