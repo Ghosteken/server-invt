@@ -1,4 +1,6 @@
 import express from "express";
+import { createServer } from "http";
+import { Server } from "socket.io";
 import { z, ZodError } from "zod";
 import { randomUUID } from "crypto";
 import dotenv from "dotenv";
@@ -37,6 +39,15 @@ import YAML from "yamljs";
 /* CONFIGURATIONS */
 dotenv.config();
 const app = express();
+const httpServer = createServer(app);
+const io = new Server(httpServer, {
+  cors: {
+    origin: "*", // Adjust in production
+    methods: ["GET", "POST"]
+  }
+});
+app.set("io", io);
+
 // Enable gzip compression (Brotli is handled by proxies/CDNs if present)
 app.use(compression());
 app.use(express.json());
@@ -220,7 +231,7 @@ import os from "os";
 import { ensureDefaults } from "./services/bootstrapService";
 
 try {
-  const server = app.listen(port, host, () => {
+  const server = httpServer.listen(port, host, () => {
     console.log(`Server running on ${host}:${port}`);
     const nets = os.networkInterfaces();
     console.log("Network interfaces:");

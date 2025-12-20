@@ -51,10 +51,13 @@ export const getProducts = async (
         tenantId,
         ...(search
           ? {
-              name: {
-                contains: search,
-                mode: "insensitive",
-              },
+              OR: [
+                { name: { contains: search, mode: "insensitive" } },
+                { category: { contains: search, mode: "insensitive" } },
+                { description: { contains: search, mode: "insensitive" } },
+                { barcode: { contains: search, mode: "insensitive" } },
+                { packSize: { contains: search, mode: "insensitive" } },
+              ],
             }
           : {}),
       },
@@ -107,6 +110,15 @@ export const createProduct = async (
     });
     // Sync JSON snapshot after write
     await syncProductsJsonFromDb(prisma);
+
+    try {
+      const io = req.app.get("io");
+      io.emit("product:created", product);
+      io.emit("dashboard:refresh", { tenantId });
+    } catch (error) {
+      console.warn("Socket emission failed for createProduct", error);
+    }
+
     res.status(201).json(product);
   } catch (error) {
     res.status(500).json({ message: "Error creating product" });
@@ -201,6 +213,15 @@ export const updateProduct = async (
     });
     // Sync JSON snapshot after update
     await syncProductsJsonFromDb(prisma);
+
+    try {
+      const io = req.app.get("io");
+      io.emit("product:updated", updated);
+      io.emit("dashboard:refresh", { tenantId });
+    } catch (error) {
+      console.warn("Socket emission failed for updateProduct", error);
+    }
+
     res.json(updated);
   } catch (error) {
     console.error("updateProduct error:", error);
@@ -2041,6 +2062,15 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
     await prisma.products.delete({ where: { productId } });
     appendNotification({ type: "product", message: `Product deleted: ${existing.name}`, actorUserId: req.user?.userId });
     await syncProductsJsonFromDb(prisma);
+
+    try {
+      const io = req.app.get("io");
+      io.emit("product:deleted", { productId });
+      io.emit("dashboard:refresh", { tenantId: req.user?.tenantId || "default" });
+    } catch (error) {
+      console.warn("Socket emission failed for deleteProduct", error);
+    }
+
     res.status(200).json({ success: true });
   } catch (error) {
     console.error("deleteProduct error:", error);
