@@ -116,30 +116,29 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
       }
     }
 
-    // Hydrate items with default prices if missing
-    const hydrated = await Promise.all(
-      items.map(async (it) => {
-        let unitPrice = typeof it.unitPrice === "number" ? it.unitPrice : undefined;
-        let displayName = it.name;
-        if (it.productId) {
-          const p = await prisma.products.findFirst({ where: { productId: it.productId, tenantId } });
-          if (p) {
-            displayName = displayName || p.name;
-            if (unitPrice === undefined) {
-              if (it.unit === "pcs") {
-                const pack = Number((p.packSize || "").replace(/\D+/g, "")) || 1;
-                unitPrice = p.price / Math.max(pack, 1);
-              } else {
-                unitPrice = p.price;
-              }
-            }
+    const productIds = Array.from(new Set(items.map((it) => it.productId).filter(Boolean))) as string[];
+    const products = productIds.length ? await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } } }) : [];
+    const byId = new Map<string, any>(products.map((p: any) => [p.productId, p]));
+    const hydrated = items.map((it) => {
+      let unitPrice = typeof it.unitPrice === "number" ? it.unitPrice : undefined;
+      const p = it.productId ? byId.get(it.productId) : undefined;
+      let displayName = it.name || (p ? p.name : undefined);
+      if (unitPrice === undefined) {
+        if (p) {
+          if (it.unit === "pcs") {
+            const pack = Number(String(p.packSize || "").replace(/\D+/g, "")) || 1;
+            unitPrice = Number(p.price) / Math.max(pack, 1);
+          } else {
+            unitPrice = Number(p.price);
           }
+        } else {
+          unitPrice = 0;
         }
-        unitPrice = unitPrice ?? 0;
-        const quantity = Math.max(1, Number(it.quantity) || 1);
-        return { productId: it.productId, name: displayName, unit: it.unit, quantity, unitPrice, subtotal: quantity * unitPrice };
-      })
-    );
+      }
+      unitPrice = unitPrice ?? 0;
+      const quantity = Math.max(1, Number(it.quantity) || 1);
+      return { productId: it.productId, name: displayName, unit: it.unit, quantity, unitPrice, subtotal: quantity * unitPrice };
+    });
 
     const totals = computeTotals(hydrated, vatPercent, discountPercent);
     const invoiceId = randomUUID();
@@ -197,55 +196,47 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
       console.warn("Socket emission failed for createInvoice", error);
     }
 
-    // After creating invoice, deduct stock and record purchases for each item
+    const pcsTotals = new Map<string, number>();
+    const ctnTotals = new Map<string, { qty: number }>();
+    const purchaseRows: Array<{ id: string; customerId: string; productId: string; timestamp: Date; quantity: number; unitPrice: number; totalCost: number; tenantId: string }> = [];
     for (const h of hydrated) {
       const qty = Math.max(0, Number(h.quantity) || 0);
       const unitPrice = Number(h.unitPrice || 0);
       const totalCost = unitPrice * qty;
-
       if (h.unit === "pcs") {
-        const nameForPcs = (h.name || "").trim();
-        if (nameForPcs) {
-          // Adjust PCS inventory maintained in JSON store
-          await adjustPcsQuantity({ name: nameForPcs, delta: -qty, tenantId });
-        }
-        // Record purchase if linked to a product
+        const key = String(h.name || "").trim().toLowerCase();
+        if (key) pcsTotals.set(key, (pcsTotals.get(key) || 0) + qty);
         if (h.productId) {
-          await prisma.customerPurchases.create({
-            data: {
-              id: randomUUID(),
-              customerId: resolvedCustomerId,
-              productId: h.productId,
-              timestamp: created.date,
-              quantity: qty,
-              unitPrice,
-              totalCost,
-              tenantId,
-            },
-          });
+          purchaseRows.push({ id: randomUUID(), customerId: resolvedCustomerId, productId: h.productId, timestamp: created.date, quantity: qty, unitPrice, totalCost, tenantId });
         }
       } else {
-        // Carton unit: deduct from product stock (clamped at 0) and record purchase
         if (h.productId) {
-          const p = await prisma.products.findFirst({ where: { productId: h.productId, tenantId } });
-          if (p) {
-            const newQty = Math.max(0, Number(p.stockQuantity) - qty);
-            await prisma.products.update({ where: { productId: h.productId }, data: { stockQuantity: newQty } });
-            await prisma.customerPurchases.create({
-              data: {
-                id: randomUUID(),
-                customerId: resolvedCustomerId,
-                productId: h.productId,
-                timestamp: created.date,
-                quantity: qty,
-                unitPrice,
-                totalCost,
-                tenantId,
-              },
-            });
-          }
+          ctnTotals.set(h.productId, { qty: (ctnTotals.get(h.productId)?.qty || 0) + qty });
+          purchaseRows.push({ id: randomUUID(), customerId: resolvedCustomerId, productId: h.productId, timestamp: created.date, quantity: qty, unitPrice, totalCost, tenantId });
         }
       }
+    }
+    const pcsPromises: Promise<any>[] = [];
+    for (const [name, qty] of pcsTotals.entries()) {
+      pcsPromises.push(adjustPcsQuantity({ name, delta: -qty, tenantId }));
+    }
+    if (pcsPromises.length) await Promise.all(pcsPromises);
+    if (ctnTotals.size) {
+      const ids = Array.from(ctnTotals.keys());
+      const prods = ids.length ? await prisma.products.findMany({ where: { tenantId, productId: { in: ids } } }) : [];
+      const map = new Map<string, any>(prods.map((p: any) => [p.productId, p]));
+      const updates = ids
+        .map((pid) => {
+          const p = map.get(pid);
+          if (!p) return null;
+          const nextQty = Math.max(0, Number(p.stockQuantity) - Number(ctnTotals.get(pid)?.qty || 0));
+          return prisma.products.update({ where: { productId: pid }, data: { stockQuantity: nextQty } });
+        })
+        .filter(Boolean) as any[];
+      if (updates.length) await prisma.$transaction(updates);
+    }
+    if (purchaseRows.length) {
+      await prisma.customerPurchases.createMany({ data: purchaseRows });
     }
 
     appendNotification({ type: "invoice", message: `Invoice created: ${created.invoiceId} (${created.location})`, actorUserId: req.user?.userId });
