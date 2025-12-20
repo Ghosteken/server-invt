@@ -768,5 +768,25 @@
     "type": "expense",
     "message": "Created expense 'Paper' (Office) ₦500",
     "timestamp": "2025-12-20T11:12:05.468Z"
+  },
+  {
+    "id": "1766270825594-9xzlkp",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2025-12-20T22:47:05.594Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1766270825606-s0olfo",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2025-12-20T22:47:05.606Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1766270908266-p4acfx",
+    "type": "invoice",
+    "message": "Invoice created: 1b62d811-bc14-4f25-8447-c0d8fcf5e70e (Amagzy Global)",
+    "timestamp": "2025-12-20T22:48:28.266Z"
   }
 ]
