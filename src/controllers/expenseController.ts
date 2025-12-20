@@ -59,10 +59,11 @@ export const listExpenses = async (req: Request, res: Response): Promise<void> =
     const statusMap = new Map<string, "approved" | "rejected" | "pending">();
     for (const lg of logs) {
       const rid = lg.resourceId || "";
+      if (statusMap.has(rid)) continue;
       const act = String(lg.action || "").toLowerCase();
       if (act.includes("expense.approve")) statusMap.set(rid, "approved");
       else if (act.includes("expense.reject")) statusMap.set(rid, "rejected");
-      else if (!statusMap.has(rid)) statusMap.set(rid, "pending");
+      else if (act.includes("expense.revoke")) statusMap.set(rid, "pending");
     }
     const expenses = rows.map((r: { expenseId: string; category: string | null; amount: number; timestamp: Date }) => ({
       id: r.expenseId,
@@ -238,6 +239,40 @@ export const rejectExpense = async (req: Request, res: Response): Promise<void> 
     res.json({ expense: { id, status: "rejected" } });
   } catch {
     res.status(500).json({ message: "Failed to reject expense" });
+  }
+};
+
+/**
+ * Revoke an expense approval/rejection (sets back to pending).
+ */
+export const revokeExpense = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const id = String(req.params.id || "").trim();
+    if (!id) { res.status(400).json({ message: "Missing expense id" }); return; }
+    const existing = await prisma.expenses.findFirst({ where: { expenseId: id, tenantId } });
+    if (!existing) { res.status(404).json({ message: "Expense not found" }); return; }
+    await prisma.auditLogs.create({
+      data: {
+        id: randomUUID(),
+        tenantId,
+        actorUserId: req.user?.userId || undefined,
+        action: "expense.revoke",
+        resourceType: "expense",
+        resourceId: id,
+        payload: { amount: existing.amount, category: existing.category },
+      } as any,
+    });
+
+    // Emit socket event
+    const io = req.app.get("io");
+    if (io) {
+      io.emit("expense:updated", { id, status: "pending" });
+    }
+
+    res.json({ expense: { id, status: "pending" } });
+  } catch {
+    res.status(500).json({ message: "Failed to revoke expense" });
   }
 };
 

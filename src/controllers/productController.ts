@@ -51,10 +51,13 @@ export const getProducts = async (
         tenantId,
         ...(search
           ? {
-              name: {
-                contains: search,
-                mode: "insensitive",
-              },
+              OR: [
+                { name: { contains: search, mode: "insensitive" } },
+                { category: { contains: search, mode: "insensitive" } },
+                { description: { contains: search, mode: "insensitive" } },
+                { barcode: { contains: search, mode: "insensitive" } },
+                { packSize: { contains: search, mode: "insensitive" } },
+              ],
             }
           : {}),
       },
