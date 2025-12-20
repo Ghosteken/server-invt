@@ -48,10 +48,13 @@ const getProducts = async (req, res) => {
                 tenantId,
                 ...(search
                     ? {
-                        name: {
-                            contains: search,
-                            mode: "insensitive",
-                        },
+                        OR: [
+                            { name: { contains: search, mode: "insensitive" } },
+                            { category: { contains: search, mode: "insensitive" } },
+                            { description: { contains: search, mode: "insensitive" } },
+                            { barcode: { contains: search, mode: "insensitive" } },
+                            { packSize: { contains: search, mode: "insensitive" } },
+                        ],
                     }
                     : {}),
             },
@@ -102,6 +105,14 @@ const createProduct = async (req, res) => {
         });
         // Sync JSON snapshot after write
         await (0, productSyncService_1.syncProductsJsonFromDb)(prisma_1.default);
+        try {
+            const io = req.app.get("io");
+            io.emit("product:created", product);
+            io.emit("dashboard:refresh", { tenantId });
+        }
+        catch (error) {
+            console.warn("Socket emission failed for createProduct", error);
+        }
         res.status(201).json(product);
     }
     catch (error) {
@@ -201,6 +212,14 @@ const updateProduct = async (req, res) => {
         });
         // Sync JSON snapshot after update
         await (0, productSyncService_1.syncProductsJsonFromDb)(prisma_1.default);
+        try {
+            const io = req.app.get("io");
+            io.emit("product:updated", updated);
+            io.emit("dashboard:refresh", { tenantId });
+        }
+        catch (error) {
+            console.warn("Socket emission failed for updateProduct", error);
+        }
         res.json(updated);
     }
     catch (error) {
@@ -521,18 +540,28 @@ const importPcsProducts = async (req, res) => {
             }
             if (!name)
                 continue;
-            let qty = coerceNumber(kv["pcs quantity"] ?? kv["pcs"] ?? kv["quantity"] ?? kv["qty"] ?? kv["pcs qty"] ?? kv["qty pcs"] ?? kv["quantity pcs"] ?? kv["pieces"] ?? kv["pcs count"] ?? kv["count pcs"]);
-            // Fallback: first numeric-like cell in the row
-            if (qty == null) {
-                for (const key of Object.keys(kv)) {
-                    const n = coerceNumber(kv[key]);
-                    if (n != null) {
-                        qty = n;
-                        break;
-                    }
+            const qtyCandidates = [
+                "pcs quantity",
+                "pcsquantity",
+                "pcs",
+                "quantity",
+                "qty",
+                "pcs qty",
+                "pcsqty",
+                "qty pcs",
+                "quantity pcs",
+                "pieces",
+                "pcs count",
+                "count pcs",
+            ];
+            let qty = null;
+            for (const key of qtyCandidates) {
+                const n = coerceNumber(kv[key]);
+                if (n != null) {
+                    qty = n;
+                    break;
                 }
             }
-            // If quantity is still missing, import the item with quantity 0
             if (qty == null)
                 qty = 0;
             const packSize = kv["pack size"] ?? kv["pack"] ?? kv["packsize"] ?? null;
@@ -679,6 +708,7 @@ const importPcsProducts = async (req, res) => {
                     dataUpdate.packSize = item.packSize ?? target.packSize ?? null;
                 if (should("barcode"))
                     dataUpdate.barcode = item.barcode ?? target.barcode ?? null;
+                dataUpdate.stockQuantity = Math.max(0, Number(item.pcsQuantity || 0));
                 if (Object.keys(dataUpdate).length > 0) {
                     const existing = target;
                     const updated = await prisma_1.default.products.update({ where: { productId: target.productId }, data: dataUpdate });
@@ -2022,6 +2052,14 @@ const deleteProduct = async (req, res) => {
         await prisma_1.default.products.delete({ where: { productId } });
         (0, notificationService_1.appendNotification)({ type: "product", message: `Product deleted: ${existing.name}`, actorUserId: req.user?.userId });
         await (0, productSyncService_1.syncProductsJsonFromDb)(prisma_1.default);
+        try {
+            const io = req.app.get("io");
+            io.emit("product:deleted", { productId });
+            io.emit("dashboard:refresh", { tenantId: req.user?.tenantId || "default" });
+        }
+        catch (error) {
+            console.warn("Socket emission failed for deleteProduct", error);
+        }
         res.status(200).json({ success: true });
     }
     catch (error) {

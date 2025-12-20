@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.cacheGet = cacheGet;
 exports.cacheSet = cacheSet;
 exports.withCache = withCache;
+const redis_1 = require("redis");
 const memoryCache = new Map();
 let redisClient = null;
 let redisInitAttempted = false;
@@ -14,25 +15,26 @@ async function ensureRedis() {
     if (!url)
         return null;
     try {
-        // Dynamic import to avoid hard dependency when Redis isn't used
-        // @ts-ignore
-        const mod = await import("ioredis");
-        const RedisCtor = mod.default || mod;
-        redisClient = new RedisCtor(url, { lazyConnect: true });
-        try {
-            await redisClient.connect?.();
-        }
-        catch { }
+        // Create client
+        const client = (0, redis_1.createClient)({ url });
+        // Handle errors (important so it doesn't crash app)
+        client.on("error", (err) => {
+            console.warn("Redis Client Error", err);
+            // If connection drops, we might want to clear the global client so we retry or fall back?
+            // For now, let's just log. node-redis auto-reconnects usually.
+        });
+        await client.connect();
+        redisClient = client;
         return redisClient;
     }
     catch (e) {
-        console.warn("Redis not available; using memory cache.");
+        console.warn("Redis not available; using memory cache.", e);
         return null;
     }
 }
 async function cacheGet(key) {
     const rc = await ensureRedis();
-    if (rc) {
+    if (rc && rc.isOpen) {
         try {
             const raw = await rc.get(key);
             return raw ? JSON.parse(raw) : null;
@@ -41,6 +43,7 @@ async function cacheGet(key) {
             return null;
         }
     }
+    // Memory Fallback
     const entry = memoryCache.get(key);
     if (!entry)
         return null;
@@ -52,13 +55,17 @@ async function cacheGet(key) {
 }
 async function cacheSet(key, value, ttlSeconds) {
     const rc = await ensureRedis();
-    if (rc) {
+    if (rc && rc.isOpen) {
         try {
-            await rc.set(key, JSON.stringify(value), "EX", Math.max(1, Math.floor(ttlSeconds)));
+            // Redis v4 syntax: SET key value { EX: seconds }
+            await rc.set(key, JSON.stringify(value), { EX: Math.max(1, Math.floor(ttlSeconds)) });
             return;
         }
-        catch { }
+        catch (e) {
+            console.warn("Redis set failed", e);
+        }
     }
+    // Memory Fallback
     memoryCache.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
 }
 async function withCache(key, ttlSeconds, loader) {

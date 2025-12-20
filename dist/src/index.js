@@ -4,6 +4,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const express_1 = __importDefault(require("express"));
+const http_1 = require("http");
+const socket_io_1 = require("socket.io");
 const zod_1 = require("zod");
 const crypto_1 = require("crypto");
 const dotenv_1 = __importDefault(require("dotenv"));
@@ -34,12 +36,21 @@ const purchasesRoutes_1 = __importDefault(require("./routes/purchasesRoutes"));
 const invoiceRoutes_1 = __importDefault(require("./routes/invoiceRoutes"));
 const salesAgentRoutes_1 = __importDefault(require("./routes/salesAgentRoutes"));
 const locationRoutes_1 = __importDefault(require("./routes/locationRoutes"));
+const contactRoutes_1 = __importDefault(require("./routes/contactRoutes"));
 const superAdminRoutes_1 = __importDefault(require("./routes/superAdminRoutes"));
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const yamljs_1 = __importDefault(require("yamljs"));
 /* CONFIGURATIONS */
 dotenv_1.default.config();
 const app = (0, express_1.default)();
+const httpServer = (0, http_1.createServer)(app);
+const io = new socket_io_1.Server(httpServer, {
+    cors: {
+        origin: "*", // Adjust in production
+        methods: ["GET", "POST"]
+    }
+});
+app.set("io", io);
 // Enable gzip compression (Brotli is handled by proxies/CDNs if present)
 app.use((0, compression_1.default)());
 app.use(express_1.default.json());
@@ -122,9 +133,10 @@ app.use("/invoices", invoiceRoutes_1.default); // http://localhost:8000/invoices
 app.use("/purchases", purchasesRoutes_1.default); // http://localhost:8000/purchases
 app.use("/sales-agents", salesAgentRoutes_1.default); // http://localhost:8000/sales-agents
 app.use("/locations", locationRoutes_1.default); // http://localhost:8000/locations
+app.use("/contact", contactRoutes_1.default); // http://localhost:8000/contact
 app.use("/super-admin", superAdminRoutes_1.default); // http://localhost:8000/super-admin
 try {
-    const swaggerDocument = yamljs_1.default.load(path_1.default.join(__dirname, "../swagger/swagger.yaml"));
+    const swaggerDocument = yamljs_1.default.load(path_1.default.join(__dirname, "swagger/swagger.yaml"));
     app.use("/docs", swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swaggerDocument));
 }
 catch (e) {
@@ -212,7 +224,7 @@ const host = process.env.HOST || "0.0.0.0";
 const os_1 = __importDefault(require("os"));
 const bootstrapService_1 = require("./services/bootstrapService");
 try {
-    const server = app.listen(port, host, () => {
+    const server = httpServer.listen(port, host, () => {
         console.log(`Server running on ${host}:${port}`);
         const nets = os_1.default.networkInterfaces();
         console.log("Network interfaces:");
