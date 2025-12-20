@@ -126,7 +126,16 @@ export const getAgentInvoices = async (req: Request, res: Response): Promise<voi
     const customers = customerIds.length ? await prisma.customers.findMany({ where: { customerId: { in: customerIds } } }) : [];
     const customerMap = new Map<string, string>(customers.map((c: any) => [c.customerId, c.name] as const));
 
-    const list = invoices.map((inv: any) => ({ ...inv, customerName: customerMap.get(inv.customerId) }));
+    // Hydrate invoice numbers from meta store
+    const invoiceIds = invoices.map((inv: any) => inv.invoiceId);
+    const metas = invoiceIds.length ? await prisma.invoiceMeta.findMany({ where: { invoiceId: { in: invoiceIds } } }) : [];
+    const metaMap = new Map<string, string | null>(metas.map((m: any) => [m.invoiceId, m.invoiceNumber ?? null] as const));
+
+    const list = invoices.map((inv: any) => ({
+      ...inv,
+      customerName: customerMap.get(inv.customerId),
+      invoiceNumber: metaMap.get(inv.invoiceId) ?? undefined,
+    }));
     res.json({ invoices: list });
   } catch (err) {
     console.error("getAgentInvoices error:", err);

@@ -11,7 +11,15 @@ async function ensureRedis() {
     if (redisInitAttempted)
         return redisClient;
     redisInitAttempted = true;
-    const url = process.env.REDIS_URL || process.env.UPSTASH_REDIS_REST_URL || "";
+    let url = process.env.REDIS_URL;
+    // Auto-configure Upstash if REDIS_URL is missing but Upstash creds are present
+    if (!url && process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+        const host = process.env.UPSTASH_REDIS_REST_URL.replace(/^https?:\/\//, "").replace(/\/$/, "");
+        const token = process.env.UPSTASH_REDIS_REST_TOKEN;
+        // Construct standard Redis TCP (SSL) URL: rediss://default:<token>@<host>:6379
+        url = `rediss://default:${token}@${host}:6379`;
+        console.log("Configuring Redis using Upstash credentials...");
+    }
     if (!url)
         return null;
     try {
@@ -20,11 +28,10 @@ async function ensureRedis() {
         // Handle errors (important so it doesn't crash app)
         client.on("error", (err) => {
             console.warn("Redis Client Error", err);
-            // If connection drops, we might want to clear the global client so we retry or fall back?
-            // For now, let's just log. node-redis auto-reconnects usually.
         });
         await client.connect();
         redisClient = client;
+        console.log("Redis Connected Successfully");
         return redisClient;
     }
     catch (e) {
