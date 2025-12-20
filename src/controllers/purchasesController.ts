@@ -87,6 +87,15 @@ export const deletePurchase = async (req: Request, res: Response): Promise<void>
     await prisma.purchases.delete({ where: { purchaseId: id } });
     // Notify: purchase deleted
     appendNotification({ type: "purchase", message: `Deleted purchase ${id}` });
+
+    try {
+      const io = req.app.get("io");
+      io.emit("purchase:deleted", { purchaseId: id });
+      io.emit("dashboard:refresh", { tenantId });
+    } catch (error) {
+      console.warn("Socket emission failed for deletePurchase", error);
+    }
+
     res.json({ success: true });
   } catch (err) {
     console.error("deletePurchase error:", err);
@@ -163,6 +172,33 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
       appendNotification({ type: "purchase", message: `Purchased ${quantity} ${it.unit} of '${p.name}' for ₦${totalCost.toLocaleString("en")}` });
     }
 
+    try {
+      const io = req.app.get("io");
+      // We might be creating multiple purchases in one go, but the client list expects individual purchase items.
+      // We can emit each one or a bulk event. Since the UI is a list of purchases, emitting each one is safer for now.
+      for (const p of created) {
+         // Re-fetch full object with meta if possible, or construct it.
+         // Fetching is safer to ensure consistency with getPurchases
+         const full = await prisma.purchases.findUnique({ where: { purchaseId: p.purchaseId } });
+         if (full) {
+             const meta = await prisma.supplierPurchaseMeta.findUnique({ where: { purchaseId: p.purchaseId } });
+             // We need to attach product name which getPurchases returns
+             const product = await prisma.products.findUnique({ where: { productId: p.productId } });
+             
+             const payload = {
+                 ...full,
+                 productName: product?.name,
+                 supplierName: meta?.supplierName,
+                 supplierMobile: meta?.supplierMobile
+             };
+             io.emit("purchase:created", payload);
+         }
+      }
+      io.emit("dashboard:refresh", { tenantId });
+    } catch (error) {
+      console.warn("Socket emission failed for createPurchase", error);
+    }
+
     res.json({ success: true, purchases: created });
   } catch (err) {
     console.error("createPurchase error:", err);
@@ -208,9 +244,22 @@ export const addPurchasePayment = async (req: Request, res: Response): Promise<v
       bankAccount,
       notes,
     });
-    res.status(201).json({ payment });
     // Notify: supplier payment added
     appendNotification({ type: "purchase", message: `Added supplier payment ₦${amount.toLocaleString("en")} to purchase ${id} (${bankName})` });
+
+    try {
+      const io = req.app.get("io");
+      const updatedWithMeta = await prisma.purchases.findUnique({ where: { purchaseId: id }, include: { payments: true } });
+      if (updatedWithMeta) {
+        io.emit("purchase:updated", updatedWithMeta);
+        const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+        io.emit("dashboard:refresh", { tenantId });
+      }
+    } catch (error) {
+      console.warn("Socket emission failed for addPurchasePayment", error);
+    }
+
+    res.status(201).json({ payment });
   } catch (err) {
     console.error("addPurchasePayment error:", err);
     const msg = err instanceof Error ? err.message : "Failed to add payment";

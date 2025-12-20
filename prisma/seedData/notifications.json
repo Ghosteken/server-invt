@@ -732,5 +732,29 @@
     "type": "expense",
     "message": "Created expense 'sel5' (soap) ₦10,000",
     "timestamp": "2025-12-20T01:11:47.649Z"
+  },
+  {
+    "id": "1766200224292-yikn34",
+    "type": "expense",
+    "message": "Created expense 'malirans' (soap) ₦3,990",
+    "timestamp": "2025-12-20T03:10:24.293Z"
+  },
+  {
+    "id": "1766201309749-ygukpl",
+    "type": "invoice",
+    "message": "Invoice deleted: ae0e6775-338f-41c6-95b9-e982a514a539",
+    "timestamp": "2025-12-20T03:28:29.749Z"
+  },
+  {
+    "id": "1766201344888-48gcef",
+    "type": "invoice",
+    "message": "Invoice created: e7c8af84-0c3d-48ba-aba3-3dea5c2344c0 (Amagzy Global)",
+    "timestamp": "2025-12-20T03:29:04.888Z"
+  },
+  {
+    "id": "1766201669293-fpb1nl",
+    "type": "invoice",
+    "message": "Invoice deleted: e7c8af84-0c3d-48ba-aba3-3dea5c2344c0",
+    "timestamp": "2025-12-20T03:34:29.293Z"
   }
 ]
