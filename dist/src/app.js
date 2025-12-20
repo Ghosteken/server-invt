@@ -27,6 +27,7 @@ const purchasesRoutes_1 = __importDefault(require("./routes/purchasesRoutes"));
 const invoiceRoutes_1 = __importDefault(require("./routes/invoiceRoutes"));
 const salesAgentRoutes_1 = __importDefault(require("./routes/salesAgentRoutes"));
 const locationRoutes_1 = __importDefault(require("./routes/locationRoutes"));
+const contactRoutes_1 = __importDefault(require("./routes/contactRoutes"));
 function createApp() {
     dotenv_1.default.config();
     const app = (0, express_1.default)();
@@ -102,6 +103,7 @@ function createApp() {
     app.use("/invoices", invoiceRoutes_1.default);
     app.use("/sales-agents", salesAgentRoutes_1.default);
     app.use("/locations", locationRoutes_1.default);
+    app.use("/contact", contactRoutes_1.default);
     return app;
 }
 exports.default = createApp;

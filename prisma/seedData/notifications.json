@@ -756,5 +756,17 @@
     "type": "invoice",
     "message": "Invoice deleted: e7c8af84-0c3d-48ba-aba3-3dea5c2344c0",
     "timestamp": "2025-12-20T03:34:29.293Z"
+  },
+  {
+    "id": "1766229072654-2qsaad",
+    "type": "expense",
+    "message": "Created expense 'Paper' (Office) ₦500",
+    "timestamp": "2025-12-20T11:11:12.654Z"
+  },
+  {
+    "id": "1766229125468-j0huyu",
+    "type": "expense",
+    "message": "Created expense 'Paper' (Office) ₦500",
+    "timestamp": "2025-12-20T11:12:05.468Z"
   }
 ]

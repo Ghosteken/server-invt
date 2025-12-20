@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.importExpenseCategories = exports.createExpenseCategory = exports.getExpenseCategories = exports.deleteExpenseController = exports.updateExpenseController = exports.createExpense = exports.listExpenses = exports.getExpensesByCategory = void 0;
+exports.importExpenseCategories = exports.createExpenseCategory = exports.getExpenseCategories = exports.revokeExpense = exports.rejectExpense = exports.approveExpense = exports.deleteExpenseController = exports.updateExpenseController = exports.createExpense = exports.listExpenses = exports.getExpensesByCategory = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const XLSX = __importStar(require("xlsx"));
 const crypto_1 = require("crypto");
@@ -83,7 +83,14 @@ const listExpenses = async (req, res) => {
                 where.timestamp.lte = to;
         }
         const rows = await prisma_1.default.expenses.findMany({ where, orderBy: { timestamp: "desc" } });
-        const expenses = rows.map((r) => ({ id: r.expenseId, category: r.category, name: r.category, amount: r.amount, date: r.timestamp.toISOString().slice(0, 10) }));
+        const expenses = rows.map((r) => ({
+            id: r.expenseId,
+            category: r.category,
+            name: r.category,
+            amount: r.amount,
+            date: r.timestamp.toISOString().slice(0, 10),
+            status: r.status || "pending",
+        }));
         res.json({ expenses });
     }
     catch (err) {
@@ -107,9 +114,14 @@ const createExpense = async (req, res) => {
             res.status(400).json({ message: "category, name, and amount are required" });
             return;
         }
-        const created = await prisma_1.default.expenses.create({ data: { expenseId: (0, crypto_1.randomUUID)(), category, amount, timestamp: date, tenantId } });
+        const created = await prisma_1.default.expenses.create({ data: { expenseId: (0, crypto_1.randomUUID)(), category, amount, timestamp: date, tenantId, status: "pending" } });
         (0, notificationService_1.appendNotification)({ type: "expense", message: `Created expense '${name}' (${category}) ₦${amount.toLocaleString("en")}` });
-        res.status(201).json({ expense: { id: created.expenseId, category, name, amount, date: date.toISOString().slice(0, 10) } });
+        // Emit socket event
+        const io = req.app.get("io");
+        if (io) {
+            io.emit("expense:created", { id: created.expenseId, category, name, amount, date: date.toISOString().slice(0, 10), status: "pending" });
+        }
+        res.status(201).json({ expense: { id: created.expenseId, category, name, amount, date: date.toISOString().slice(0, 10), status: "pending" } });
     }
     catch (err) {
         res.status(500).json({ message: "Failed to create expense" });
@@ -144,7 +156,12 @@ const updateExpenseController = async (req, res) => {
             data.timestamp = new Date(String(changes.date));
         const next = await prisma_1.default.expenses.update({ where: { expenseId: id }, data });
         (0, notificationService_1.appendNotification)({ type: "expense", message: `Updated expense '${existing.category}' (${next.category}) to ₦${Number(next.amount || 0).toLocaleString("en")}` });
-        res.json({ expense: { id: next.expenseId, category: next.category, name: next.category, amount: next.amount, date: next.timestamp.toISOString().slice(0, 10) } });
+        // Emit socket event
+        const io = req.app.get("io");
+        if (io) {
+            io.emit("expense:updated", { id: next.expenseId, category: next.category, name: next.category, amount: next.amount, date: next.timestamp.toISOString().slice(0, 10), status: next.status });
+        }
+        res.json({ expense: { id: next.expenseId, category: next.category, name: next.category, amount: next.amount, date: next.timestamp.toISOString().slice(0, 10), status: next.status } });
     }
     catch (err) {
         res.status(500).json({ message: "Failed to update expense" });
@@ -170,6 +187,11 @@ const deleteExpenseController = async (req, res) => {
         }
         await prisma_1.default.expenses.delete({ where: { expenseId: id } });
         (0, notificationService_1.appendNotification)({ type: "expense", message: `Deleted expense ${id}` });
+        // Emit socket event
+        const io = req.app.get("io");
+        if (io) {
+            io.emit("expense:deleted", { id });
+        }
         res.json({ success: true });
     }
     catch (err) {
@@ -177,6 +199,135 @@ const deleteExpenseController = async (req, res) => {
     }
 };
 exports.deleteExpenseController = deleteExpenseController;
+/**
+ * Approve an expense (writes to audit logs for traceability).
+ */
+const approveExpense = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const id = String(req.params.id || "").trim();
+        if (!id) {
+            res.status(400).json({ message: "Missing expense id" });
+            return;
+        }
+        const existing = await prisma_1.default.expenses.findFirst({ where: { expenseId: id, tenantId } });
+        if (!existing) {
+            res.status(404).json({ message: "Expense not found" });
+            return;
+        }
+        await prisma_1.default.expenses.update({
+            where: { expenseId: id },
+            data: { status: "approved" },
+        });
+        await prisma_1.default.auditLogs.create({
+            data: {
+                id: (0, crypto_1.randomUUID)(),
+                tenantId,
+                actorUserId: req.user?.userId || undefined,
+                action: "expense.approve",
+                resourceType: "expense",
+                resourceId: id,
+                payload: { amount: existing.amount, category: existing.category },
+            },
+        });
+        // Emit socket event
+        const io = req.app.get("io");
+        if (io) {
+            io.emit("expense:updated", { id, status: "approved" });
+        }
+        res.json({ expense: { id, status: "approved" } });
+    }
+    catch {
+        res.status(500).json({ message: "Failed to approve expense" });
+    }
+};
+exports.approveExpense = approveExpense;
+/**
+ * Reject an expense (writes to audit logs for traceability).
+ */
+const rejectExpense = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const id = String(req.params.id || "").trim();
+        if (!id) {
+            res.status(400).json({ message: "Missing expense id" });
+            return;
+        }
+        const existing = await prisma_1.default.expenses.findFirst({ where: { expenseId: id, tenantId } });
+        if (!existing) {
+            res.status(404).json({ message: "Expense not found" });
+            return;
+        }
+        await prisma_1.default.expenses.update({
+            where: { expenseId: id },
+            data: { status: "rejected" },
+        });
+        await prisma_1.default.auditLogs.create({
+            data: {
+                id: (0, crypto_1.randomUUID)(),
+                tenantId,
+                actorUserId: req.user?.userId || undefined,
+                action: "expense.reject",
+                resourceType: "expense",
+                resourceId: id,
+                payload: { amount: existing.amount, category: existing.category },
+            },
+        });
+        // Emit socket event
+        const io = req.app.get("io");
+        if (io) {
+            io.emit("expense:updated", { id, status: "rejected" });
+        }
+        res.json({ expense: { id, status: "rejected" } });
+    }
+    catch {
+        res.status(500).json({ message: "Failed to reject expense" });
+    }
+};
+exports.rejectExpense = rejectExpense;
+/**
+ * Revoke an expense approval/rejection (sets back to pending).
+ */
+const revokeExpense = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const id = String(req.params.id || "").trim();
+        if (!id) {
+            res.status(400).json({ message: "Missing expense id" });
+            return;
+        }
+        const existing = await prisma_1.default.expenses.findFirst({ where: { expenseId: id, tenantId } });
+        if (!existing) {
+            res.status(404).json({ message: "Expense not found" });
+            return;
+        }
+        await prisma_1.default.expenses.update({
+            where: { expenseId: id },
+            data: { status: "pending" },
+        });
+        await prisma_1.default.auditLogs.create({
+            data: {
+                id: (0, crypto_1.randomUUID)(),
+                tenantId,
+                actorUserId: req.user?.userId || undefined,
+                action: "expense.revoke",
+                resourceType: "expense",
+                resourceId: id,
+                payload: { amount: existing.amount, category: existing.category },
+            },
+        });
+        // Emit socket event
+        const io = req.app.get("io");
+        if (io) {
+            io.emit("expense:updated", { id, status: "pending" });
+        }
+        res.json({ expense: { id, status: "pending" } });
+    }
+    catch {
+        res.status(500).json({ message: "Failed to revoke expense" });
+    }
+};
+exports.revokeExpense = revokeExpense;
 /**
  * Get expense categories from seed JSON.
  */

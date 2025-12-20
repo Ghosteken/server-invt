@@ -2,149 +2,313 @@ openapi: 3.0.3
 info:
   title: Inventory Management API
   version: 1.0.0
-  description: API documentation for Inventory Management system including Super Admin and tenant endpoints.
+  description: API documentation for Inventory Management system.
 servers:
   - url: http://localhost:3001
-tags:
-  - name: Auth
-  - name: SuperAdmin
-  - name: Invoices
-  - name: Purchases
-  - name: Products
-paths:
-  /auth/login:
-    post:
-      tags: [Auth]
-      summary: User login
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email: { type: string }
-                password: { type: string }
-      responses:
-        '200': { description: Login successful }
-        '401': { description: Invalid credentials }
-  /auth/admin/login:
-    post:
-      tags: [Auth]
-      summary: Admin login
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email: { type: string }
-                password: { type: string }
-      responses:
-        '200': { description: Login successful }
-        '401': { description: Invalid credentials }
-        '403': { description: Not an admin account }
-  /super-admin/login:
-    post:
-      tags: [SuperAdmin]
-      summary: Super admin login
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                email: { type: string }
-                password: { type: string }
-      responses:
-        '200': { description: Login successful }
-        '401': { description: Invalid credentials }
-  /super-admin/orgs:
-    get:
-      tags: [SuperAdmin]
-      summary: List organizations
-      security:
-        - bearerAuth: []
-      responses:
-        '200': { description: OK }
-        '401': { description: Unauthorized }
-        '403': { description: Forbidden }
-    post:
-      tags: [SuperAdmin]
-      summary: Create organization
-      security:
-        - bearerAuth: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name: { type: string }
-                apiBaseUrl: { type: string }
-                adminEmail: { type: string }
-                adminPassword: { type: string }
-      responses:
-        '201': { description: Created }
-        '400': { description: Bad request }
-        '401': { description: Unauthorized }
-        '403': { description: Forbidden }
-  /super-admin/orgs/{id}:
-    get:
-      tags: [SuperAdmin]
-      summary: Get organization
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        '200': { description: OK }
-        '404': { description: Not found }
-  /super-admin/orgs/{id}/admins:
-    get:
-      tags: [SuperAdmin]
-      summary: List org admins
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      responses:
-        '200': { description: OK }
-    post:
-      tags: [SuperAdmin]
-      summary: Create org admin
-      security:
-        - bearerAuth: []
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema: { type: string }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                name: { type: string }
-                email: { type: string }
-                password: { type: string }
-      responses:
-        '201': { description: Created }
-        '400': { description: Bad request }
 components:
   securitySchemes:
     bearerAuth:
       type: http
       scheme: bearer
       bearerFormat: JWT
+security:
+  - bearerAuth: []
+tags:
+  - name: Auth
+  - name: Dashboard
+  - name: Products
+  - name: Users
+  - name: Expenses
+  - name: Invoices
+  - name: Purchases
+paths:
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: User login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string }
+                password: { type: string }
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string }
+                  user: { type: object }
+  
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Get dashboard metrics
+      responses:
+        '200':
+          description: Dashboard metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  popularProducts: { type: array, items: { type: object } }
+                  salesSummary: { type: array, items: { type: object } }
+                  purchaseSummary: { type: array, items: { type: object } }
+                  expenseSummary: { type: array, items: { type: object } }
+                  expenseByCategorySummary: { type: array, items: { type: object } }
+
+  /products:
+    get:
+      tags: [Products]
+      summary: Get products list
+      parameters:
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: List of products
+    post:
+      tags: [Products]
+      summary: Create a product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, price]
+              properties:
+                name: { type: string }
+                price: { type: number }
+                stockQuantity: { type: number }
+                rating: { type: number }
+      responses:
+        '201': { description: Created }
+
+  /products/{productId}:
+    get:
+      tags: [Products]
+      summary: Get product by ID
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Product details }
+    put:
+      tags: [Products]
+      summary: Update product
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                price: { type: number }
+                stockQuantity: { type: number }
+      responses:
+        '200': { description: Updated }
+    delete:
+      tags: [Products]
+      summary: Delete product
+      parameters:
+        - name: productId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Deleted }
+
+  /users:
+    get:
+      tags: [Users]
+      summary: Get users list (Admin only)
+      responses:
+        '200': { description: List of users }
+    post:
+      tags: [Users]
+      summary: Create user (Admin only)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                email: { type: string }
+                role: { type: string }
+      responses:
+        '201': { description: Created }
+
+  /users/{userId}:
+    delete:
+      tags: [Users]
+      summary: Delete user (Admin only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Deleted }
+
+  /expenses:
+    post:
+      tags: [Expenses]
+      summary: Create expense
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                category: { type: string }
+                amount: { type: number }
+                date: { type: string }
+      responses:
+        '201': { description: Created }
+  
+  /expenses/list:
+    get:
+      tags: [Expenses]
+      summary: List expenses
+      responses:
+        '200': { description: List of expenses }
+
+  /expenses/{id}/approve:
+    put:
+      tags: [Expenses]
+      summary: Approve expense (Admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Approved }
+
+  /invoices:
+    get:
+      tags: [Invoices]
+      summary: Get invoices
+      responses:
+        '200': { description: List of invoices }
+    post:
+      tags: [Invoices]
+      summary: Create invoice
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customerName: { type: string }
+                amount: { type: number }
+                dueDate: { type: string }
+                items: 
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      productId: { type: string }
+                      quantity: { type: number }
+                      unitPrice: { type: number }
+      responses:
+        '201': { description: Created }
+
+  /invoices/{id}:
+    get:
+      tags: [Invoices]
+      summary: Get invoice details
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Invoice details }
+
+  /invoices/{id}/payments:
+    post:
+      tags: [Invoices]
+      summary: Add payment to invoice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount: { type: number }
+                date: { type: string }
+      responses:
+        '201': { description: Payment added }
+
+  /purchases:
+    get:
+      tags: [Purchases]
+      summary: Get purchases
+      responses:
+        '200': { description: List of purchases }
+    post:
+      tags: [Purchases]
+      summary: Create purchase
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                supplierId: { type: string }
+                products:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      productId: { type: string }
+                      quantity: { type: number }
+                      unitCost: { type: number }
+      responses:
+        '201': { description: Created }
+
+  /purchases/{id}:
+    put:
+      tags: [Purchases]
+      summary: Update purchase
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Updated }
+    delete:
+      tags: [Purchases]
+      summary: Delete purchase
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        '200': { description: Deleted }

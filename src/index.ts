@@ -137,7 +137,7 @@ app.use("/contact", contactRoutes); // http://localhost:8000/contact
 app.use("/super-admin", superAdminRoutes); // http://localhost:8000/super-admin
 
 try {
-  const swaggerDocument = YAML.load(path.join(__dirname, "../swagger/swagger.yaml"));
+  const swaggerDocument = YAML.load(path.join(__dirname, "swagger/swagger.yaml"));
   app.use("/docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 } catch (e) {
   console.warn("Swagger YAML not found or invalid; /docs disabled");

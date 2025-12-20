@@ -26,7 +26,7 @@ async function addBank(tenantId, bank) {
         const db = prisma_1.default;
         const existing = await db.banks.findFirst({ where: { tenantId, name, account } });
         if (!existing) {
-            await db.banks.create({ data: { id: crypto.randomUUID(), tenantId, name, account } });
+            await db.banks.create({ data: { id: cryptoRandom(), tenantId, name, account } });
         }
         const rows = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
         return rows.map((r) => ({ name: r.name, account: r.account }));
@@ -55,6 +55,15 @@ async function updateBank(tenantId, oldBank, nextBank) {
         const db = prisma_1.default;
         const rows = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } }).catch(() => []);
         return rows.map((r) => ({ name: r.name, account: r.account }));
+    }
+}
+function cryptoRandom() {
+    try {
+        const { randomUUID } = require("crypto");
+        return randomUUID();
+    }
+    catch {
+        return Math.random().toString(36).slice(2);
     }
 }
 async function removeBank(tenantId, bank) {
