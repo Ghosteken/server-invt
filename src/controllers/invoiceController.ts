@@ -295,6 +295,9 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
     if (locationQ) {
       where.location = { contains: locationQ, mode: "insensitive" };
     }
+    if (customerQ) {
+      where.customer = { name: { contains: customerQ, mode: "insensitive" } };
+    }
     if (from || to) {
       where.date = {};
       if (from) where.date.gte = from;
@@ -305,7 +308,21 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
     }
     const invoices = await prisma.invoices.findMany({
       where,
-      include: { items: true, payments: true },
+      select: {
+        invoiceId: true,
+        customerId: true,
+        date: true,
+        location: true,
+        salesAgent: true,
+        status: true,
+        totalWithoutVAT: true,
+        vatAmount: true,
+        totalWithVAT: true,
+        dueDate: true,
+        dueSoonNotifiedAt: true,
+        createdAt: true,
+        updatedAt: true,
+      },
       orderBy: { date: "desc" },
     });
     for (const inv of invoices) {
@@ -322,10 +339,8 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
     const customerMap = new Map(customers.map((c: any) => [c.customerId, c.name] as const));
     const list = await Promise.all(
       invoices.map(async (inv: any) => {
-        const paymentsSum = inv.payments.reduce((acc: number, p: any) => acc + p.amount, 0);
-        const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
         const meta = await getInvoiceMeta(inv.invoiceId);
-        return { ...inv, status, customerName: customerMap.get(inv.customerId), invoiceNumber: meta?.invoiceNumber || undefined } as any;
+        return { ...inv, customerName: customerMap.get(inv.customerId), invoiceNumber: meta?.invoiceNumber || undefined } as any;
       })
     );
     let filtered = list.filter((inv) => {
@@ -337,9 +352,6 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
         inv.location.toLowerCase().includes(search)
       );
     });
-    if (customerQ) {
-      filtered = filtered.filter((inv) => (inv.customerName || "").toLowerCase().includes(customerQ));
-    }
     if (statusQ === "paid" || statusQ === "unpaid" || statusQ === "partial") {
       filtered = filtered.filter((inv) => inv.status === statusQ);
     }
