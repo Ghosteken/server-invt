@@ -299,6 +299,9 @@ const getInvoices = async (req, res) => {
         if (locationQ) {
             where.location = { contains: locationQ, mode: "insensitive" };
         }
+        if (customerQ) {
+            where.customer = { name: { contains: customerQ, mode: "insensitive" } };
+        }
         if (from || to) {
             where.date = {};
             if (from)
@@ -311,7 +314,21 @@ const getInvoices = async (req, res) => {
         }
         const invoices = await prisma_1.default.invoices.findMany({
             where,
-            include: { items: true, payments: true },
+            select: {
+                invoiceId: true,
+                customerId: true,
+                date: true,
+                location: true,
+                salesAgent: true,
+                status: true,
+                totalWithoutVAT: true,
+                vatAmount: true,
+                totalWithVAT: true,
+                dueDate: true,
+                dueSoonNotifiedAt: true,
+                createdAt: true,
+                updatedAt: true,
+            },
             orderBy: { date: "desc" },
         });
         for (const inv of invoices) {
@@ -327,10 +344,8 @@ const getInvoices = async (req, res) => {
             : [];
         const customerMap = new Map(customers.map((c) => [c.customerId, c.name]));
         const list = await Promise.all(invoices.map(async (inv) => {
-            const paymentsSum = inv.payments.reduce((acc, p) => acc + p.amount, 0);
-            const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
             const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
-            return { ...inv, status, customerName: customerMap.get(inv.customerId), invoiceNumber: meta?.invoiceNumber || undefined };
+            return { ...inv, customerName: customerMap.get(inv.customerId), invoiceNumber: meta?.invoiceNumber || undefined };
         }));
         let filtered = list.filter((inv) => {
             if (!search)
@@ -340,9 +355,6 @@ const getInvoices = async (req, res) => {
                 (inv.customerName || "").toLowerCase().includes(search) ||
                 inv.location.toLowerCase().includes(search));
         });
-        if (customerQ) {
-            filtered = filtered.filter((inv) => (inv.customerName || "").toLowerCase().includes(customerQ));
-        }
         if (statusQ === "paid" || statusQ === "unpaid" || statusQ === "partial") {
             filtered = filtered.filter((inv) => inv.status === statusQ);
         }
