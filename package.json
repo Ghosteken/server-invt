@@ -15,8 +15,8 @@
     "prepare": "husky"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Stockstudio",
+  "license": "MIT",
   "description": "",
   "dependencies": {
     "@prisma/client": "^6.18.0",
