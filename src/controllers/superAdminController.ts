@@ -168,28 +168,39 @@ export const deleteOrg = async (req: Request, res: Response): Promise<void> => {
     if (!org) { res.status(404).json({ message: "Organization not found" }); return; }
 
     // Cascade delete tenant data
-    await prisma.invoiceItems.deleteMany({ where: { tenantId: id } });
-    await prisma.payments.deleteMany({ where: { tenantId: id } });
-    await prisma.invoices.deleteMany({ where: { tenantId: id } });
-    await prisma.customerPurchases.deleteMany({ where: { tenantId: id } });
-    await prisma.customers.deleteMany({ where: { tenantId: id } });
-    await prisma.purchases.deleteMany({ where: { tenantId: id } });
-    await prisma.sales.deleteMany({ where: { tenantId: id } });
-    await prisma.expenseByCategory.deleteMany({ where: { tenantId: id } });
-    await prisma.expenseSummary.deleteMany({ where: { tenantId: id } });
-    await prisma.expenses.deleteMany({ where: { tenantId: id } });
-    await prisma.purchaseSummary.deleteMany({ where: { tenantId: id } });
-    await prisma.salesSummary.deleteMany({ where: { tenantId: id } });
-    await prisma.invoiceMeta.deleteMany({ where: { tenantId: id } });
-    await prisma.featureFlags.deleteMany({ where: { tenantId: id } });
-    await prisma.pcsInventory.deleteMany({ where: { tenantId: id } });
-    await prisma.auditLogs.deleteMany({ where: { tenantId: id } });
-    await prisma.supportMessages.deleteMany({ where: { tenantId: id } });
-    await prisma.products.deleteMany({ where: { tenantId: id } });
-
-    // Delete org admins and organization itself
-    await prisma.orgAdmins.deleteMany({ where: { orgId: id } });
-    await prisma.organizations.delete({ where: { id } });
+    await prisma.$transaction([
+      prisma.invoiceItems.deleteMany({ where: { tenantId: id } }),
+      prisma.payments.deleteMany({ where: { tenantId: id } }),
+      prisma.invoices.deleteMany({ where: { tenantId: id } }),
+      prisma.customerPurchases.deleteMany({ where: { tenantId: id } }),
+      prisma.customers.deleteMany({ where: { tenantId: id } }),
+      prisma.supplierPurchaseMeta.deleteMany({ where: { tenantId: id } }),
+      prisma.supplierPayments.deleteMany({ where: { tenantId: id } }),
+      prisma.purchases.deleteMany({ where: { tenantId: id } }),
+      prisma.sales.deleteMany({ where: { tenantId: id } }),
+      prisma.expenseByCategory.deleteMany({ where: { tenantId: id } }),
+      prisma.expenseSummary.deleteMany({ where: { tenantId: id } }),
+      prisma.expenses.deleteMany({ where: { tenantId: id } }),
+      prisma.purchaseSummary.deleteMany({ where: { tenantId: id } }),
+      prisma.salesSummary.deleteMany({ where: { tenantId: id } }),
+      prisma.invoiceMeta.deleteMany({ where: { tenantId: id } }),
+      prisma.featureFlags.deleteMany({ where: { tenantId: id } }),
+      prisma.pcsInventory.deleteMany({ where: { tenantId: id } }),
+      prisma.auditLogs.deleteMany({ where: { tenantId: id } }),
+      prisma.supportMessages.deleteMany({ where: { tenantId: id } }),
+      prisma.products.deleteMany({ where: { tenantId: id } }),
+      prisma.customerGroups.deleteMany({ where: { tenantId: id } }),
+      prisma.salesAgents.deleteMany({ where: { tenantId: id } }),
+      prisma.locations.deleteMany({ where: { tenantId: id } }),
+      prisma.branches.deleteMany({ where: { tenantId: id } }),
+      prisma.stores.deleteMany({ where: { tenantId: id } }),
+      prisma.expenseCategories.deleteMany({ where: { tenantId: id } }),
+      prisma.banks.deleteMany({ where: { tenantId: id } }),
+      prisma.suppliers.deleteMany({ where: { tenantId: id } }),
+      prisma.users.deleteMany({ where: { tenantId: id } }),
+      prisma.orgAdmins.deleteMany({ where: { orgId: id } }),
+      prisma.organizations.delete({ where: { id } })
+    ]);
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ message: "Failed to delete organization" });
