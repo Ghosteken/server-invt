@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.orgAdminLogin = exports.verifyToken = exports.adminLogin = exports.login = exports.signup = void 0;
+exports.signupOrg = exports.orgAdminLogin = exports.verifyToken = exports.adminLogin = exports.login = exports.signup = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
@@ -337,3 +337,83 @@ const orgAdminLogin = async (req, res) => {
     }
 };
 exports.orgAdminLogin = orgAdminLogin;
+const signupOrg = async (req, res) => {
+    try {
+        const { orgName, adminName, email, password } = req.body;
+        if (!orgName || !adminName || !email || !password) {
+            res.status(400).json({ message: "All fields are required" });
+            return;
+        }
+        const normalizedEmail = String(email).toLowerCase();
+        // Check if email already exists
+        const existingUser = await prisma_1.default.users.findFirst({ where: { email: normalizedEmail } });
+        const existingOrgAdmin = await prisma_1.default.orgAdmins.findFirst({ where: { email: normalizedEmail } });
+        if (existingUser || existingOrgAdmin) {
+            res.status(409).json({ message: "Email already in use" });
+            return;
+        }
+        // Check if org name exists
+        const existingOrg = await prisma_1.default.organizations.findUnique({ where: { name: orgName } });
+        if (existingOrg) {
+            res.status(409).json({ message: "Organization name already exists" });
+            return;
+        }
+        const passwordHash = await hashAsync(password, 10);
+        const orgId = (0, crypto_1.randomUUID)();
+        // Transaction to create Org, OrgAdmin, and User
+        await prisma_1.default.$transaction(async (tx) => {
+            // Create Organization
+            await tx.organizations.create({
+                data: {
+                    id: orgId,
+                    name: orgName,
+                    adminEmail: normalizedEmail,
+                    adminPasswordHash: passwordHash,
+                }
+            });
+            // Create Org Admin
+            const adminId = (0, crypto_1.randomUUID)();
+            await tx.orgAdmins.create({
+                data: {
+                    id: adminId,
+                    orgId: orgId,
+                    name: adminName,
+                    email: normalizedEmail,
+                    passwordHash: passwordHash,
+                }
+            });
+            // Create User (for unified login if applicable)
+            await tx.users.create({
+                data: {
+                    userId: (0, crypto_1.randomUUID)(),
+                    name: adminName,
+                    email: normalizedEmail,
+                    password: passwordHash,
+                    role: "admin",
+                    tenantId: orgId,
+                    isBlocked: false
+                }
+            });
+        });
+        const newOrgAdmin = await prisma_1.default.orgAdmins.findFirst({ where: { email: normalizedEmail, orgId } });
+        if (!newOrgAdmin)
+            throw new Error("Failed to retrieve created admin");
+        const token = jsonwebtoken_1.default.sign({ userId: newOrgAdmin.id, email: newOrgAdmin.email, role: "org_admin", tenantId: orgId }, JWT_SECRET, { expiresIn: "24h" });
+        res.status(201).json({
+            message: "Organization registered successfully",
+            token,
+            user: {
+                userId: newOrgAdmin.id,
+                name: newOrgAdmin.name,
+                email: newOrgAdmin.email,
+                role: "org_admin",
+                tenantId: orgId
+            }
+        });
+    }
+    catch (err) {
+        console.error("Signup Org Error:", err);
+        res.status(500).json({ message: "Failed to register organization" });
+    }
+};
+exports.signupOrg = signupOrg;
