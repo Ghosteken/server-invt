@@ -33,6 +33,7 @@ import salesAgentRoutes from "./routes/salesAgentRoutes";
 import locationRoutes from "./routes/locationRoutes";
 import contactRoutes from "./routes/contactRoutes";
 import superAdminRoutes from "./routes/superAdminRoutes";
+import aiRoutes from "./routes/aiRoutes";
 import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
 
@@ -135,6 +136,7 @@ app.use("/sales-agents", salesAgentRoutes); // http://localhost:8000/sales-agent
 app.use("/locations", locationRoutes); // http://localhost:8000/locations
 app.use("/contact", contactRoutes); // http://localhost:8000/contact
 app.use("/super-admin", superAdminRoutes); // http://localhost:8000/super-admin
+app.use("/ai", aiRoutes); // http://localhost:8000/ai
 
 try {
   const swaggerDocument = YAML.load(path.join(__dirname, "swagger/swagger.yaml"));

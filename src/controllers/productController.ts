@@ -2022,7 +2022,7 @@ export const processInvoiceManual = async (req: Request, res: Response): Promise
       if (product) updates.push({ productId: product.productId, name: product.name, deducted: qty });
     }
 
-    appendNotification({ type: "inventory", message: `Processed manual invoice for ${cust.name}; updated ${updates.length} product(s).`, actorUserId: req.user?.userId });
+    // appendNotification({ type: "inventory", message: `Processed manual invoice for ${cust.name}; updated ${updates.length} product(s).`, actorUserId: req.user?.userId });
     res.json({ customer: cust, updates });
   } catch (error) {
     console.error("processInvoiceManual error:", error);

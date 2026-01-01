@@ -86,7 +86,7 @@ export const createExpense = async (req: Request, res: Response): Promise<void> 
       return;
     }
     const created = await prisma.expenses.create({ data: { expenseId: randomUUID(), category, amount, timestamp: date, tenantId, status: "pending" } });
-    appendNotification({ type: "expense", message: `Created expense '${name}' (${category}) ₦${amount.toLocaleString("en")}` });
+    // appendNotification({ type: "expense", message: `Created expense '${name}' (${category}) ₦${amount.toLocaleString("en")}` });
     
     // Emit socket event
     const io = req.app.get("io");

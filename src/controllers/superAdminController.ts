@@ -259,6 +259,9 @@ export const getOrgAdminFeatures = async (req: Request, res: Response): Promise<
       "purchases",
       "customerGroups",
       "logistics",
+      "expenseApproval",
+      "purchasingAdvisor",
+      "expenseAnomalyDetection",
     ];
     const list = flags[adminId] && Array.isArray(flags[adminId]) ? flags[adminId] : allFeatures;
     res.json({ features: list });

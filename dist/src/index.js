@@ -38,6 +38,7 @@ const salesAgentRoutes_1 = __importDefault(require("./routes/salesAgentRoutes"))
 const locationRoutes_1 = __importDefault(require("./routes/locationRoutes"));
 const contactRoutes_1 = __importDefault(require("./routes/contactRoutes"));
 const superAdminRoutes_1 = __importDefault(require("./routes/superAdminRoutes"));
+const aiRoutes_1 = __importDefault(require("./routes/aiRoutes"));
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const yamljs_1 = __importDefault(require("yamljs"));
 /* CONFIGURATIONS */
@@ -135,6 +136,7 @@ app.use("/sales-agents", salesAgentRoutes_1.default); // http://localhost:8000/s
 app.use("/locations", locationRoutes_1.default); // http://localhost:8000/locations
 app.use("/contact", contactRoutes_1.default); // http://localhost:8000/contact
 app.use("/super-admin", superAdminRoutes_1.default); // http://localhost:8000/super-admin
+app.use("/ai", aiRoutes_1.default); // http://localhost:8000/ai
 try {
     const swaggerDocument = yamljs_1.default.load(path_1.default.join(__dirname, "swagger/swagger.yaml"));
     app.use("/docs", swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swaggerDocument));
