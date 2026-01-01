@@ -788,5 +788,25 @@
     "type": "invoice",
     "message": "Invoice created: 1b62d811-bc14-4f25-8447-c0d8fcf5e70e (Amagzy Global)",
     "timestamp": "2025-12-20T22:48:28.266Z"
+  },
+  {
+    "id": "1767233508755-fmog2u",
+    "type": "expense",
+    "message": "Created expense 'Paper' (Office) ₦500",
+    "timestamp": "2026-01-01T02:11:48.755Z"
+  },
+  {
+    "id": "1767233509854-2yvx7r",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 1 product(s).",
+    "timestamp": "2026-01-01T02:11:49.854Z",
+    "actorUserId": "tester"
+  },
+  {
+    "id": "1767233509873-wl9qf0",
+    "type": "inventory",
+    "message": "Processed manual invoice for Alice; updated 0 product(s).",
+    "timestamp": "2026-01-01T02:11:49.873Z",
+    "actorUserId": "tester"
   }
 ]
