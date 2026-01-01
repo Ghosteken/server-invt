@@ -12,8 +12,13 @@ export const superAdminLogin = async (req: Request, res: Response): Promise<void
   try {
     const email = String((req.body || {}).email || "").toLowerCase();
     const password = String((req.body || {}).password || "");
-    const configuredEmail = String(process.env.SUPER_ADMIN_EMAIL || "super@inventory.com").toLowerCase();
-    const configuredPassword = String(process.env.SUPER_ADMIN_PASSWORD || "super_admin_password");
+    const configuredEmail = String(process.env.MASTER_ADMIN_EMAIL || "").toLowerCase();
+    const configuredPassword = String(process.env.MASTER_ADMIN_PASSWORD || "");
+    if (!configuredEmail || !configuredPassword) {
+      console.error("Super admin credentials not configured in environment");
+      res.status(500).json({ message: "Server configuration error" });
+      return;
+    }
     if (email === configuredEmail && password === configuredPassword) {
       const token = jwt.sign({ userId: "super-admin", email, role: "super_admin" }, JWT_SECRET, { expiresIn: "24h" });
       res.json({ token, user: { userId: "super-admin", name: "Super Admin", email, role: "super_admin" } });
