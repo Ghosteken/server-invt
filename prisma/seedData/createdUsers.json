@@ -33,5 +33,12 @@
     "email": "babs@amagzy.com",
     "role": "user",
     "createdAt": "2025-12-12T07:38:54.092Z"
+  },
+  {
+    "userId": "4f0af701-bb27-4878-9090-631853adc2f8",
+    "name": "mons2",
+    "email": "mons2@gmail.com",
+    "role": "user",
+    "createdAt": "2026-01-01T15:54:59.170Z"
   }
 ]
