@@ -808,5 +808,12 @@
     "message": "Processed manual invoice for Alice; updated 0 product(s).",
     "timestamp": "2026-01-01T02:11:49.873Z",
     "actorUserId": "tester"
+  },
+  {
+    "id": "1767282899175-qdnzya",
+    "type": "user",
+    "message": "User created: mons2 (mons2@gmail.com) as user",
+    "timestamp": "2026-01-01T15:54:59.175Z",
+    "actorUserId": "5131d66a-c39f-4cd0-a2bc-459dae434209"
   }
 ]
