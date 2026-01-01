@@ -22,6 +22,7 @@ const ALL_FEATURES = [
   "purchases",
   "customerGroups",
   "logistics",
+  "purchasingAdvisor",
 ];
 
 const compareAsync = (p: string, h: string) => new Promise<boolean>((resolve) => bcrypt.compare(p, h, (err, res) => resolve(!!res)));

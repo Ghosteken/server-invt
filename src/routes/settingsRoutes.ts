@@ -26,6 +26,7 @@ const ALL_FEATURES = [
   "purchases",
   "customerGroups",
   "logistics",
+  "purchasingAdvisor",
 ];
 
 // Set features by email for convenience in admin UI
