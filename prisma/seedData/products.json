@@ -1,32 +1,5 @@
 [
   {
-    "productId": "030c6a77-e31c-4099-99d3-07588804b4ac",
-    "name": "030c6a77-e31c-4099-99d3-07588804b4ac",
-    "price": 5312.5,
-    "stockQuantity": 4,
-    "category": null,
-    "packSize": "24",
-    "barcode": null
-  },
-  {
-    "productId": "2bec9503-edbc-4142-b687-ac3ce740c74b",
-    "name": "2bec9503-edbc-4142-b687-ac3ce740c74b",
-    "price": 20000,
-    "stockQuantity": 500,
-    "category": null,
-    "packSize": "16",
-    "barcode": null
-  },
-  {
-    "productId": "34f74929-4ed7-42b9-80f4-bee880824742",
-    "name": "34f74929-4ed7-42b9-80f4-bee880824742",
-    "price": 137500,
-    "stockQuantity": 97,
-    "category": null,
-    "packSize": "24",
-    "barcode": null
-  },
-  {
     "productId": "8b6eaab6-45c0-48ec-a79b-dee047630d24",
     "name": "A.LEGAL MACEDOINE MIXED VEGETABLES 400G",
     "price": 0,
@@ -34,15 +7,6 @@
     "category": "BAKED BEANS & KIDNEY BEANS & MIXED VEGS",
     "packSize": "24",
     "barcode": "3047205212019"
-  },
-  {
-    "productId": "aa067548-808d-4a0c-8471-851d9c64e112",
-    "name": "aa067548-808d-4a0c-8471-851d9c64e112",
-    "price": 36250,
-    "stockQuantity": 1,
-    "category": "GREEN PEAS & SWEET CORN(CAN FOODS)",
-    "packSize": "48",
-    "barcode": null
   },
   {
     "productId": "b730f31b-70e1-4cf6-8b32-2e5b54ce6412",
@@ -147,19 +111,10 @@
     "productId": "26e54545-24b4-48a6-8c93-c2ce3b00d24e",
     "name": "ASDA FRUIT & FIBRE",
     "price": 0,
-    "stockQuantity": 40,
+    "stockQuantity": 39,
     "category": "GRANOLA",
     "packSize": "10",
     "barcode": null
-  },
-  {
-    "productId": "8b7dfd89-2a12-4129-8537-223241abebdd",
-    "name": "BAGS",
-    "price": 10000,
-    "stockQuantity": 20,
-    "category": "BAGSG",
-    "packSize": "24",
-    "barcode": "6948632424"
   },
   {
     "productId": "0a06a9cb-ac47-40db-b1a1-80dc27450996",
@@ -192,7 +147,7 @@
     "productId": "fd3ea3fc-b1f6-442c-8fd5-1046644d09fd",
     "name": "BBSTAR APPLE",
     "price": 0,
-    "stockQuantity": 35,
+    "stockQuantity": 33,
     "category": "VIJU PRODUCT",
     "packSize": "24",
     "barcode": null
@@ -201,10 +156,19 @@
     "productId": "1b5a0aea-8d98-4f6c-8694-6c2463dd43d8",
     "name": "BBSTAR ORANGE",
     "price": 5750,
-    "stockQuantity": 36,
+    "stockQuantity": 35,
     "category": "VIJU PRODUCT",
     "packSize": "24",
     "barcode": null
+  },
+  {
+    "productId": "526cddad-7a0d-43d6-8e71-5aacae056fd3",
+    "name": "Beans",
+    "price": 6000,
+    "stockQuantity": 11,
+    "category": "Beans",
+    "packSize": "12",
+    "barcode": "93770234"
   },
   {
     "productId": "6c9e009d-4b03-4a45-ba20-2a3f05c8e5f8",
@@ -921,7 +885,7 @@
     "productId": "83b9ad15-8310-4403-a881-8dd42e8e76d5",
     "name": "DESMOND 3 IN 1 OAT MILK",
     "price": 0,
-    "stockQuantity": 1,
+    "stockQuantity": 0,
     "category": "OTHER BISCUIT",
     "packSize": "10",
     "barcode": null
@@ -1263,18 +1227,9 @@
     "productId": "724c4c7e-157a-469d-a4a4-a6d8f2e34f9f",
     "name": "HAZELNUT NUTELLA 350G",
     "price": 106250,
-    "stockQuantity": 4,
+    "stockQuantity": 8,
     "category": "SPREAD",
     "packSize": "15",
-    "barcode": "80176800"
-  },
-  {
-    "productId": "ffc6ce26-950c-4916-b6d5-fc5972ec2cff",
-    "name": "HAZELNUT NUTELLA 750G",
-    "price": 156250,
-    "stockQuantity": 0,
-    "category": "SPREAD",
-    "packSize": "12",
     "barcode": "80176800"
   },
   {
@@ -1389,7 +1344,7 @@
     "productId": "33239edf-1977-42df-8a16-41c61ea20d49",
     "name": "JUMBO CHOCOLATE FLAVOURISED STICK 10g",
     "price": 0,
-    "stockQuantity": 191,
+    "stockQuantity": 382,
     "category": "BISCUITS( SMALL SIZES)",
     "packSize": "96",
     "barcode": "680548160420"
@@ -1623,7 +1578,7 @@
     "productId": "c3bb68a2-419e-4435-8a19-6529a764ba21",
     "name": "MR BEAN SOYA 1L",
     "price": 13500,
-    "stockQuantity": 39,
+    "stockQuantity": 78,
     "category": "VIJU PRODUCT",
     "packSize": "10",
     "barcode": "6154000233204"
@@ -2199,7 +2154,7 @@
     "productId": "2751473c-1a81-47cc-8a15-3d22b0888641",
     "name": "SOYA MILK  MIXED AGV 360G",
     "price": 0,
-    "stockQuantity": 66,
+    "stockQuantity": 65,
     "category": "SOYA PRODUCTS",
     "packSize": "48",
     "barcode": null
@@ -2432,20 +2387,11 @@
   {
     "productId": "151bd28b-24df-484a-843c-9f1bc42bef4c",
     "name": "SWEETENED CONDENSED MILK TROPICAL SUN 1KG",
-    "price": 47500,
-    "stockQuantity": 1,
+    "price": 0,
+    "stockQuantity": 9,
     "category": "MILK POWDER/CONDENSED",
     "packSize": "6",
     "barcode": "5029788182420"
-  },
-  {
-    "productId": "da27ff3b-dbfb-468f-b892-a49dcb2d55b0",
-    "name": "SWEETENED CONDENSED MILK TROPICAL SUN 1KG",
-    "price": 0,
-    "stockQuantity": 8,
-    "category": null,
-    "packSize": "6",
-    "barcode": null
   },
   {
     "productId": "f7ed2eef-5bd2-4249-9a6d-f8cca3e517ea",
@@ -2619,15 +2565,6 @@
     "barcode": "680548160574"
   },
   {
-    "productId": "d1819c6a-16f0-428d-adee-22a8799a360f",
-    "name": "TRIX CORN FLAKES  52g",
-    "price": 0,
-    "stockQuantity": 0,
-    "category": "SACHETS CEREALS",
-    "packSize": "52",
-    "barcode": "680548160420"
-  },
-  {
     "productId": "42dcb24b-800c-4131-bc20-58e4ea0f71b3",
     "name": "TROPICAL FRUIT JUICE DRINK STUTE 1.5L",
     "price": 0,
@@ -2716,15 +2653,6 @@
     "category": "VIJU PRODUCT",
     "packSize": "12",
     "barcode": null
-  },
-  {
-    "productId": "4a6999cc-8b57-434a-b3b6-90402f01720a",
-    "name": "VCOOL COLA 500ML",
-    "price": 0,
-    "stockQuantity": 142,
-    "category": "VIJU PRODUCT",
-    "packSize": "12",
-    "barcode": "6154000233204"
   },
   {
     "productId": "7f5c2758-4561-4437-884f-21fb6e29da0a",

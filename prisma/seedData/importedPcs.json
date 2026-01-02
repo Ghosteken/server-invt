@@ -386,5 +386,16 @@
     "salesPrice": 0,
     "expiryDate": null,
     "description": null
+  },
+  {
+    "name": "Beans",
+    "barcode": "93770234",
+    "packSize": "12",
+    "category": "Beans",
+    "pcsQuantity": 11,
+    "purchasePrice": 4000,
+    "salesPrice": 6000,
+    "expiryDate": "2025-12-18T23:00:00.000Z",
+    "description": "Beans"
   }
 ]

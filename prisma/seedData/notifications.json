@@ -835,5 +835,12 @@
     "message": "Processed manual invoice for Alice; updated 0 product(s).",
     "timestamp": "2026-01-01T16:02:40.103Z",
     "actorUserId": "tester"
+  },
+  {
+    "id": "1767319215079-diok69",
+    "type": "product",
+    "message": "Imported 1 PCS products",
+    "timestamp": "2026-01-02T02:00:15.079Z",
+    "actorUserId": "5131d66a-c39f-4cd0-a2bc-459dae434209"
   }
 ]
