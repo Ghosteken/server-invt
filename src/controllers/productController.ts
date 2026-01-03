@@ -830,6 +830,14 @@ export const importProducts = async (
   try {
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const file = (req as any).file as Express.Multer.File | undefined;
+    
+    console.log(`[importProducts] Request received. Tenant: ${tenantId}`);
+    if (file) {
+      console.log(`[importProducts] File uploaded: ${file.originalname}, Size: ${file.size} bytes`);
+    } else {
+      console.warn(`[importProducts] No file found in request`);
+    }
+
     if (!file) {
       res.status(400).json({ message: "No file uploaded. Use field name 'file'." });
       return;
@@ -840,6 +848,9 @@ export const importProducts = async (
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
     const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, { defval: null, raw: false });
+    
+    console.log(`[importProducts] Excel parsed. Rows found: ${rows.length}`);
+    
     if (!rows.length) {
       res.status(400).json({ message: "Uploaded sheet is empty" });
       return;

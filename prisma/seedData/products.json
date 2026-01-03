@@ -117,6 +117,15 @@
     "barcode": null
   },
   {
+    "productId": "8df3c263-36ff-4a2a-bc24-e5f4b5b7ba5b",
+    "name": "BAGS",
+    "price": 10000,
+    "stockQuantity": 20,
+    "category": "BAGSG",
+    "packSize": "24",
+    "barcode": "6948632424"
+  },
+  {
     "productId": "0a06a9cb-ac47-40db-b1a1-80dc27450996",
     "name": "BAKED BEANS ESTUS 415G",
     "price": 0,
@@ -160,15 +169,6 @@
     "category": "VIJU PRODUCT",
     "packSize": "24",
     "barcode": null
-  },
-  {
-    "productId": "526cddad-7a0d-43d6-8e71-5aacae056fd3",
-    "name": "Beans",
-    "price": 6000,
-    "stockQuantity": 11,
-    "category": "Beans",
-    "packSize": "12",
-    "barcode": "93770234"
   },
   {
     "productId": "6c9e009d-4b03-4a45-ba20-2a3f05c8e5f8",
