@@ -47,9 +47,11 @@ const allowedOrigins = (process.env.CORS_ORIGIN || "*").split(",").map(origin =>
 const io = new Server(httpServer, {
   cors: {
     origin: (origin, callback) => {
+      console.log(`SocketIO CORS Check: Origin=${origin}, Allowed=${JSON.stringify(allowedOrigins)}`);
       if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.error(`SocketIO CORS Blocked: Origin=${origin}`);
         callback(new Error("Not allowed by CORS"));
       }
     },
