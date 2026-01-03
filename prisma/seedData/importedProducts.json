@@ -7566,5 +7566,41 @@
     "description": "BAGSTO",
     "packSize": "24",
     "barcode": "6948632424"
+  },
+  {
+    "productId": "8df3c263-36ff-4a2a-bc24-e5f4b5b7ba5b",
+    "name": "BAGS",
+    "price": 10000,
+    "purchasePrice": 5000,
+    "stockQuantity": 20,
+    "expiryDate": "2025-11-29T23:00:00.000Z",
+    "category": "BAGSG",
+    "description": "BAGSTO",
+    "packSize": "24",
+    "barcode": "6948632424"
+  },
+  {
+    "productId": "526cddad-7a0d-43d6-8e71-5aacae056fd3",
+    "name": "Beans",
+    "price": 6000,
+    "purchasePrice": 4000,
+    "stockQuantity": 0,
+    "expiryDate": "2025-12-18T23:00:00.000Z",
+    "category": "Beans",
+    "description": "Beans",
+    "packSize": "12",
+    "barcode": "93770234"
+  },
+  {
+    "productId": "4818f639-7e57-4135-ad49-b26b31d286f1",
+    "name": "Drinks",
+    "price": 7000,
+    "purchasePrice": 3600,
+    "stockQuantity": 100,
+    "expiryDate": "2001-11-28T23:00:00.000Z",
+    "category": "Drinks",
+    "description": "drks",
+    "packSize": "12",
+    "barcode": "48928323"
   }
 ]

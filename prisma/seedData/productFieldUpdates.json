@@ -35512,5 +35512,119 @@
     "field": "stockquantity",
     "updatedAt": "2026-01-02T02:00:15.050Z",
     "source": "import"
+  },
+  {
+    "productId": "8df3c263-36ff-4a2a-bc24-e5f4b5b7ba5b",
+    "field": "name",
+    "updatedAt": "2026-01-03T12:07:44.659Z",
+    "source": "import"
+  },
+  {
+    "productId": "8df3c263-36ff-4a2a-bc24-e5f4b5b7ba5b",
+    "field": "price",
+    "updatedAt": "2026-01-03T12:07:44.659Z",
+    "source": "import"
+  },
+  {
+    "productId": "8df3c263-36ff-4a2a-bc24-e5f4b5b7ba5b",
+    "field": "purchaseprice",
+    "updatedAt": "2026-01-03T12:07:44.659Z",
+    "source": "import"
+  },
+  {
+    "productId": "8df3c263-36ff-4a2a-bc24-e5f4b5b7ba5b",
+    "field": "stockquantity",
+    "updatedAt": "2026-01-03T12:07:44.659Z",
+    "source": "import"
+  },
+  {
+    "productId": "8df3c263-36ff-4a2a-bc24-e5f4b5b7ba5b",
+    "field": "expirydate",
+    "updatedAt": "2026-01-03T12:07:44.659Z",
+    "source": "import"
+  },
+  {
+    "productId": "8df3c263-36ff-4a2a-bc24-e5f4b5b7ba5b",
+    "field": "category",
+    "updatedAt": "2026-01-03T12:07:44.659Z",
+    "source": "import"
+  },
+  {
+    "productId": "8df3c263-36ff-4a2a-bc24-e5f4b5b7ba5b",
+    "field": "description",
+    "updatedAt": "2026-01-03T12:07:44.659Z",
+    "source": "import"
+  },
+  {
+    "productId": "8df3c263-36ff-4a2a-bc24-e5f4b5b7ba5b",
+    "field": "packsize",
+    "updatedAt": "2026-01-03T12:07:44.659Z",
+    "source": "import"
+  },
+  {
+    "productId": "8df3c263-36ff-4a2a-bc24-e5f4b5b7ba5b",
+    "field": "barcode",
+    "updatedAt": "2026-01-03T12:07:44.659Z",
+    "source": "import"
+  },
+  {
+    "productId": "526cddad-7a0d-43d6-8e71-5aacae056fd3",
+    "field": "stockquantity",
+    "updatedAt": "2026-01-03T12:07:44.672Z",
+    "source": "import"
+  },
+  {
+    "productId": "4818f639-7e57-4135-ad49-b26b31d286f1",
+    "field": "name",
+    "updatedAt": "2026-01-03T12:07:44.710Z",
+    "source": "import"
+  },
+  {
+    "productId": "4818f639-7e57-4135-ad49-b26b31d286f1",
+    "field": "price",
+    "updatedAt": "2026-01-03T12:07:44.710Z",
+    "source": "import"
+  },
+  {
+    "productId": "4818f639-7e57-4135-ad49-b26b31d286f1",
+    "field": "purchaseprice",
+    "updatedAt": "2026-01-03T12:07:44.710Z",
+    "source": "import"
+  },
+  {
+    "productId": "4818f639-7e57-4135-ad49-b26b31d286f1",
+    "field": "stockquantity",
+    "updatedAt": "2026-01-03T12:07:44.710Z",
+    "source": "import"
+  },
+  {
+    "productId": "4818f639-7e57-4135-ad49-b26b31d286f1",
+    "field": "expirydate",
+    "updatedAt": "2026-01-03T12:07:44.710Z",
+    "source": "import"
+  },
+  {
+    "productId": "4818f639-7e57-4135-ad49-b26b31d286f1",
+    "field": "category",
+    "updatedAt": "2026-01-03T12:07:44.710Z",
+    "source": "import"
+  },
+  {
+    "productId": "4818f639-7e57-4135-ad49-b26b31d286f1",
+    "field": "description",
+    "updatedAt": "2026-01-03T12:07:44.710Z",
+    "source": "import"
+  },
+  {
+    "productId": "4818f639-7e57-4135-ad49-b26b31d286f1",
+    "field": "packsize",
+    "updatedAt": "2026-01-03T12:07:44.710Z",
+    "source": "import"
+  },
+  {
+    "productId": "4818f639-7e57-4135-ad49-b26b31d286f1",
+    "field": "barcode",
+    "updatedAt": "2026-01-03T12:07:44.710Z",
+    "source": "import"
   }
 ]
