@@ -50,7 +50,18 @@ export function createApp() {
   app.use(morgan("common"));
   app.use(bodyParser.json());
   app.use(bodyParser.urlencoded({ extended: false }));
-  app.use(cors());
+  
+  const allowedOrigins = (process.env.CORS_ORIGIN || "*").split(",").map(origin => origin.trim());
+  app.use(cors({
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    credentials: true,
+  }));
 
   // Rate limiter; configurable via env
   const ipFromReq = (req: any): string => {
@@ -85,23 +96,30 @@ export function createApp() {
   // Static files
   app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
 
-  // Routes
-  app.use("/auth", authRoutes);
-  app.use("/dashboard", dashboardRoutes);
-  app.use("/products", productRoutes);
-  app.use("/users", userRoutes);
-  app.use("/expenses", expenseRoutes);
-  app.use("/notifications", notificationRoutes);
-  app.use("/customers", customerRoutes);
-  app.use("/reports", reportRoutes);
-  app.use("/settings", require("./routes/settingsRoutes").default);
-  app.use("/store-sales", storeSalesRoutes);
-  app.use("/stores", storesRoutes);
-  app.use("/purchases", purchasesRoutes);
-  app.use("/invoices", invoiceRoutes);
-  app.use("/sales-agents", salesAgentRoutes);
-  app.use("/locations", locationRoutes);
-  app.use("/contact", contactRoutes);
+  // Routes - API v1
+  const apiRouter = express.Router();
+  apiRouter.use("/auth", authRoutes);
+  apiRouter.use("/dashboard", dashboardRoutes);
+  apiRouter.use("/products", productRoutes);
+  apiRouter.use("/users", userRoutes);
+  apiRouter.use("/expenses", expenseRoutes);
+  apiRouter.use("/notifications", notificationRoutes);
+  apiRouter.use("/customers", customerRoutes);
+  apiRouter.use("/reports", reportRoutes);
+  apiRouter.use("/settings", require("./routes/settingsRoutes").default);
+  apiRouter.use("/store-sales", storeSalesRoutes);
+  apiRouter.use("/stores", storesRoutes);
+  apiRouter.use("/purchases", purchasesRoutes);
+  apiRouter.use("/invoices", invoiceRoutes);
+  apiRouter.use("/sales-agents", salesAgentRoutes);
+  apiRouter.use("/locations", locationRoutes);
+  apiRouter.use("/contact", contactRoutes);
+
+  // Mount API v1
+  app.use("/api/v1", apiRouter);
+
+  // Legacy support (optional, can be removed later)
+  app.use("/", apiRouter);
 
   return app;
 }
