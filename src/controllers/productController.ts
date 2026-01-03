@@ -1384,8 +1384,14 @@ export const importProducts = async (
           },
         });
         for (let i = 1; i < arr.length; i++) {
-          await prisma.products.delete({ where: { productId: arr[i].productId } });
-          dedupedCount += 1;
+          try {
+            await prisma.products.delete({ where: { productId: arr[i].productId } });
+            dedupedCount += 1;
+          } catch (deleteErr: any) {
+            // Ignore deletion errors (likely foreign key constraints from purchases/invoices)
+            // Just skip deleting this duplicate; it will remain as a legacy entry
+            console.warn(`Failed to delete duplicate product ${arr[i].productId}: ${deleteErr.message}`);
+          }
         }
       }
 
