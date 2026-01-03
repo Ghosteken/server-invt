@@ -154,8 +154,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       },
     });
   } catch (error) {
-    console.error("Login error:", error);
-    res.status(500).json({ message: "Error during login" });
+    console.error("Login error details:", error instanceof Error ? error.message : error);
+    if (error instanceof Error && error.stack) {
+      console.error("Login error stack:", error.stack);
+    }
+    res.status(500).json({ message: "Error during login", error: error instanceof Error ? error.message : String(error) });
   }
 };
 

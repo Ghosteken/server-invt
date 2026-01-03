@@ -54,9 +54,11 @@ export function createApp() {
   const allowedOrigins = (process.env.CORS_ORIGIN || "*").split(",").map(origin => origin.trim());
   app.use(cors({
     origin: (origin, callback) => {
+      console.log(`Express CORS Check: Origin=${origin}, Allowed=${JSON.stringify(allowedOrigins)}`);
       if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
+        console.error(`Express CORS Blocked: Origin=${origin}`);
         callback(new Error("Not allowed by CORS"));
       }
     },
