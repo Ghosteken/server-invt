@@ -41,10 +41,20 @@ import YAML from "yamljs";
 dotenv.config();
 const app = express();
 const httpServer = createServer(app);
+
+const allowedOrigins = (process.env.CORS_ORIGIN || "*").split(",").map(origin => origin.trim());
+
 const io = new Server(httpServer, {
   cors: {
-    origin: "*", // Adjust in production
-    methods: ["GET", "POST"]
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error("Not allowed by CORS"));
+      }
+    },
+    methods: ["GET", "POST"],
+    credentials: true
   }
 });
 app.set("io", io);
@@ -73,7 +83,16 @@ if ((process.env.NODE_ENV || "").toLowerCase() === "production") {
 app.use(morgan("common"));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: false }));
-app.use(cors());
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,
+}));
 
 // Resolve tenant for isolation: prefer 'x-tenant-id' header; else derive from JWT if present
 app.use((req, _res, next) => {
@@ -119,24 +138,34 @@ app.use((req, res, next) => {
 app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
 
 /* ROUTES */
-app.use("/auth", authRoutes); // http://localhost:8000/auth
-app.use("/dashboard", dashboardRoutes); // http://localhost:8000/dashboard
-app.use("/products", productRoutes); // http://localhost:8000/products
-app.use("/users", userRoutes); // http://localhost:8000/users
-app.use("/expenses", expenseRoutes); // http://localhost:8000/expenses
-app.use("/notifications", notificationRoutes); // http://localhost:8000/notifications
-app.use("/customers", customerRoutes); // http://localhost:8000/customers
-app.use("/reports", reportRoutes); // http://localhost:8000/reports
-app.use("/settings", settingsRoutes); // http://localhost:8000/settings
-app.use("/store-sales", storeSalesRoutes); // http://localhost:8000/store-sales
-app.use("/stores", storesRoutes); // http://localhost:8000/stores
-app.use("/invoices", invoiceRoutes); // http://localhost:8000/invoices
-app.use("/purchases", purchasesRoutes); // http://localhost:8000/purchases
-app.use("/sales-agents", salesAgentRoutes); // http://localhost:8000/sales-agents
-app.use("/locations", locationRoutes); // http://localhost:8000/locations
-app.use("/contact", contactRoutes); // http://localhost:8000/contact
-app.use("/super-admin", superAdminRoutes); // http://localhost:8000/super-admin
-app.use("/ai", aiRoutes); // http://localhost:8000/ai
+const apiRouter = express.Router();
+apiRouter.use("/auth", authRoutes);
+apiRouter.use("/dashboard", dashboardRoutes);
+apiRouter.use("/products", productRoutes);
+apiRouter.use("/users", userRoutes);
+apiRouter.use("/expenses", expenseRoutes);
+apiRouter.use("/notifications", notificationRoutes);
+apiRouter.use("/customers", customerRoutes);
+apiRouter.use("/reports", reportRoutes);
+apiRouter.use("/settings", settingsRoutes);
+apiRouter.use("/store-sales", storeSalesRoutes);
+apiRouter.use("/stores", storesRoutes);
+apiRouter.use("/invoices", invoiceRoutes);
+apiRouter.use("/purchases", purchasesRoutes);
+apiRouter.use("/sales-agents", salesAgentRoutes);
+apiRouter.use("/locations", locationRoutes);
+apiRouter.use("/contact", contactRoutes);
+apiRouter.use("/super-admin", superAdminRoutes);
+apiRouter.use("/ai", aiRoutes);
+
+// Mount API v1
+app.use("/api/v1", apiRouter);
+
+// Fallback for /api prefix (common default)
+app.use("/api", apiRouter);
+
+// Legacy support (optional, can be removed later)
+app.use("/", apiRouter);
 
 try {
   const swaggerDocument = YAML.load(path.join(__dirname, "swagger/swagger.yaml"));

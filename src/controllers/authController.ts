@@ -7,8 +7,10 @@ import { readFlags } from "../services/featureFlagsService";
 
 // Use shared Prisma client
 // Load JWT secret from environment (server/index.ts calls dotenv.config()).
-// Fallback kept for local/dev convenience but you should set JWT_SECRET in production.
-const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error("JWT_SECRET environment variable is not defined");
+}
 const ALL_FEATURES = [
   "reports",
   "storeSales",
