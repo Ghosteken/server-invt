@@ -3,7 +3,7 @@ import prisma from "../db/prisma";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
-import { readFlags } from "../services/featureFlagsService";
+import { readFlags, writeFlags } from "../services/featureFlagsService";
 
 // Use shared Prisma client
 // Load JWT secret from environment (server/index.ts calls dotenv.config()).
@@ -446,6 +446,18 @@ export const signupOrg = async (req: Request, res: Response): Promise<void> => {
     const newOrgAdmin = await prisma.orgAdmins.findFirst({ where: { email: normalizedEmail, orgId } });
     
     if (!newOrgAdmin) throw new Error("Failed to retrieve created admin");
+
+    // Lock AI features by default for new org admins
+    const allFeaturesExceptAI = ALL_FEATURES.filter(
+      f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection"
+    );
+    await writeFlags(
+      { 
+        [newOrgAdmin.id]: allFeaturesExceptAI,
+        "__allowed__": allFeaturesExceptAI
+      },
+      orgId
+    );
 
     const token = jwt.sign(
       { userId: newOrgAdmin.id, email: newOrgAdmin.email, role: "org_admin", tenantId: orgId },

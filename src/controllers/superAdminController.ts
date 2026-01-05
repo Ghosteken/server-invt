@@ -91,7 +91,35 @@ export const createOrg = async (req: Request, res: Response): Promise<void> => {
     try {
       const existingAdmin = await prisma.orgAdmins.findFirst({ where: { orgId, email: adminEmail } });
       if (!existingAdmin) {
-        await prisma.orgAdmins.create({ data: { id: randomUUID(), orgId, name: "Admin", email: adminEmail, passwordHash } });
+        const newAdmin = await prisma.orgAdmins.create({ data: { id: randomUUID(), orgId, name: "Admin", email: adminEmail, passwordHash } });
+        // Lock AI features by default for new org admins
+        const ALL_FEATURES = [
+          "reports",
+          "storeSales",
+          "inventory",
+          "productTracker",
+          "products",
+          "customers",
+          "invoices",
+          "expenses",
+          "expenseApproval",
+          "salesAgents",
+          "purchases",
+          "customerGroups",
+          "logistics",
+          "purchasingAdvisor",
+          "expenseAnomalyDetection"
+        ];
+        const allFeaturesExceptAI = ALL_FEATURES.filter(
+          f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection"
+        );
+        await writeFlags(
+          { 
+            [newAdmin.id]: allFeaturesExceptAI,
+            "__allowed__": allFeaturesExceptAI
+          },
+          orgId
+        );
       }
       const existingUser = await prisma.users.findFirst({ where: { email: adminEmail, tenantId: orgId } });
       if (!existingUser) {
