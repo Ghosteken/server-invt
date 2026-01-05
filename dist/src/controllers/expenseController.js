@@ -41,6 +41,7 @@ const prisma_1 = __importDefault(require("../db/prisma"));
 const XLSX = __importStar(require("xlsx"));
 const crypto_1 = require("crypto");
 const notificationService_1 = require("../services/notificationService");
+const errorHandler_1 = require("../utils/errorHandler");
 // Use shared Prisma client
 const getExpensesByCategory = async (req, res) => {
     try {
@@ -57,8 +58,8 @@ const getExpensesByCategory = async (req, res) => {
         }));
         res.json(expenseByCategorySummary);
     }
-    catch (error) {
-        res.status(500).json({ message: "Error retrieving expenses by category" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "expense", "Error retrieving expenses by category"));
     }
 };
 exports.getExpensesByCategory = getExpensesByCategory;
@@ -94,7 +95,7 @@ const listExpenses = async (req, res) => {
         res.json({ expenses });
     }
     catch (err) {
-        res.status(500).json({ message: "Error retrieving expenses" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "expense", "Error retrieving expenses"));
     }
 };
 exports.listExpenses = listExpenses;
@@ -115,7 +116,7 @@ const createExpense = async (req, res) => {
             return;
         }
         const created = await prisma_1.default.expenses.create({ data: { expenseId: (0, crypto_1.randomUUID)(), category, amount, timestamp: date, tenantId, status: "pending" } });
-        (0, notificationService_1.appendNotification)({ type: "expense", message: `Created expense '${name}' (${category}) ₦${amount.toLocaleString("en")}` });
+        // appendNotification({ type: "expense", message: `Created expense '${name}' (${category}) ₦${amount.toLocaleString("en")}` });
         // Emit socket event
         const io = req.app.get("io");
         if (io) {
@@ -124,7 +125,7 @@ const createExpense = async (req, res) => {
         res.status(201).json({ expense: { id: created.expenseId, category, name, amount, date: date.toISOString().slice(0, 10), status: "pending" } });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to create expense" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "expense", "Failed to create expense"));
     }
 };
 exports.createExpense = createExpense;
@@ -164,7 +165,7 @@ const updateExpenseController = async (req, res) => {
         res.json({ expense: { id: next.expenseId, category: next.category, name: next.category, amount: next.amount, date: next.timestamp.toISOString().slice(0, 10), status: next.status } });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to update expense" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "expense", "Failed to update expense"));
     }
 };
 exports.updateExpenseController = updateExpenseController;
@@ -195,7 +196,7 @@ const deleteExpenseController = async (req, res) => {
         res.json({ success: true });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to delete expense" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "expense", "Failed to delete expense"));
     }
 };
 exports.deleteExpenseController = deleteExpenseController;
@@ -238,7 +239,7 @@ const approveExpense = async (req, res) => {
         res.json({ expense: { id, status: "approved" } });
     }
     catch {
-        res.status(500).json({ message: "Failed to approve expense" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(null, "expense", "Failed to approve expense"));
     }
 };
 exports.approveExpense = approveExpense;
@@ -281,7 +282,7 @@ const rejectExpense = async (req, res) => {
         res.json({ expense: { id, status: "rejected" } });
     }
     catch {
-        res.status(500).json({ message: "Failed to reject expense" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(null, "expense", "Failed to reject expense"));
     }
 };
 exports.rejectExpense = rejectExpense;
@@ -324,7 +325,7 @@ const revokeExpense = async (req, res) => {
         res.json({ expense: { id, status: "pending" } });
     }
     catch {
-        res.status(500).json({ message: "Failed to revoke expense" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(null, "expense", "Failed to revoke expense"));
     }
 };
 exports.revokeExpense = revokeExpense;
@@ -340,7 +341,7 @@ const getExpenseCategories = async (_req, res) => {
         res.json({ categories });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to load expense categories" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "expense", "Failed to load expense categories"));
     }
 };
 exports.getExpenseCategories = getExpenseCategories;
@@ -369,7 +370,7 @@ const createExpenseCategory = async (req, res) => {
         res.status(201).json({ category });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to create expense category" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "expense", "Failed to create expense category"));
     }
 };
 exports.createExpenseCategory = createExpenseCategory;
@@ -428,9 +429,8 @@ const importExpenseCategories = async (req, res) => {
         }
         res.json({ importedCategories: unique.length });
     }
-    catch (error) {
-        console.error("importExpenseCategories error:", error);
-        res.status(500).json({ message: "Failed to import expense categories" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "expense", "Failed to import expense categories"));
     }
 };
 exports.importExpenseCategories = importExpenseCategories;

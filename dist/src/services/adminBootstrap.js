@@ -8,6 +8,7 @@ exports.syncOrgAdminsToUsers = syncOrgAdminsToUsers;
 const client_1 = require("@prisma/client");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const node_crypto_1 = require("node:crypto");
+const featureFlagsService_1 = require("./featureFlagsService");
 // Ensure an admin user exists and matches configured credentials.
 // Call this on server startup to keep admin in sync with environment.
 async function ensureAdminUser() {
@@ -25,7 +26,7 @@ async function ensureAdminUser() {
         const existing = await prisma.users.findFirst({ where: { email: adminEmail } });
         const hashedPassword = bcryptjs_1.default.hashSync(String(adminPassword), 10);
         if (!existing) {
-            await prisma.users.create({
+            const newAdmin = await prisma.users.create({
                 data: {
                     userId: (0, node_crypto_1.randomUUID)(),
                     name: "Admin User",
@@ -34,6 +35,29 @@ async function ensureAdminUser() {
                     role: "admin",
                 },
             });
+            // Lock AI features by default for bootstrap admin
+            const ALL_FEATURES = [
+                "reports",
+                "storeSales",
+                "inventory",
+                "productTracker",
+                "products",
+                "customers",
+                "invoices",
+                "expenses",
+                "expenseApproval",
+                "salesAgents",
+                "purchases",
+                "customerGroups",
+                "logistics",
+                "purchasingAdvisor",
+                "expenseAnomalyDetection"
+            ];
+            const allFeaturesExceptAI = ALL_FEATURES.filter(f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection");
+            await (0, featureFlagsService_1.writeFlags)({
+                [newAdmin.userId]: allFeaturesExceptAI,
+                "__allowed__": allFeaturesExceptAI
+            }, "default");
             console.log(`adminBootstrap: created admin ${adminEmail}`);
         }
         else {

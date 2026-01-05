@@ -5,10 +5,10 @@ import { authenticateToken } from "../middleware/authMiddleware";
 
 const router = Router();
 
-router.get("/", getCustomers);
-router.post("/", createCustomer);
-router.put("/:id", updateCustomer);
-router.delete("/:id", deleteCustomer);
+router.get("/", authenticateToken, getCustomers);
+router.post("/", authenticateToken, createCustomer);
+router.put("/:id", authenticateToken, updateCustomer);
+router.delete("/:id", authenticateToken, deleteCustomer);
 const upload = multer({ storage: multer.memoryStorage() });
 router.post("/import", authenticateToken, upload.single("file"), importCustomers);
 router.post("/import/sample", authenticateToken, importCustomersSample);

@@ -1,10 +1,14 @@
 import { Request, Response, NextFunction } from "express";
 import jwt from "jsonwebtoken";
 
-// Load JWT secret from environment (server/index.ts calls dotenv.config()).
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  throw new Error("JWT_SECRET environment variable is not defined");
+// Load JWT secret from environment dynamically (not at module load time)
+// This allows tests to set JWT_SECRET before importing the middleware
+function getJwtSecret(): string {
+  const JWT_SECRET = process.env.JWT_SECRET;
+  if (!JWT_SECRET) {
+    throw new Error("JWT_SECRET environment variable is not defined");
+  }
+  return JWT_SECRET;
 }
 
 // Extend Express Request type to include user
@@ -35,6 +39,7 @@ export const authenticateToken = (
   }
 
   try {
+    const JWT_SECRET = getJwtSecret();
     const decoded = jwt.verify(token, JWT_SECRET) as {
       userId: string;
       email: string;

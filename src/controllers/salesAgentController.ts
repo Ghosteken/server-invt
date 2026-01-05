@@ -99,8 +99,9 @@ export const getAgentInvoices = async (req: Request, res: Response): Promise<voi
     if (!id) { res.status(400).json({ message: "Agent id is required" }); return; }
     const from = req.query.from ? new Date(String(req.query.from)) : undefined;
     const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
 
-    const agent = await prisma.salesAgents.findUnique({ where: { id } });
+    const agent = await prisma.salesAgents.findFirst({ where: { id, tenantId } });
     if (!agent) { res.status(404).json({ message: "Sales agent not found" }); return; }
 
     const dateWhere: any = {};
@@ -121,12 +122,12 @@ export const getAgentInvoices = async (req: Request, res: Response): Promise<voi
 
     // Hydrate customer names
     const customerIds = Array.from(new Set(invoices.map((i: any) => i.customerId))).filter(Boolean);
-    const customers = customerIds.length ? await prisma.customers.findMany({ where: { customerId: { in: customerIds } } }) : [];
+    const customers = customerIds.length ? await prisma.customers.findMany({ where: { customerId: { in: customerIds }, tenantId } }) : [];
     const customerMap = new Map<string, string>(customers.map((c: any) => [c.customerId, c.name] as const));
 
     // Hydrate invoice numbers from meta store
     const invoiceIds = invoices.map((inv: any) => inv.invoiceId);
-    const metas = invoiceIds.length ? await prisma.invoiceMeta.findMany({ where: { invoiceId: { in: invoiceIds } } }) : [];
+    const metas = invoiceIds.length ? await prisma.invoiceMeta.findMany({ where: { invoiceId: { in: invoiceIds }, tenantId } }) : [];
     const metaMap = new Map<string, string | null>(metas.map((m: any) => [m.invoiceId, m.invoiceNumber ?? null] as const));
 
     const list = invoices.map((inv: any) => ({

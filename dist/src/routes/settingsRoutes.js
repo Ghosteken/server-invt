@@ -28,6 +28,8 @@ const ALL_FEATURES = [
     "purchases",
     "customerGroups",
     "logistics",
+    "purchasingAdvisor",
+    "expenseAnomalyDetection",
 ];
 // Set features by email for convenience in admin UI
 router.put("/features/by-email", async (req, res) => {

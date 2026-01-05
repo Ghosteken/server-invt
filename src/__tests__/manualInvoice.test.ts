@@ -52,8 +52,8 @@ describe("POST /products/invoice/manual", () => {
     prismaMock.customers.findFirst.mockResolvedValueOnce(null);
     prismaMock.customers.create.mockResolvedValueOnce({ customerId: "c1", name: "Alice" });
 
-    // Products
-    prismaMock.products.findUnique.mockResolvedValueOnce({ productId: "p1", name: "Nutella", price: 50, stockQuantity: 20 });
+    // Products - changed from findUnique to findFirst to match security fix
+    prismaMock.products.findFirst.mockResolvedValueOnce({ productId: "p1", name: "Nutella", price: 50, stockQuantity: 20 });
     prismaMock.products.update.mockResolvedValueOnce({ productId: "p1", stockQuantity: 18 });
 
     prismaMock.customerPurchases.create.mockResolvedValueOnce({ id: "cp1" });
@@ -65,7 +65,7 @@ describe("POST /products/invoice/manual", () => {
       ],
     };
 
-    const req = { body: payload, user: { userId: "tester" } } as any;
+    const req = { body: payload, user: { userId: "tester", tenantId: "default" }, tenantId: "default" } as any;
     const res: any = {
       statusCode: 200,
       body: null,
@@ -122,7 +122,7 @@ describe("POST /products/invoice/manual", () => {
       ],
     };
 
-    const req = { body: payload, user: { userId: "tester" } } as any;
+    const req = { body: payload, user: { userId: "tester", tenantId: "default" }, tenantId: "default" } as any;
     const res: any = {
       statusCode: 200,
       body: null,

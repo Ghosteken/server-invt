@@ -4,4 +4,5 @@ const express_1 = require("express");
 const aiController_1 = require("../controllers/aiController");
 const router = (0, express_1.Router)();
 router.post("/purchasing-advisor", aiController_1.getPurchasingAdvisorAnalysis);
+router.get("/expense-anomalies", aiController_1.getExpenseAnomalies);
 exports.default = router;

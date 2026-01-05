@@ -6,8 +6,10 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireAdmin = exports.authenticateToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 // Load JWT secret from environment (server/index.ts calls dotenv.config()).
-// Fallback kept for local/dev convenience but you should set JWT_SECRET in production.
-const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error("JWT_SECRET environment variable is not defined");
+}
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
     const token = authHeader && authHeader.split(" ")[1];

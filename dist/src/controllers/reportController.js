@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPurchasesReport = exports.getFinancialReport = exports.getSalesReport = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
+const errorHandler_1 = require("../utils/errorHandler");
 const getSalesReport = async (req, res) => {
     try {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
@@ -58,8 +59,7 @@ const getSalesReport = async (req, res) => {
         res.json({ total, count: items.length, items, daily });
     }
     catch (err) {
-        console.error("getSalesReport error:", err);
-        res.status(500).json({ message: "Failed to load sales report" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "Failed to load sales report"));
     }
 };
 exports.getSalesReport = getSalesReport;
@@ -133,8 +133,7 @@ const getFinancialReport = async (req, res) => {
         res.json({ salesTotal, purchasesTotal, expensesTotal, net, from: fromRaw || null, to: toRaw || null, salesItems, purchaseItems, expenseItems });
     }
     catch (err) {
-        console.error("getFinancialReport error:", err);
-        res.status(500).json({ message: "Failed to load financial report" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "Failed to load financial report"));
     }
 };
 exports.getFinancialReport = getFinancialReport;
@@ -188,8 +187,7 @@ const getPurchasesReport = async (req, res) => {
         res.json({ total, count: items.length, items, daily });
     }
     catch (err) {
-        console.error("getPurchasesReport error:", err);
-        res.status(500).json({ message: "Failed to load purchases report" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "Failed to load purchases report"));
     }
 };
 exports.getPurchasesReport = getPurchasesReport;

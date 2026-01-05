@@ -43,6 +43,7 @@ const crypto_1 = require("crypto");
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const storeService_1 = require("../services/storeService");
+const errorHandler_1 = require("../utils/errorHandler");
 // Use shared Prisma client
 const getCustomers = async (req, res) => {
     try {
@@ -84,9 +85,8 @@ const getCustomers = async (req, res) => {
         }));
         res.json(result);
     }
-    catch (error) {
-        console.error("getCustomers error:", error);
-        res.status(500).json({ message: "Error retrieving customers" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Error retrieving customers"));
     }
 };
 exports.getCustomers = getCustomers;
@@ -95,21 +95,16 @@ const deleteCustomerPurchase = async (req, res) => {
     try {
         const { id } = req.params;
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        const existing = await prisma_1.default.customerPurchases.findUnique({ where: { id } });
+        const existing = await prisma_1.default.customerPurchases.findFirst({ where: { id, tenantId } });
         if (!existing) {
-            res.status(404).json({ message: "Customer purchase not found" });
-            return;
-        }
-        if (existing.tenantId !== tenantId) {
             res.status(404).json({ message: "Customer purchase not found" });
             return;
         }
         await prisma_1.default.customerPurchases.delete({ where: { id } });
         res.json({ success: true });
     }
-    catch (error) {
-        console.error("deleteCustomerPurchase error:", error);
-        res.status(500).json({ message: "Failed to delete customer purchase" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Failed to delete customer purchase"));
     }
 };
 exports.deleteCustomerPurchase = deleteCustomerPurchase;
@@ -159,9 +154,8 @@ const createCustomer = async (req, res) => {
             purchases: [],
         });
     }
-    catch (error) {
-        console.error("createCustomer error:", error);
-        res.status(500).json({ message: "Failed to create customer" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Failed to create customer"));
     }
 };
 exports.createCustomer = createCustomer;
@@ -171,9 +165,8 @@ const purgeCustomerPurchases = async (req, res) => {
         const result = await prisma_1.default.customerPurchases.deleteMany({ where: { tenantId } });
         res.json({ message: "Purged customer purchases", deletedCount: result.count });
     }
-    catch (error) {
-        console.error("purgeCustomerPurchases error:", error);
-        res.status(500).json({ message: "Error purging customer purchases" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Error purging customer purchases"));
     }
 };
 exports.purgeCustomerPurchases = purgeCustomerPurchases;
@@ -240,9 +233,8 @@ const updateCustomer = async (req, res) => {
             purchases: [], // client will refetch list
         });
     }
-    catch (error) {
-        console.error("updateCustomer error:", error);
-        res.status(500).json({ message: "Failed to update customer" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Failed to update customer"));
     }
 };
 exports.updateCustomer = updateCustomer;
@@ -261,9 +253,8 @@ const deleteCustomer = async (req, res) => {
         await prisma_1.default.customers.delete({ where: { customerId: id } });
         res.json({ success: true });
     }
-    catch (error) {
-        console.error("deleteCustomer error:", error);
-        res.status(500).json({ message: "Failed to delete customer" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Failed to delete customer"));
     }
 };
 exports.deleteCustomer = deleteCustomer;
@@ -440,9 +431,8 @@ const importCustomers = async (req, res) => {
         }
         res.json({ created, updated, skippedExisting, skippedDuplicateInFile });
     }
-    catch (error) {
-        console.error("importCustomers error:", error);
-        res.status(500).json({ message: "Failed to import customers" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Failed to import customers"));
     }
 };
 exports.importCustomers = importCustomers;
@@ -515,9 +505,8 @@ const importCustomersSample = async (req, res) => {
         }
         res.json({ created, updated, skippedExisting, skippedDuplicateInFile });
     }
-    catch (error) {
-        console.error("importCustomersSample error:", error);
-        res.status(500).json({ message: "Failed to import customers from sample" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Failed to import customers from sample"));
     }
 };
 exports.importCustomersSample = importCustomersSample;
@@ -566,9 +555,8 @@ const exportCustomersExcel = async (req, res) => {
         res.setHeader("Content-Disposition", "attachment; filename=customers.xlsx");
         res.status(200).send(buf);
     }
-    catch (error) {
-        console.error("exportCustomersExcel error:", error);
-        res.status(500).json({ message: "Failed to export customers as Excel" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Failed to export customers as Excel"));
     }
 };
 exports.exportCustomersExcel = exportCustomersExcel;
@@ -585,7 +573,7 @@ const getCustomerGroups = async (req, res) => {
         res.json({ groups });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to load customer groups" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Failed to load customer groups"));
     }
 };
 exports.getCustomerGroups = getCustomerGroups;
@@ -607,7 +595,7 @@ const createCustomerGroup = async (req, res) => {
         res.status(201).json(created);
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to create customer group" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Failed to create customer group"));
     }
 };
 exports.createCustomerGroup = createCustomerGroup;
@@ -626,7 +614,7 @@ const updateCustomerGroup = async (req, res) => {
         res.json(updated);
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to update customer group" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Failed to update customer group"));
     }
 };
 exports.updateCustomerGroup = updateCustomerGroup;
@@ -643,7 +631,7 @@ const deleteCustomerGroup = async (req, res) => {
         res.json({ success: true });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to delete customer group" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Failed to delete customer group"));
     }
 };
 exports.deleteCustomerGroup = deleteCustomerGroup;
@@ -674,7 +662,7 @@ const addCustomerToGroup = async (req, res) => {
         res.json(updated);
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to add customer to group" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Failed to add customer to group"));
     }
 };
 exports.addCustomerToGroup = addCustomerToGroup;
@@ -700,7 +688,7 @@ const removeCustomerFromGroup = async (req, res) => {
         res.json(updated);
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to remove customer from group" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Failed to remove customer from group"));
     }
 };
 exports.removeCustomerFromGroup = removeCustomerFromGroup;

@@ -7,6 +7,7 @@ exports.deleteLocation = exports.updateLocation = exports.createLocation = expor
 const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../db/prisma"));
 const notificationService_1 = require("../services/notificationService");
+const errorHandler_1 = require("../utils/errorHandler");
 const getLocations = async (_req, res) => {
     try {
         const reqAny = _req;
@@ -16,8 +17,7 @@ const getLocations = async (_req, res) => {
         res.json({ locations: locations.map((l) => ({ id: l.id, name: l.name })) });
     }
     catch (err) {
-        console.error("getLocations error:", err);
-        res.status(500).json({ message: "Failed to load locations" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "location", "Failed to load locations"));
     }
 };
 exports.getLocations = getLocations;
@@ -44,7 +44,7 @@ const createLocation = async (req, res) => {
     catch (err) {
         console.error("createLocation error:", err);
         const msg = err?.code === 'P2002' ? 'Location name must be unique' : (err instanceof Error ? err.message : 'Failed to create location');
-        res.status(500).json({ message: msg });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "location", msg));
     }
 };
 exports.createLocation = createLocation;
@@ -71,7 +71,7 @@ const updateLocation = async (req, res) => {
     }
     catch (err) {
         const msg = err?.code === 'P2002' ? 'Location name must be unique' : (err instanceof Error ? err.message : 'Failed to update location');
-        res.status(500).json({ message: msg });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "location", msg));
     }
 };
 exports.updateLocation = updateLocation;
@@ -97,7 +97,7 @@ const deleteLocation = async (req, res) => {
         res.json({ success: true });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to delete location" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "location", "Failed to delete location"));
     }
 };
 exports.deleteLocation = deleteLocation;

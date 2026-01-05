@@ -143,12 +143,8 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
     const { userId } = req.params;
 
     const tenantId = req.tenantId || req.user?.tenantId || "default";
-    const target = await prisma.users.findUnique({ where: { userId } });
+    const target = await prisma.users.findFirst({ where: { userId, tenantId } });
     if (!target) {
-      res.status(404).json({ message: "User not found" });
-      return;
-    }
-    if (target.tenantId !== tenantId) {
       res.status(404).json({ message: "User not found" });
       return;
     }
@@ -205,12 +201,8 @@ export const blockUser = async (req: Request, res: Response): Promise<void> => {
   try {
     const { userId } = req.params;
     const tenantId = req.tenantId || req.user?.tenantId || "default";
-    const target = await prisma.users.findUnique({ where: { userId } });
+    const target = await prisma.users.findFirst({ where: { userId, tenantId } });
     if (!target) {
-      res.status(404).json({ message: "User not found" });
-      return;
-    }
-    if (target.tenantId !== tenantId) {
       res.status(404).json({ message: "User not found" });
       return;
     }
@@ -242,12 +234,8 @@ export const unblockUser = async (req: Request, res: Response): Promise<void> =>
   try {
     const { userId } = req.params;
     const tenantId = req.tenantId || req.user?.tenantId || "default";
-    const target = await prisma.users.findUnique({ where: { userId } });
+    const target = await prisma.users.findFirst({ where: { userId, tenantId } });
     if (!target) {
-      res.status(404).json({ message: "User not found" });
-      return;
-    }
-    if (target.tenantId !== tenantId) {
       res.status(404).json({ message: "User not found" });
       return;
     }
@@ -271,10 +259,9 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
   try {
     const { userId } = req.params as { userId: string };
     const Body = (req.body || {}) as { email?: string; password?: string };
-    const target = await prisma.users.findUnique({ where: { userId } });
-    if (!target) { res.status(404).json({ message: "User not found" }); return; }
     const tenantId = req.tenantId || req.user?.tenantId || "default";
-    if (target.tenantId !== tenantId) { res.status(404).json({ message: "User not found" }); return; }
+    const target = await prisma.users.findFirst({ where: { userId, tenantId } });
+    if (!target) { res.status(404).json({ message: "User not found" }); return; }
     const data: any = {};
     let newEmail: string | null = null;
     if (typeof Body.email === "string" && Body.email.trim()) {

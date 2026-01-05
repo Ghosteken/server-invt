@@ -45,6 +45,7 @@ const notificationService_1 = require("../services/notificationService");
 const supplierPurchasesService_1 = require("../services/supplierPurchasesService");
 const XLSX = __importStar(require("xlsx"));
 const multer_1 = __importDefault(require("multer"));
+const errorHandler_1 = require("../utils/errorHandler");
 exports.upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
 // GET /purchases - list all customer purchases with joined names
 // GET /purchases - list all procurement purchases (supplier-side)
@@ -70,7 +71,7 @@ const getPurchases = async (req, res) => {
             const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
             const products = await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
             const productMap = new Map(products.map((p) => [p.productId, p.name]));
-            const metaRows = await prisma_1.default.supplierPurchaseMeta.findMany({ where: { purchaseId: { in: purchases.map((p) => p.purchaseId) } } });
+            const metaRows = await prisma_1.default.supplierPurchaseMeta.findMany({ where: { purchaseId: { in: purchases.map((p) => p.purchaseId) }, tenantId } });
             const metaMap = new Map(metaRows.map((m) => [m.purchaseId, m]));
             const pageList = purchases.map((p) => ({
                 purchaseId: p.purchaseId,
@@ -88,8 +89,7 @@ const getPurchases = async (req, res) => {
         res.json({ purchases: list, total });
     }
     catch (err) {
-        console.error("getPurchases error:", err);
-        res.status(500).json({ message: "Failed to load purchases" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "purchase", "Failed to load purchases"));
     }
 };
 exports.getPurchases = getPurchases;
@@ -105,7 +105,8 @@ const deletePurchase = async (req, res) => {
         }
         // Reduce inventory based on stored unit meta (defaults to carton)
         try {
-            const metaRow = await prisma_1.default.supplierPurchaseMeta.findUnique({ where: { purchaseId: id } });
+            const tenantId = req.tenantId || req.user?.tenantId || "default";
+            const metaRow = await prisma_1.default.supplierPurchaseMeta.findFirst({ where: { purchaseId: id, tenantId } });
             const unit = (metaRow?.unit === "pcs" ? "pcs" : "ctn");
             const p = await prisma_1.default.products.findFirst({ where: { productId: existing.productId, tenantId } });
             if (p) {
@@ -131,14 +132,13 @@ const deletePurchase = async (req, res) => {
             io.emit("purchase:deleted", { purchaseId: id });
             io.emit("dashboard:refresh", { tenantId });
         }
-        catch (error) {
-            console.warn("Socket emission failed for deletePurchase", error);
+        catch (err) {
+            console.warn("Socket emission failed for deletePurchase", err);
         }
         res.json({ success: true });
     }
     catch (err) {
-        console.error("deletePurchase error:", err);
-        res.status(500).json({ message: "Failed to delete purchase" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "purchase", "Failed to delete purchase"));
     }
 };
 exports.deletePurchase = deletePurchase;
@@ -231,15 +231,15 @@ const createPurchase = async (req, res) => {
             }
             io.emit("dashboard:refresh", { tenantId });
         }
-        catch (error) {
-            console.warn("Socket emission failed for createPurchase", error);
+        catch (err) {
+            console.warn("Socket emission failed for createPurchase", err);
         }
         res.json({ success: true, purchases: created });
     }
     catch (err) {
         console.error("createPurchase error:", err);
         const msg = err instanceof Error ? err.message : "Failed to create purchase";
-        res.status(500).json({ message: msg });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "purchase", msg));
     }
 };
 exports.createPurchase = createPurchase;
@@ -247,8 +247,9 @@ exports.createPurchase = createPurchase;
 const addPurchasePayment = async (req, res) => {
     try {
         const { id } = req.params;
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         // Ensure the purchase exists
-        const existing = await prisma_1.default.purchases.findUnique({ where: { purchaseId: id } });
+        const existing = await prisma_1.default.purchases.findFirst({ where: { purchaseId: id, tenantId } });
         if (!existing) {
             res.status(404).json({ message: "Purchase not found" });
             return;
@@ -291,15 +292,15 @@ const addPurchasePayment = async (req, res) => {
                 io.emit("dashboard:refresh", { tenantId });
             }
         }
-        catch (error) {
-            console.warn("Socket emission failed for addPurchasePayment", error);
+        catch (err) {
+            console.warn("Socket emission failed for addPurchasePayment", err);
         }
         res.status(201).json({ payment });
     }
     catch (err) {
         console.error("addPurchasePayment error:", err);
         const msg = err instanceof Error ? err.message : "Failed to add payment";
-        res.status(500).json({ message: msg });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "purchase", msg));
     }
 };
 exports.addPurchasePayment = addPurchasePayment;
@@ -307,7 +308,8 @@ exports.addPurchasePayment = addPurchasePayment;
 const updatePurchaseMeta = async (req, res) => {
     try {
         const { id } = req.params;
-        const existing = await prisma_1.default.purchases.findUnique({ where: { purchaseId: id } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const existing = await prisma_1.default.purchases.findFirst({ where: { purchaseId: id, tenantId } });
         if (!existing) {
             res.status(404).json({ message: "Purchase not found" });
             return;
@@ -325,7 +327,7 @@ const updatePurchaseMeta = async (req, res) => {
     catch (err) {
         console.error("updatePurchaseMeta error:", err);
         const msg = err instanceof Error ? err.message : "Failed to update purchase meta";
-        res.status(500).json({ message: msg });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "purchase", msg));
     }
 };
 exports.updatePurchaseMeta = updatePurchaseMeta;
@@ -414,7 +416,7 @@ const updatePurchase = async (req, res) => {
     catch (err) {
         console.error("updatePurchase error:", err);
         const msg = err instanceof Error ? err.message : "Failed to update purchase";
-        res.status(500).json({ message: msg });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "purchase", msg));
     }
 };
 exports.updatePurchase = updatePurchase;
@@ -438,7 +440,7 @@ const getPurchasePrintOptions = async (req, res) => {
         });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to load print options" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "purchase", "Failed to load print options"));
     }
 };
 exports.getPurchasePrintOptions = getPurchasePrintOptions;
@@ -512,7 +514,7 @@ const importSuppliers = async (req, res) => {
         res.json({ importedSuppliers: out.length });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to import suppliers" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "purchase", "Failed to import suppliers"));
     }
 };
 exports.importSuppliers = importSuppliers;
@@ -545,7 +547,7 @@ const exportSuppliersExcel = async (req, res) => {
         res.status(200).send(buf);
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to export suppliers" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "purchase", "Failed to export suppliers"));
     }
 };
 exports.exportSuppliersExcel = exportSuppliersExcel;
@@ -570,7 +572,7 @@ const createSupplier = async (req, res) => {
         res.status(201).json({ supplier: { name, mobile } });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to create supplier" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "purchase", "Failed to create supplier"));
     }
 };
 exports.createSupplier = createSupplier;
@@ -580,8 +582,8 @@ const updateSupplier = async (req, res) => {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
         const id = String(req.params.id || "").trim();
         const changes = req.body || {};
-        const existing = await prisma_1.default.suppliers.findUnique({ where: { id } });
-        if (!existing || existing.tenantId !== tenantId) {
+        const existing = await prisma_1.default.suppliers.findFirst({ where: { id, tenantId } });
+        if (!existing) {
             res.status(404).json({ message: "Supplier not found" });
             return;
         }
@@ -595,7 +597,7 @@ const updateSupplier = async (req, res) => {
         res.json({ supplier: { id: next.id, name: next.name, mobile: next.mobile } });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to update supplier" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "purchase", "Failed to update supplier"));
     }
 };
 exports.updateSupplier = updateSupplier;
@@ -604,8 +606,8 @@ const deleteSupplier = async (req, res) => {
     try {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
         const id = String(req.params.id || "").trim();
-        const existing = await prisma_1.default.suppliers.findUnique({ where: { id } });
-        if (!existing || existing.tenantId !== tenantId) {
+        const existing = await prisma_1.default.suppliers.findFirst({ where: { id, tenantId } });
+        if (!existing) {
             res.status(404).json({ message: "Supplier not found" });
             return;
         }
@@ -613,7 +615,7 @@ const deleteSupplier = async (req, res) => {
         res.json({ success: true });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to delete supplier" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "purchase", "Failed to delete supplier"));
     }
 };
 exports.deleteSupplier = deleteSupplier;
