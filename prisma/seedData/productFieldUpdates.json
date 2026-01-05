@@ -35626,5 +35626,89 @@
     "field": "barcode",
     "updatedAt": "2026-01-03T12:07:44.710Z",
     "source": "import"
+  },
+  {
+    "productId": "7916fca2-6835-4149-be09-1031b211146e",
+    "field": "purchaseprice",
+    "updatedAt": "2026-01-05T11:59:42.001Z",
+    "source": "api"
+  },
+  {
+    "productId": "7916fca2-6835-4149-be09-1031b211146e",
+    "field": "expirydate",
+    "updatedAt": "2026-01-05T11:59:42.001Z",
+    "source": "api"
+  },
+  {
+    "productId": "7916fca2-6835-4149-be09-1031b211146e",
+    "field": "category",
+    "updatedAt": "2026-01-05T11:59:42.001Z",
+    "source": "api"
+  },
+  {
+    "productId": "fe8ad2cc-258a-4fe7-99f2-8ebfe0496530",
+    "field": "purchaseprice",
+    "updatedAt": "2026-01-05T12:00:56.673Z",
+    "source": "api"
+  },
+  {
+    "productId": "fe8ad2cc-258a-4fe7-99f2-8ebfe0496530",
+    "field": "expirydate",
+    "updatedAt": "2026-01-05T12:00:56.673Z",
+    "source": "api"
+  },
+  {
+    "productId": "fe8ad2cc-258a-4fe7-99f2-8ebfe0496530",
+    "field": "category",
+    "updatedAt": "2026-01-05T12:00:56.673Z",
+    "source": "api"
+  },
+  {
+    "productId": "69c3e5ac-ddcd-4643-938b-1d7cf35d8375",
+    "field": "purchaseprice",
+    "updatedAt": "2026-01-05T12:04:43.497Z",
+    "source": "api"
+  },
+  {
+    "productId": "69c3e5ac-ddcd-4643-938b-1d7cf35d8375",
+    "field": "expirydate",
+    "updatedAt": "2026-01-05T12:04:43.497Z",
+    "source": "api"
+  },
+  {
+    "productId": "69c3e5ac-ddcd-4643-938b-1d7cf35d8375",
+    "field": "category",
+    "updatedAt": "2026-01-05T12:04:43.497Z",
+    "source": "api"
+  },
+  {
+    "productId": "4df8715d-9599-43a3-a6a7-793b0e2967aa",
+    "field": "expirydate",
+    "updatedAt": "2026-01-05T12:09:32.638Z",
+    "source": "api"
+  },
+  {
+    "productId": "4df8715d-9599-43a3-a6a7-793b0e2967aa",
+    "field": "category",
+    "updatedAt": "2026-01-05T12:09:32.638Z",
+    "source": "api"
+  },
+  {
+    "productId": "d2f78960-4f6c-4ade-afb6-1b6b0bb4c522",
+    "field": "purchaseprice",
+    "updatedAt": "2026-01-05T12:15:00.020Z",
+    "source": "api"
+  },
+  {
+    "productId": "d2f78960-4f6c-4ade-afb6-1b6b0bb4c522",
+    "field": "expirydate",
+    "updatedAt": "2026-01-05T12:15:00.020Z",
+    "source": "api"
+  },
+  {
+    "productId": "d2f78960-4f6c-4ade-afb6-1b6b0bb4c522",
+    "field": "category",
+    "updatedAt": "2026-01-05T12:15:00.020Z",
+    "source": "api"
   }
 ]

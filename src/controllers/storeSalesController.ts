@@ -5,6 +5,7 @@ import * as XLSX from "xlsx";
 import { readStores, writeStores } from "../services/storeService";
 import fs from "node:fs";
 import path from "node:path";
+import { createErrorResponse } from "../utils/errorHandler";
 
 // Use shared Prisma client
 
@@ -148,8 +149,7 @@ export const getStores = async (req: Request, res: Response): Promise<void> => {
     }));
     res.json({ stores });
   } catch (err) {
-    console.error("getStores error:", err);
-    res.status(500).json({ message: "Failed to load stores" });
+    res.status(500).json(createErrorResponse(err, "store", "Failed to load stores"));
   }
 };
 
@@ -194,8 +194,7 @@ export const getStoreBranchSales = async (req: Request, res: Response): Promise<
 
     res.json({ sales });
   } catch (err) {
-    console.error("getStoreBranchSales error:", err);
-    res.status(500).json({ message: "Failed to load store branch sales" });
+    res.status(500).json(createErrorResponse(err, "store", "Failed to load store branch sales"));
   }
 };
 
@@ -234,8 +233,7 @@ export const importStoresBranches = async (req: Request, res: Response): Promise
     writeStores({ stores });
     res.json({ importedStores: stores.length });
   } catch (err) {
-    console.error("importStoresBranches error:", err);
-    res.status(500).json({ message: "Failed to import stores/branches" });
+    res.status(500).json(createErrorResponse(err, "store", "Failed to import stores/branches"));
   }
 };
 
@@ -289,7 +287,6 @@ export const importStoresBranchesSample = async (_req: Request, res: Response): 
       res.status(400).json({ message: "No stores parsed from sample" });
     }
   } catch (err) {
-    console.error("importStoresBranchesSample error:", err);
-    res.status(500).json({ message: "Failed to import stores/branches from sample" });
+    res.status(500).json(createErrorResponse(err, "store", "Failed to import stores/branches from sample"));
   }
 };

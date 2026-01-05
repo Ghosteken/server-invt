@@ -22,6 +22,7 @@ import invoiceRoutes from "./routes/invoiceRoutes";
 import salesAgentRoutes from "./routes/salesAgentRoutes";
 import locationRoutes from "./routes/locationRoutes";
 import contactRoutes from "./routes/contactRoutes";
+import { globalErrorHandler } from "./middleware/errorMiddleware";
 
 export function createApp() {
   dotenv.config();
@@ -89,7 +90,7 @@ export function createApp() {
     try {
       const safeBody = typeof req.body === 'object' ? JSON.stringify(req.body) : String(req.body);
       console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - body: ${safeBody}`);
-    } catch (e) {
+    } catch {
       console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - body: <unserializable>`);
     }
     next();
@@ -122,6 +123,9 @@ export function createApp() {
 
   // Legacy support (optional, can be removed later)
   app.use("/", apiRouter);
+
+  // Global error handler - MUST be after all routes
+  app.use(globalErrorHandler);
 
   return app;
 }

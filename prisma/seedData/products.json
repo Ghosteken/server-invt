@@ -882,6 +882,15 @@
     "barcode": null
   },
   {
+    "productId": "4df8715d-9599-43a3-a6a7-793b0e2967aa",
+    "name": "dd",
+    "price": 10,
+    "stockQuantity": 20,
+    "category": "clothes",
+    "packSize": null,
+    "barcode": null
+  },
+  {
     "productId": "83b9ad15-8310-4403-a881-8dd42e8e76d5",
     "name": "DESMOND 3 IN 1 OAT MILK",
     "price": 0,
@@ -1006,6 +1015,15 @@
     "category": " DRY DATE",
     "packSize": "24",
     "barcode": "6979750578364"
+  },
+  {
+    "productId": "d2f78960-4f6c-4ade-afb6-1b6b0bb4c522",
+    "name": "ds",
+    "price": 102,
+    "stockQuantity": 203,
+    "category": "clothese",
+    "packSize": null,
+    "barcode": null
   },
   {
     "productId": "a76d3b7a-58db-4b13-a870-3895ab22b409",
@@ -2133,6 +2151,24 @@
     "barcode": "603964010896"
   },
   {
+    "productId": "7916fca2-6835-4149-be09-1031b211146e",
+    "name": "socks",
+    "price": 110,
+    "stockQuantity": 500,
+    "category": "clothes",
+    "packSize": null,
+    "barcode": null
+  },
+  {
+    "productId": "fe8ad2cc-258a-4fe7-99f2-8ebfe0496530",
+    "name": "socks",
+    "price": 110,
+    "stockQuantity": 500,
+    "category": "clothes",
+    "packSize": null,
+    "barcode": null
+  },
+  {
     "productId": "dd97cf40-3793-4986-9f96-cb17cc6cd79b",
     "name": "SOFT DRINK REFOCUS PURDEYS 330ML",
     "price": 0,
@@ -2248,6 +2284,15 @@
     "category": "ALCHOHOLIC DRINK",
     "packSize": "24",
     "barcode": "6001240222737"
+  },
+  {
+    "productId": "69c3e5ac-ddcd-4643-938b-1d7cf35d8375",
+    "name": "ss",
+    "price": 10,
+    "stockQuantity": 440,
+    "category": "clothes",
+    "packSize": null,
+    "barcode": null
   },
   {
     "productId": "e3ba941e-c5b0-445e-b992-2cd37a433fa7",

@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { randomUUID } from "crypto";
 import { readFlags, writeFlags } from "../services/featureFlagsService";
+import { createErrorResponse } from "../utils/errorHandler";
 
 // Use shared Prisma client
 // Load JWT secret from environment (server/index.ts calls dotenv.config()).
@@ -82,9 +83,8 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         tenantId: newUser.tenantId,
       },
     });
-  } catch (error) {
-    console.error("Signup error:", error);
-    res.status(500).json({ message: "Error creating user" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, undefined, "Error creating user"));
   }
 };
 
@@ -153,12 +153,8 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         tenantId: user.tenantId,
       },
     });
-  } catch (error) {
-    console.error("Login error details:", error instanceof Error ? error.message : error);
-    if (error instanceof Error && error.stack) {
-      console.error("Login error stack:", error.stack);
-    }
-    res.status(500).json({ message: "Error during login", error: error instanceof Error ? error.message : String(error) });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, undefined, "Error during login"));
   }
 };
 
@@ -271,9 +267,8 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
       token,
       user: { userId: user.userId, name: user.name, email: user.email, role: user.role, tenantId },
     });
-  } catch (error) {
-    console.error("Admin login error:", error);
-    res.status(500).json({ message: "Error during admin login" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, undefined, "Error during admin login"));
   }
 };
 
@@ -333,7 +328,7 @@ export const verifyToken = async (req: Request, res: Response): Promise<void> =>
         tenantId: user.tenantId,
       },
     });
-  } catch (error) {
+  } catch (err) {
     res.status(401).json({ message: "Invalid token" });
   }
 };
@@ -371,8 +366,8 @@ export const orgAdminLogin = async (req: Request, res: Response): Promise<void> 
       { expiresIn: "24h" }
     );
     res.json({ message: "Login successful", token, user: { userId: admin.id, name: admin.name, email: admin.email, role: "org_admin" } });
-  } catch (error) {
-    res.status(500).json({ message: "Error during org admin login" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, undefined, "Error during org admin login"));
   }
 };
 
@@ -478,7 +473,6 @@ export const signupOrg = async (req: Request, res: Response): Promise<void> => {
     });
 
   } catch (err) {
-    console.error("Signup Org Error:", err);
-    res.status(500).json({ message: "Failed to register organization" });
+    res.status(500).json(createErrorResponse(err, undefined, "Failed to register organization"));
   }
 };

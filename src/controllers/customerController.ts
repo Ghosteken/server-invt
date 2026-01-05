@@ -1,11 +1,11 @@
 import { Request, Response } from "express";
 import prisma from "../db/prisma";
-import { Prisma } from "@prisma/client";
 import * as XLSX from "xlsx";
 import { randomUUID } from "crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { writeStores } from "../services/storeService";
+import { createErrorResponse } from "../utils/errorHandler";
 
 // Use shared Prisma client
 
@@ -51,9 +51,8 @@ export const getCustomers = async (req: Request, res: Response): Promise<void> =
     }));
 
     res.json(result);
-  } catch (error) {
-    console.error("getCustomers error:", error);
-    res.status(500).json({ message: "Error retrieving customers" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "customer", "Error retrieving customers"));
   }
 };
 
@@ -73,9 +72,8 @@ export const deleteCustomerPurchase = async (req: Request, res: Response): Promi
     }
     await prisma.customerPurchases.delete({ where: { id } });
     res.json({ success: true });
-  } catch (error) {
-    console.error("deleteCustomerPurchase error:", error);
-    res.status(500).json({ message: "Failed to delete customer purchase" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "customer", "Failed to delete customer purchase"));
   }
 };
 
@@ -137,9 +135,8 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
       createdAt: created.createdAt,
       purchases: [],
     });
-  } catch (error) {
-    console.error("createCustomer error:", error);
-    res.status(500).json({ message: "Failed to create customer" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "customer", "Failed to create customer"));
   }
 };
 
@@ -148,9 +145,8 @@ export const purgeCustomerPurchases = async (req: Request, res: Response): Promi
     const tenantId = req.tenantId || req.user?.tenantId || "default";
     const result = await prisma.customerPurchases.deleteMany({ where: { tenantId } });
     res.json({ message: "Purged customer purchases", deletedCount: result.count });
-  } catch (error) {
-    console.error("purgeCustomerPurchases error:", error);
-    res.status(500).json({ message: "Error purging customer purchases" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "customer", "Error purging customer purchases"));
   }
 };
 
@@ -212,9 +208,8 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
       createdAt: updated.createdAt,
       purchases: [], // client will refetch list
     });
-  } catch (error) {
-    console.error("updateCustomer error:", error);
-    res.status(500).json({ message: "Failed to update customer" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "customer", "Failed to update customer"));
   }
 };
 
@@ -230,9 +225,8 @@ export const deleteCustomer = async (req: Request, res: Response): Promise<void>
     // Here we keep purchases history and only remove the customer record.
     await prisma.customers.delete({ where: { customerId: id } });
     res.json({ success: true });
-  } catch (error) {
-    console.error("deleteCustomer error:", error);
-    res.status(500).json({ message: "Failed to delete customer" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "customer", "Failed to delete customer"));
   }
 };
 
@@ -405,9 +399,8 @@ export const importCustomers = async (req: Request, res: Response): Promise<void
     }
 
     res.json({ created, updated, skippedExisting, skippedDuplicateInFile });
-  } catch (error) {
-    console.error("importCustomers error:", error);
-    res.status(500).json({ message: "Failed to import customers" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "customer", "Failed to import customers"));
   }
 };
 
@@ -482,9 +475,8 @@ export const importCustomersSample = async (req: Request, res: Response): Promis
     }
 
     res.json({ created, updated, skippedExisting, skippedDuplicateInFile });
-  } catch (error) {
-    console.error("importCustomersSample error:", error);
-    res.status(500).json({ message: "Failed to import customers from sample" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "customer", "Failed to import customers from sample"));
   }
 };
 
@@ -536,9 +528,8 @@ export const exportCustomersExcel = async (req: Request, res: Response): Promise
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", "attachment; filename=customers.xlsx");
     res.status(200).send(buf);
-  } catch (error) {
-    console.error("exportCustomersExcel error:", error);
-    res.status(500).json({ message: "Failed to export customers as Excel" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "customer", "Failed to export customers as Excel"));
   }
 };
 
@@ -554,7 +545,7 @@ export const getCustomerGroups = async (req: Request, res: Response): Promise<vo
     });
     res.json({ groups });
   } catch (err) {
-    res.status(500).json({ message: "Failed to load customer groups" });
+    res.status(500).json(createErrorResponse(err, "customer", "Failed to load customer groups"));
   }
 };
 
@@ -569,7 +560,7 @@ export const createCustomerGroup = async (req: Request, res: Response): Promise<
     const created = await prisma.customerGroups.create({ data: { groupId: randomUUID(), name, description, tenantId } });
     res.status(201).json(created);
   } catch (err) {
-    res.status(500).json({ message: "Failed to create customer group" });
+    res.status(500).json(createErrorResponse(err, "customer", "Failed to create customer group"));
   }
 };
 
@@ -584,7 +575,7 @@ export const updateCustomerGroup = async (req: Request, res: Response): Promise<
     const updated = await prisma.customerGroups.update({ where: { groupId: id }, data: { ...(name ? { name } : {}), description } });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ message: "Failed to update customer group" });
+    res.status(500).json(createErrorResponse(err, "customer", "Failed to update customer group"));
   }
 };
 
@@ -597,7 +588,7 @@ export const deleteCustomerGroup = async (req: Request, res: Response): Promise<
     await prisma.customerGroups.delete({ where: { groupId: id } });
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ message: "Failed to delete customer group" });
+    res.status(500).json(createErrorResponse(err, "customer", "Failed to delete customer group"));
   }
 };
 
@@ -618,7 +609,7 @@ export const addCustomerToGroup = async (req: Request, res: Response): Promise<v
     });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ message: "Failed to add customer to group" });
+    res.status(500).json(createErrorResponse(err, "customer", "Failed to add customer to group"));
   }
 };
 
@@ -637,6 +628,6 @@ export const removeCustomerFromGroup = async (req: Request, res: Response): Prom
     });
     res.json(updated);
   } catch (err) {
-    res.status(500).json({ message: "Failed to remove customer from group" });
+    res.status(500).json(createErrorResponse(err, "customer", "Failed to remove customer from group"));
   }
 };

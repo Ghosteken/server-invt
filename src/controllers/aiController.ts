@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../db/prisma";
 import { getPurchasingAdvice, AIAdviceMode } from "../services/aiService";
+import { createErrorResponse } from "../utils/errorHandler";
 
 export const getPurchasingAdvisorAnalysis = async (
   req: Request,
@@ -16,9 +17,8 @@ export const getPurchasingAdvisorAnalysis = async (
 
     const result = await getPurchasingAdvice(prisma, tenantId, safeMode, query);
     res.json(result);
-  } catch (error) {
-    console.error("Error generating purchasing advice:", error);
-    res.status(500).json({ message: "Failed to generate AI analysis" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "Failed to generate AI analysis"));
   }
 };
 
@@ -92,8 +92,7 @@ export const getExpenseAnomalies = async (req: Request, res: Response): Promise<
 
     res.json({ anomalies, recurring });
 
-  } catch (error) {
-    console.error("Error detecting expense anomalies:", error);
-    res.status(500).json({ message: "Failed to detect anomalies" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "Failed to detect anomalies"));
   }
 };

@@ -856,5 +856,101 @@
     "message": "Imported 0, updated 0, deleted 2 (processed 1)",
     "timestamp": "2026-01-03T12:09:04.385Z",
     "actorUserId": "5131d66a-c39f-4cd0-a2bc-459dae434209"
+  },
+  {
+    "id": "1767614381919-qb8kir",
+    "type": "product",
+    "message": "Product created: socks (qty: 500)",
+    "timestamp": "2026-01-05T11:59:41.919Z",
+    "actorUserId": "03ab6cd8-4990-45d8-b325-717858500428"
+  },
+  {
+    "id": "1767614382025-mwyrsh",
+    "type": "product",
+    "message": "Product updated: socks",
+    "timestamp": "2026-01-05T11:59:42.025Z",
+    "actorUserId": "03ab6cd8-4990-45d8-b325-717858500428"
+  },
+  {
+    "id": "1767614456241-fm9ad0",
+    "type": "product",
+    "message": "Product created: socks (qty: 500)",
+    "timestamp": "2026-01-05T12:00:56.241Z",
+    "actorUserId": "03ab6cd8-4990-45d8-b325-717858500428"
+  },
+  {
+    "id": "1767614456944-uwf3h0",
+    "type": "product",
+    "message": "Product updated: socks",
+    "timestamp": "2026-01-05T12:00:56.944Z",
+    "actorUserId": "03ab6cd8-4990-45d8-b325-717858500428"
+  },
+  {
+    "id": "1767614683424-5gg3o0",
+    "type": "product",
+    "message": "Product created: ss (qty: 440)",
+    "timestamp": "2026-01-05T12:04:43.424Z",
+    "actorUserId": "cf5a7702-e6d9-46e0-9c32-edc657f789ec"
+  },
+  {
+    "id": "1767614683522-m2fhpu",
+    "type": "product",
+    "message": "Product updated: ss",
+    "timestamp": "2026-01-05T12:04:43.522Z",
+    "actorUserId": "cf5a7702-e6d9-46e0-9c32-edc657f789ec"
+  },
+  {
+    "id": "1767614972554-emi05w",
+    "type": "product",
+    "message": "Product created: dd (qty: 20)",
+    "timestamp": "2026-01-05T12:09:32.554Z",
+    "actorUserId": "5131d66a-c39f-4cd0-a2bc-459dae434209"
+  },
+  {
+    "id": "1767614972654-20a897",
+    "type": "product",
+    "message": "Product updated: dd",
+    "timestamp": "2026-01-05T12:09:32.654Z",
+    "actorUserId": "5131d66a-c39f-4cd0-a2bc-459dae434209"
+  },
+  {
+    "id": "1767615299884-4xbeud",
+    "type": "product",
+    "message": "Product created: ds (qty: 203)",
+    "timestamp": "2026-01-05T12:14:59.884Z",
+    "actorUserId": "5131d66a-c39f-4cd0-a2bc-459dae434209"
+  },
+  {
+    "id": "1767615300038-gb5oje",
+    "type": "product",
+    "message": "Product updated: ds",
+    "timestamp": "2026-01-05T12:15:00.038Z",
+    "actorUserId": "5131d66a-c39f-4cd0-a2bc-459dae434209"
+  },
+  {
+    "id": "1767615532770-wjihz8",
+    "type": "location",
+    "message": "Location created: market",
+    "timestamp": "2026-01-05T12:18:52.770Z",
+    "actorUserId": "5131d66a-c39f-4cd0-a2bc-459dae434209"
+  },
+  {
+    "id": "1767615544060-u30dx2",
+    "type": "bank",
+    "message": "Bank account created: gt - 22422414142",
+    "timestamp": "2026-01-05T12:19:04.060Z",
+    "actorUserId": "5131d66a-c39f-4cd0-a2bc-459dae434209"
+  },
+  {
+    "id": "1767615604502-gvvfei",
+    "type": "purchase",
+    "message": "Purchased 1 ctn of 'BAGS' for ₦5,000",
+    "timestamp": "2026-01-05T12:20:04.502Z"
+  },
+  {
+    "id": "1767615905854-9gxbbr",
+    "type": "invoice",
+    "message": "Invoice created: 557b953b-1547-42cd-a146-c0601cc5ac8e (market)",
+    "timestamp": "2026-01-05T12:25:05.854Z"
   }
 ]

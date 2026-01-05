@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import nodemailer from "nodemailer";
+import { createErrorResponse } from "../utils/errorHandler";
 
 export const sendContactEmail = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -59,8 +60,7 @@ export const sendContactEmail = async (req: Request, res: Response): Promise<voi
     await transporter.sendMail(mailOptions);
 
     res.status(200).json({ message: "Email sent successfully" });
-  } catch (error) {
-    console.error("Error sending email:", error);
-    res.status(500).json({ message: "Failed to send email" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "Failed to send email"));
   }
 };
