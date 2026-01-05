@@ -38,6 +38,6 @@ module.exports = [
     },
   },
   {
-    ignores: ["node_modules/", "dist/", "coverage/", ".next/", "out/", "eslint.config.*"],
+    ignores: ["node_modules/", "dist/", "coverage/", ".next/", "out/", "eslint.config.*", "scripts/"],
   },
 ];

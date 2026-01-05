@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import prisma from "../db/prisma";
 import { z, ZodError } from "zod";
 import { readFlags, writeFlags } from "../services/featureFlagsService";
+import { createErrorResponse } from "../utils/errorHandler";
 
 const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";
 
@@ -25,8 +26,8 @@ export const superAdminLogin = async (req: Request, res: Response): Promise<void
       return;
     }
     res.status(401).json({ message: "Invalid credentials" });
-  } catch {
-    res.status(500).json({ message: "Error during super admin login" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, undefined, "Error during super admin login"));
   }
 };
 
@@ -128,7 +129,7 @@ export const createOrg = async (req: Request, res: Response): Promise<void> => {
     } catch {}
     res.status(201).json({ org: { id: org.id, name: org.name, apiBaseUrl: org.apiBaseUrl, adminEmail: org.adminEmail } });
   } catch (err) {
-    res.status(500).json({ message: "Failed to create organization" });
+    res.status(500).json(createErrorResponse(err, "Failed to create organization"));
   }
 };
 
@@ -178,7 +179,7 @@ export const createOrgAdmin = async (req: Request, res: Response): Promise<void>
     } catch {}
     res.status(201).json({ admin: { id: admin.id, name: admin.name, email: admin.email } });
   } catch (err) {
-    res.status(500).json({ message: "Failed to create org admin" });
+    res.status(500).json(createErrorResponse(err, "Failed to create org admin"));
   }
 };
 
@@ -236,7 +237,7 @@ export const deleteOrg = async (req: Request, res: Response): Promise<void> => {
     ]);
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ message: "Failed to delete organization" });
+    res.status(500).json(createErrorResponse(err, "Failed to delete organization"));
   }
 };
 
@@ -300,7 +301,7 @@ export const getOrgAdminFeatures = async (req: Request, res: Response): Promise<
     res.json({ features: list });
   } catch (err) {
     if (err instanceof ZodError) { res.status(400).json({ message: "Invalid input", errors: err.issues }); return; }
-    res.status(500).json({ message: "Failed to read features" });
+    res.status(500).json(createErrorResponse(err, "Failed to read features"));
   }
 };
 
@@ -328,6 +329,6 @@ export const setOrgAdminFeatures = async (req: Request, res: Response): Promise<
     res.json({ features });
   } catch (err) {
     if (err instanceof ZodError) { res.status(400).json({ message: "Invalid input", errors: err.issues }); return; }
-    res.status(500).json({ message: "Failed to write features" });
+    res.status(500).json(createErrorResponse(err, "Failed to write features"));
   }
 };

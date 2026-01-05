@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { randomUUID } from "crypto";
 import prisma from "../db/prisma";
+import { createErrorResponse } from "../utils/errorHandler";
 
 export const getSalesAgents = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -37,8 +38,7 @@ export const getSalesAgents = async (req: Request, res: Response): Promise<void>
     list.sort((a, b) => a.name.localeCompare(b.name));
     res.json({ agents: list });
   } catch (err) {
-    console.error("getSalesAgents error:", err);
-    res.status(500).json({ message: "Failed to load sales agents" });
+    res.status(500).json(createErrorResponse(err, "salesAgent", "Failed to load sales agents"));
   }
 };
 
@@ -60,7 +60,7 @@ export const createSalesAgent = async (req: Request, res: Response): Promise<voi
   } catch (err) {
     console.error("createSalesAgent error:", err);
     const msg = err instanceof Error ? err.message : "Failed to create sales agent";
-    res.status(500).json({ message: msg });
+    res.status(500).json(createErrorResponse(err, "salesAgent", msg));
   }
 };
 
@@ -76,8 +76,7 @@ export const updateSalesAgent = async (req: Request, res: Response): Promise<voi
     const updated = await prisma.salesAgents.update({ where: { id }, data: { ...(name ? { name } : {}), mobile, email } });
     res.json(updated);
   } catch (err) {
-    console.error("updateSalesAgent error:", err);
-    res.status(500).json({ message: "Failed to update sales agent" });
+    res.status(500).json(createErrorResponse(err, "salesAgent", "Failed to update sales agent"));
   }
 };
 
@@ -90,8 +89,7 @@ export const deleteSalesAgent = async (req: Request, res: Response): Promise<voi
     await prisma.salesAgents.delete({ where: { id } });
     res.json({ success: true });
   } catch (err) {
-    console.error("deleteSalesAgent error:", err);
-    res.status(500).json({ message: "Failed to delete sales agent" });
+    res.status(500).json(createErrorResponse(err, "salesAgent", "Failed to delete sales agent"));
   }
 };
 
@@ -138,7 +136,6 @@ export const getAgentInvoices = async (req: Request, res: Response): Promise<voi
     }));
     res.json({ invoices: list });
   } catch (err) {
-    console.error("getAgentInvoices error:", err);
-    res.status(500).json({ message: "Failed to load agent invoices" });
+    res.status(500).json(createErrorResponse(err, "salesAgent", "Failed to load agent invoices"));
   }
 };
