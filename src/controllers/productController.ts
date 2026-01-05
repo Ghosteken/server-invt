@@ -1990,12 +1990,12 @@ export const processInvoiceManual = async (req: Request, res: Response): Promise
       if (!product && it?.name) {
         // Try exact by name then loose contains
         const name = String(it.name).trim();
-        const pExact = await prisma.products.findFirst({ where: { name } });
+        const pExact = await prisma.products.findFirst({ where: { name, tenantId } });
         if (pExact) {
           product = { productId: pExact.productId, name: pExact.name, price: Number(pExact.price), stockQuantity: pExact.stockQuantity };
         }
         if (!product) {
-          const candidates = await prisma.products.findMany({ where: { name: { contains: name, mode: 'insensitive' } }, take: 1 });
+          const candidates = await prisma.products.findMany({ where: { name: { contains: name, mode: 'insensitive' }, tenantId }, take: 1 });
           if (candidates.length) {
             const p = candidates[0];
             product = { productId: p.productId, name: p.name, price: Number(p.price), stockQuantity: p.stockQuantity };

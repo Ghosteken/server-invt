@@ -46,6 +46,7 @@ export const getCustomers = async (req: Request, res: Response): Promise<void> =
       city: c.city,
       state: c.state,
       country: c.country,
+      tenantId: c.tenantId,
       createdAt: c.createdAt,
       purchases: byCustomer.get(c.customerId) || [],
     }));

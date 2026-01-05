@@ -6,7 +6,7 @@ import { authenticateToken } from "../middleware/authMiddleware";
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
-router.get("/", getProducts);
+router.get("/", authenticateToken, getProducts);
 router.post("/", authenticateToken, createProduct);
 router.post("/import", authenticateToken, upload.single("file"), importProducts);
 router.get("/import/sample", authenticateToken, getImportSample);
