@@ -28,6 +28,7 @@ const invoiceRoutes_1 = __importDefault(require("./routes/invoiceRoutes"));
 const salesAgentRoutes_1 = __importDefault(require("./routes/salesAgentRoutes"));
 const locationRoutes_1 = __importDefault(require("./routes/locationRoutes"));
 const contactRoutes_1 = __importDefault(require("./routes/contactRoutes"));
+const errorMiddleware_1 = require("./middleware/errorMiddleware");
 function createApp() {
     dotenv_1.default.config();
     const app = (0, express_1.default)();
@@ -55,7 +56,20 @@ function createApp() {
     app.use((0, morgan_1.default)("common"));
     app.use(body_parser_1.default.json());
     app.use(body_parser_1.default.urlencoded({ extended: false }));
-    app.use((0, cors_1.default)());
+    const allowedOrigins = (process.env.CORS_ORIGIN || "*").split(",").map(origin => origin.trim());
+    app.use((0, cors_1.default)({
+        origin: (origin, callback) => {
+            console.log(`Express CORS Check: Origin=${origin}, Allowed=${JSON.stringify(allowedOrigins)}`);
+            if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            }
+            else {
+                console.error(`Express CORS Blocked: Origin=${origin}`);
+                callback(new Error("Not allowed by CORS"));
+            }
+        },
+        credentials: true,
+    }));
     // Rate limiter; configurable via env
     const ipFromReq = (req) => {
         const xf = req.headers?.["x-forwarded-for"];
@@ -80,30 +94,37 @@ function createApp() {
             const safeBody = typeof req.body === 'object' ? JSON.stringify(req.body) : String(req.body);
             console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - body: ${safeBody}`);
         }
-        catch (e) {
+        catch {
             console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - body: <unserializable>`);
         }
         next();
     });
     // Static files
     app.use('/assets', express_1.default.static(path_1.default.join(__dirname, '../public/assets')));
-    // Routes
-    app.use("/auth", authRoutes_1.default);
-    app.use("/dashboard", dashboardRoutes_1.default);
-    app.use("/products", productRoutes_1.default);
-    app.use("/users", userRoutes_1.default);
-    app.use("/expenses", expenseRoutes_1.default);
-    app.use("/notifications", notificationRoutes_1.default);
-    app.use("/customers", customerRoutes_1.default);
-    app.use("/reports", reportRoutes_1.default);
-    app.use("/settings", require("./routes/settingsRoutes").default);
-    app.use("/store-sales", storeSalesRoutes_1.default);
-    app.use("/stores", storesRoutes_1.default);
-    app.use("/purchases", purchasesRoutes_1.default);
-    app.use("/invoices", invoiceRoutes_1.default);
-    app.use("/sales-agents", salesAgentRoutes_1.default);
-    app.use("/locations", locationRoutes_1.default);
-    app.use("/contact", contactRoutes_1.default);
+    // Routes - API v1
+    const apiRouter = express_1.default.Router();
+    apiRouter.use("/auth", authRoutes_1.default);
+    apiRouter.use("/dashboard", dashboardRoutes_1.default);
+    apiRouter.use("/products", productRoutes_1.default);
+    apiRouter.use("/users", userRoutes_1.default);
+    apiRouter.use("/expenses", expenseRoutes_1.default);
+    apiRouter.use("/notifications", notificationRoutes_1.default);
+    apiRouter.use("/customers", customerRoutes_1.default);
+    apiRouter.use("/reports", reportRoutes_1.default);
+    apiRouter.use("/settings", require("./routes/settingsRoutes").default);
+    apiRouter.use("/store-sales", storeSalesRoutes_1.default);
+    apiRouter.use("/stores", storesRoutes_1.default);
+    apiRouter.use("/purchases", purchasesRoutes_1.default);
+    apiRouter.use("/invoices", invoiceRoutes_1.default);
+    apiRouter.use("/sales-agents", salesAgentRoutes_1.default);
+    apiRouter.use("/locations", locationRoutes_1.default);
+    apiRouter.use("/contact", contactRoutes_1.default);
+    // Mount API v1
+    app.use("/api/v1", apiRouter);
+    // Legacy support (optional, can be removed later)
+    app.use("/", apiRouter);
+    // Global error handler - MUST be after all routes
+    app.use(errorMiddleware_1.globalErrorHandler);
     return app;
 }
 exports.default = createApp;

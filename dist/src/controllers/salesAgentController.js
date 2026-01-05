@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getAgentInvoices = exports.deleteSalesAgent = exports.updateSalesAgent = exports.createSalesAgent = exports.getSalesAgents = void 0;
 const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../db/prisma"));
+const errorHandler_1 = require("../utils/errorHandler");
 const getSalesAgents = async (req, res) => {
     try {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
@@ -49,8 +50,7 @@ const getSalesAgents = async (req, res) => {
         res.json({ agents: list });
     }
     catch (err) {
-        console.error("getSalesAgents error:", err);
-        res.status(500).json({ message: "Failed to load sales agents" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "salesAgent", "Failed to load sales agents"));
     }
 };
 exports.getSalesAgents = getSalesAgents;
@@ -76,7 +76,7 @@ const createSalesAgent = async (req, res) => {
     catch (err) {
         console.error("createSalesAgent error:", err);
         const msg = err instanceof Error ? err.message : "Failed to create sales agent";
-        res.status(500).json({ message: msg });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "salesAgent", msg));
     }
 };
 exports.createSalesAgent = createSalesAgent;
@@ -96,8 +96,7 @@ const updateSalesAgent = async (req, res) => {
         res.json(updated);
     }
     catch (err) {
-        console.error("updateSalesAgent error:", err);
-        res.status(500).json({ message: "Failed to update sales agent" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "salesAgent", "Failed to update sales agent"));
     }
 };
 exports.updateSalesAgent = updateSalesAgent;
@@ -114,8 +113,7 @@ const deleteSalesAgent = async (req, res) => {
         res.json({ success: true });
     }
     catch (err) {
-        console.error("deleteSalesAgent error:", err);
-        res.status(500).json({ message: "Failed to delete sales agent" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "salesAgent", "Failed to delete sales agent"));
     }
 };
 exports.deleteSalesAgent = deleteSalesAgent;
@@ -128,7 +126,8 @@ const getAgentInvoices = async (req, res) => {
         }
         const from = req.query.from ? new Date(String(req.query.from)) : undefined;
         const to = req.query.to ? new Date(String(req.query.to)) : undefined;
-        const agent = await prisma_1.default.salesAgents.findUnique({ where: { id } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const agent = await prisma_1.default.salesAgents.findFirst({ where: { id, tenantId } });
         if (!agent) {
             res.status(404).json({ message: "Sales agent not found" });
             return;
@@ -151,11 +150,11 @@ const getAgentInvoices = async (req, res) => {
         });
         // Hydrate customer names
         const customerIds = Array.from(new Set(invoices.map((i) => i.customerId))).filter(Boolean);
-        const customers = customerIds.length ? await prisma_1.default.customers.findMany({ where: { customerId: { in: customerIds } } }) : [];
+        const customers = customerIds.length ? await prisma_1.default.customers.findMany({ where: { customerId: { in: customerIds }, tenantId } }) : [];
         const customerMap = new Map(customers.map((c) => [c.customerId, c.name]));
         // Hydrate invoice numbers from meta store
         const invoiceIds = invoices.map((inv) => inv.invoiceId);
-        const metas = invoiceIds.length ? await prisma_1.default.invoiceMeta.findMany({ where: { invoiceId: { in: invoiceIds } } }) : [];
+        const metas = invoiceIds.length ? await prisma_1.default.invoiceMeta.findMany({ where: { invoiceId: { in: invoiceIds }, tenantId } }) : [];
         const metaMap = new Map(metas.map((m) => [m.invoiceId, m.invoiceNumber ?? null]));
         const list = invoices.map((inv) => ({
             ...inv,
@@ -165,8 +164,7 @@ const getAgentInvoices = async (req, res) => {
         res.json({ invoices: list });
     }
     catch (err) {
-        console.error("getAgentInvoices error:", err);
-        res.status(500).json({ message: "Failed to load agent invoices" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "salesAgent", "Failed to load agent invoices"));
     }
 };
 exports.getAgentInvoices = getAgentInvoices;

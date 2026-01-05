@@ -17,7 +17,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "crypto";
 // pdf-parse lacks TypeScript types; use require to avoid compile errors in ts-node
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 const pdfParse = require("pdf-parse");
 
 // Use shared Prisma client
@@ -300,7 +299,8 @@ export const getProductMovements = async (
     if (from) timestampFilter = { ...(timestampFilter || {}), gte: from };
     if (to) timestampFilter = { ...(timestampFilter || {}), lte: to };
 
-    const product = await prisma.products.findUnique({ where: { productId } });
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const product = await prisma.products.findFirst({ where: { productId, tenantId } });
     if (!product) {
       res.status(404).json({ message: "Product not found" });
       return;
@@ -381,7 +381,7 @@ export const getPcsProducts = async (req: Request, res: Response): Promise<void>
     const tenantId = req.tenantId || req.user?.tenantId || "default";
     const pcs = await readPcsInventory(tenantId);
     // Load all products to allow robust matching and enrichment
-    const products = await prisma.products.findMany({});
+    const products = await prisma.products.findMany({ where: { tenantId } });
 
     // Helper normalization (aligned with invoice parsing heuristics)
     const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
@@ -658,7 +658,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       for (const item of importedSnapshot) {
         let target: any = null;
         if (item.productId) {
-          target = await prisma.products.findUnique({ where: { productId: item.productId } });
+          target = await prisma.products.findFirst({ where: { productId: item.productId, tenantId } });
         }
         if (!target && item.barcode) {
           target = existingByBarcode.get(String(item.barcode).trim());
@@ -1139,7 +1139,6 @@ export const importProducts = async (
     // Precompute existing categories for similarity matching for new items (tenant-scoped)
     const existingCategoriesRaw = await prisma.products.findMany({ select: { category: true }, where: { tenantId, category: { not: null } } });
     const existingCategories: string[] = Array.from(new Set<string>(existingCategoriesRaw.map((r: { category: string | null }) => String(r.category))));
-    const stripPlural = (t: string) => t.replace(/s\b/g, "");
     const normalizeToken = (t: string) => {
       let x = t.toLowerCase();
       if (x === "drinks") x = "drink";
@@ -1809,6 +1808,7 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
 
     // For each item, find product by name using robust matching, deduct stock, and record purchase
     const updates: Array<{ productId: string; name: string; deducted: number }> = [];
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     // Helpers for pack-size comparison
     const normSimple = (s: unknown) => String(s ?? "").replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
     const extractNum = (s: unknown): number | null => {
@@ -1831,11 +1831,12 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
       if (keyTokens.length > 0) {
         candidates = await prisma.products.findMany({
           where: {
+            tenantId,
             OR: keyTokens.map((t) => ({ name: { contains: t, mode: "insensitive" } })),
           },
         });
       } else {
-        candidates = await prisma.products.findMany({ where: { name: { contains: item.name, mode: "insensitive" } } });
+        candidates = await prisma.products.findMany({ where: { name: { contains: item.name, mode: "insensitive" }, tenantId } });
       }
 
       const subsetMatches = candidates.filter((p) => {
@@ -1981,8 +1982,9 @@ export const processInvoiceManual = async (req: Request, res: Response): Promise
       const unit = String(it?.unit || 'ctn').toLowerCase();
 
       let product: { productId: string; name: string; price: number; stockQuantity: number } | null = null;
+      const tenantId = req.tenantId || req.user?.tenantId || "default";
       if (it?.productId) {
-        const p = await prisma.products.findUnique({ where: { productId: String(it.productId) } });
+        const p = await prisma.products.findFirst({ where: { productId: String(it.productId), tenantId } });
         if (p) product = { productId: p.productId, name: p.name, price: Number(p.price), stockQuantity: p.stockQuantity };
       }
       if (!product && it?.name) {
@@ -2041,7 +2043,8 @@ export const processInvoiceManual = async (req: Request, res: Response): Promise
 export const deleteProduct = async (req: Request, res: Response): Promise<void> => {
   try {
     const { productId } = req.params;
-    const existing = await prisma.products.findUnique({ where: { productId } });
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const existing = await prisma.products.findFirst({ where: { productId, tenantId } });
     if (!existing) {
       res.status(404).json({ message: "Product not found" });
       return;
@@ -2317,10 +2320,11 @@ export const getProductUpdatesLast = async (
   res: Response
 ): Promise<void> => {
   try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const last = getLastFieldUpdates();
     // Enrich with product names for display
     const ids = Object.keys(last);
-    const products = ids.length ? await prisma.products.findMany({ where: { productId: { in: ids } } }) : [];
+    const products = ids.length ? await prisma.products.findMany({ where: { productId: { in: ids }, tenantId } }) : [];
     const nameMap = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
     const payload = ids.map((id) => ({ productId: id, name: nameMap.get(id) || "Unknown", last: last[id] }));
     res.json(payload);

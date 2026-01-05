@@ -10,6 +10,7 @@ const crypto_1 = require("crypto");
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
 const notificationService_1 = require("../services/notificationService");
+const errorHandler_1 = require("../utils/errorHandler");
 // Use shared Prisma client
 const getUsers = async (req, res) => {
     try {
@@ -27,9 +28,8 @@ const getUsers = async (req, res) => {
         });
         res.json(users);
     }
-    catch (error) {
-        console.error("getUsers error:", error);
-        res.status(500).json({ message: "Error retrieving users" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "user", "Error retrieving users"));
     }
 };
 exports.getUsers = getUsers;
@@ -114,9 +114,8 @@ const createUser = async (req, res) => {
             actorUserId: req.user?.userId,
         });
     }
-    catch (error) {
-        console.error("createUser error:", error);
-        res.status(500).json({ message: "Error creating user" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "user", "Error creating user"));
     }
 };
 exports.createUser = createUser;
@@ -133,9 +132,8 @@ const purgeNonAdminUsers = async (req, res) => {
             actorUserId: req.user?.userId,
         });
     }
-    catch (error) {
-        console.error("purgeNonAdminUsers error:", error);
-        res.status(500).json({ message: "Error purging users" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "user", "Error purging users"));
     }
 };
 exports.purgeNonAdminUsers = purgeNonAdminUsers;
@@ -143,12 +141,8 @@ const deleteUser = async (req, res) => {
     try {
         const { userId } = req.params;
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        const target = await prisma_1.default.users.findUnique({ where: { userId } });
+        const target = await prisma_1.default.users.findFirst({ where: { userId, tenantId } });
         if (!target) {
-            res.status(404).json({ message: "User not found" });
-            return;
-        }
-        if (target.tenantId !== tenantId) {
             res.status(404).json({ message: "User not found" });
             return;
         }
@@ -197,9 +191,8 @@ const deleteUser = async (req, res) => {
             actorUserId: req.user?.userId,
         });
     }
-    catch (error) {
-        console.error("deleteUser error:", error);
-        res.status(500).json({ message: "Error deleting user" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "user", "Error deleting user"));
     }
 };
 exports.deleteUser = deleteUser;
@@ -207,12 +200,8 @@ const blockUser = async (req, res) => {
     try {
         const { userId } = req.params;
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        const target = await prisma_1.default.users.findUnique({ where: { userId } });
+        const target = await prisma_1.default.users.findFirst({ where: { userId, tenantId } });
         if (!target) {
-            res.status(404).json({ message: "User not found" });
-            return;
-        }
-        if (target.tenantId !== tenantId) {
             res.status(404).json({ message: "User not found" });
             return;
         }
@@ -236,9 +225,8 @@ const blockUser = async (req, res) => {
             actorUserId: req.user?.userId,
         });
     }
-    catch (error) {
-        console.error("blockUser error:", error);
-        res.status(500).json({ message: "Error blocking user" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "user", "Error blocking user"));
     }
 };
 exports.blockUser = blockUser;
@@ -246,12 +234,8 @@ const unblockUser = async (req, res) => {
     try {
         const { userId } = req.params;
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        const target = await prisma_1.default.users.findUnique({ where: { userId } });
+        const target = await prisma_1.default.users.findFirst({ where: { userId, tenantId } });
         if (!target) {
-            res.status(404).json({ message: "User not found" });
-            return;
-        }
-        if (target.tenantId !== tenantId) {
             res.status(404).json({ message: "User not found" });
             return;
         }
@@ -267,9 +251,8 @@ const unblockUser = async (req, res) => {
             actorUserId: req.user?.userId,
         });
     }
-    catch (error) {
-        console.error("unblockUser error:", error);
-        res.status(500).json({ message: "Error unblocking user" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "user", "Error unblocking user"));
     }
 };
 exports.unblockUser = unblockUser;
@@ -277,13 +260,9 @@ const updateUser = async (req, res) => {
     try {
         const { userId } = req.params;
         const Body = (req.body || {});
-        const target = await prisma_1.default.users.findUnique({ where: { userId } });
-        if (!target) {
-            res.status(404).json({ message: "User not found" });
-            return;
-        }
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        if (target.tenantId !== tenantId) {
+        const target = await prisma_1.default.users.findFirst({ where: { userId, tenantId } });
+        if (!target) {
             res.status(404).json({ message: "User not found" });
             return;
         }
@@ -336,9 +315,8 @@ const updateUser = async (req, res) => {
         }
         res.json(updated);
     }
-    catch (error) {
-        console.error("updateUser error:", error);
-        res.status(500).json({ message: "Error updating user" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "user", "Error updating user"));
     }
 };
 exports.updateUser = updateUser;

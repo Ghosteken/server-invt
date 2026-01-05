@@ -147,11 +147,11 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
     let resolvedLocation = location;
     let resolvedSalesAgent = salesAgent;
     if (locationId) {
-      const loc = await prisma.locations.findUnique({ where: { id: locationId } });
+      const loc = await prisma.locations.findFirst({ where: { id: locationId, tenantId } });
       resolvedLocation = loc?.name || location;
     }
     if (salesAgentId) {
-      const agent = await prisma.salesAgents.findUnique({ where: { id: salesAgentId } });
+      const agent = await prisma.salesAgents.findFirst({ where: { id: salesAgentId, tenantId } });
       resolvedSalesAgent = agent?.name || salesAgent;
     }
     const created = await prisma.invoices.create({
@@ -186,7 +186,7 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
     const createdWithMeta = {
       ...created,
       invoiceNumber: invoiceNumber?.trim() || undefined,
-      customerName: resolvedCustomerId ? (await prisma.customers.findUnique({ where: { customerId: resolvedCustomerId } }))?.name : undefined
+      customerName: resolvedCustomerId ? (await prisma.customers.findFirst({ where: { customerId: resolvedCustomerId, tenantId } }))?.name : undefined
     };
 
     try {
@@ -251,7 +251,8 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
 export const getInvoicePrintOptions = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const existing = await prisma.invoices.findUnique({ where: { invoiceId: id } });
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const existing = await prisma.invoices.findFirst({ where: { invoiceId: id, tenantId } });
     if (!existing) {
       res.status(404).json({ message: "Invoice not found" });
       return;
@@ -407,7 +408,7 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
     const tenantId = req.tenantId || req.user?.tenantId || "default";
     const { id } = req.params;
     const body = UpdateInvoiceBodySchema.parse(req.body || {});
-    const existing = await prisma.invoices.findUnique({ where: { invoiceId: id }, include: { items: true, payments: true } });
+    const existing = await prisma.invoices.findFirst({ where: { invoiceId: id, tenantId }, include: { items: true, payments: true } });
     if (!existing) {
       res.status(404).json({ message: "Invoice not found" });
       return;
@@ -418,7 +419,7 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
       let unitPrice = typeof it.unitPrice === "number" ? it.unitPrice : undefined;
       let displayName = it.name;
       if (it.productId) {
-        const p = await prisma.products.findUnique({ where: { productId: it.productId } });
+        const p = await prisma.products.findFirst({ where: { productId: it.productId, tenantId } });
         if (p) {
           displayName = displayName || p.name;
           if (unitPrice === undefined) {
@@ -443,12 +444,12 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
     let nextLocationId = body.locationId ?? existing.locationId ?? null;
     let nextSalesAgentId = body.salesAgentId ?? existing.salesAgentId ?? null;
     if (body.locationId) {
-      const loc = await prisma.locations.findUnique({ where: { id: body.locationId } });
+      const loc = await prisma.locations.findFirst({ where: { id: body.locationId, tenantId } });
       nextLocation = loc?.name || nextLocation;
       nextLocationId = body.locationId;
     }
     if (body.salesAgentId) {
-      const agent = await prisma.salesAgents.findUnique({ where: { id: body.salesAgentId } });
+      const agent = await prisma.salesAgents.findFirst({ where: { id: body.salesAgentId, tenantId } });
       nextSalesAgent = agent?.name || nextSalesAgent;
       nextSalesAgentId = body.salesAgentId;
     }
@@ -627,7 +628,7 @@ export const deleteInvoice = async (req: Request, res: Response): Promise<void> 
     for (const it of inv.items) {
       const qty = Math.max(0, Number(it.quantity) || 0);
       if (it.unit === "ctn" && it.productId) {
-        const p = await prisma.products.findUnique({ where: { productId: it.productId } });
+        const p = await prisma.products.findFirst({ where: { productId: it.productId, tenantId } });
         if (p) {
           const newQty = Math.max(0, Number(p.stockQuantity) + qty);
           await prisma.products.update({ where: { productId: it.productId }, data: { stockQuantity: newQty } });

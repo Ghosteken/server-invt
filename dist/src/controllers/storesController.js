@@ -6,6 +6,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.deleteBranch = exports.updateBranch = exports.createBranch = exports.listBranches = exports.deleteStore = exports.updateStore = exports.createStore = exports.listStores = void 0;
 const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../db/prisma"));
+const errorHandler_1 = require("../utils/errorHandler");
 const listStores = async (req, res) => {
     try {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
@@ -17,8 +18,7 @@ const listStores = async (req, res) => {
         res.json({ stores: filtered });
     }
     catch (err) {
-        console.error("listStores error:", err);
-        res.status(500).json({ message: "Failed to list stores" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "store", "Failed to list stores"));
     }
 };
 exports.listStores = listStores;
@@ -36,7 +36,7 @@ const createStore = async (req, res) => {
     catch (err) {
         console.error("createStore error:", err);
         const msg = err?.code === "P2002" ? "Store name must be unique" : "Failed to create store";
-        res.status(500).json({ message: msg });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "store", msg));
     }
 };
 exports.createStore = createStore;
@@ -58,8 +58,7 @@ const updateStore = async (req, res) => {
         res.json(updated);
     }
     catch (err) {
-        console.error("updateStore error:", err);
-        res.status(500).json({ message: "Failed to update store" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "store", "Failed to update store"));
     }
 };
 exports.updateStore = updateStore;
@@ -78,8 +77,7 @@ const deleteStore = async (req, res) => {
         res.json({ success: true });
     }
     catch (err) {
-        console.error("deleteStore error:", err);
-        res.status(500).json({ message: "Failed to delete store" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "store", "Failed to delete store"));
     }
 };
 exports.deleteStore = deleteStore;
@@ -96,8 +94,7 @@ const listBranches = async (req, res) => {
         res.json({ branches });
     }
     catch (err) {
-        console.error("listBranches error:", err);
-        res.status(500).json({ message: "Failed to list branches" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "store", "Failed to list branches"));
     }
 };
 exports.listBranches = listBranches;
@@ -125,7 +122,7 @@ const createBranch = async (req, res) => {
     catch (err) {
         console.error("createBranch error:", err);
         const msg = err?.code === "P2002" ? "Branch name must be unique per store" : "Failed to create branch";
-        res.status(500).json({ message: msg });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "store", msg));
     }
 };
 exports.createBranch = createBranch;
@@ -148,8 +145,7 @@ const updateBranch = async (req, res) => {
         res.json(updated);
     }
     catch (err) {
-        console.error("updateBranch error:", err);
-        res.status(500).json({ message: "Failed to update branch" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "store", "Failed to update branch"));
     }
 };
 exports.updateBranch = updateBranch;
@@ -166,8 +162,7 @@ const deleteBranch = async (req, res) => {
         res.json({ success: true });
     }
     catch (err) {
-        console.error("deleteBranch error:", err);
-        res.status(500).json({ message: "Failed to delete branch" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "store", "Failed to delete branch"));
     }
 };
 exports.deleteBranch = deleteBranch;

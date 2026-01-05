@@ -45,10 +45,21 @@ const yamljs_1 = __importDefault(require("yamljs"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 const httpServer = (0, http_1.createServer)(app);
+const allowedOrigins = (process.env.CORS_ORIGIN || "*").split(",").map(origin => origin.trim());
 const io = new socket_io_1.Server(httpServer, {
     cors: {
-        origin: "*", // Adjust in production
-        methods: ["GET", "POST"]
+        origin: (origin, callback) => {
+            console.log(`SocketIO CORS Check: Origin=${origin}, Allowed=${JSON.stringify(allowedOrigins)}`);
+            if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+                callback(null, true);
+            }
+            else {
+                console.error(`SocketIO CORS Blocked: Origin=${origin}`);
+                callback(new Error("Not allowed by CORS"));
+            }
+        },
+        methods: ["GET", "POST"],
+        credentials: true
     }
 });
 app.set("io", io);
@@ -76,7 +87,17 @@ if ((process.env.NODE_ENV || "").toLowerCase() === "production") {
 app.use((0, morgan_1.default)("common"));
 app.use(body_parser_1.default.json());
 app.use(body_parser_1.default.urlencoded({ extended: false }));
-app.use((0, cors_1.default)());
+app.use((0, cors_1.default)({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes("*") || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        }
+        else {
+            callback(new Error("Not allowed by CORS"));
+        }
+    },
+    credentials: true,
+}));
 // Resolve tenant for isolation: prefer 'x-tenant-id' header; else derive from JWT if present
 app.use((req, _res, next) => {
     try {
@@ -119,24 +140,31 @@ app.use((req, res, next) => {
 /* STATIC FILES */
 app.use('/assets', express_1.default.static(path_1.default.join(__dirname, '../public/assets')));
 /* ROUTES */
-app.use("/auth", authRoutes_1.default); // http://localhost:8000/auth
-app.use("/dashboard", dashboardRoutes_1.default); // http://localhost:8000/dashboard
-app.use("/products", productRoutes_1.default); // http://localhost:8000/products
-app.use("/users", userRoutes_1.default); // http://localhost:8000/users
-app.use("/expenses", expenseRoutes_1.default); // http://localhost:8000/expenses
-app.use("/notifications", notificationRoutes_1.default); // http://localhost:8000/notifications
-app.use("/customers", customerRoutes_1.default); // http://localhost:8000/customers
-app.use("/reports", reportRoutes_1.default); // http://localhost:8000/reports
-app.use("/settings", settingsRoutes_1.default); // http://localhost:8000/settings
-app.use("/store-sales", storeSalesRoutes_1.default); // http://localhost:8000/store-sales
-app.use("/stores", storesRoutes_1.default); // http://localhost:8000/stores
-app.use("/invoices", invoiceRoutes_1.default); // http://localhost:8000/invoices
-app.use("/purchases", purchasesRoutes_1.default); // http://localhost:8000/purchases
-app.use("/sales-agents", salesAgentRoutes_1.default); // http://localhost:8000/sales-agents
-app.use("/locations", locationRoutes_1.default); // http://localhost:8000/locations
-app.use("/contact", contactRoutes_1.default); // http://localhost:8000/contact
-app.use("/super-admin", superAdminRoutes_1.default); // http://localhost:8000/super-admin
-app.use("/ai", aiRoutes_1.default); // http://localhost:8000/ai
+const apiRouter = express_1.default.Router();
+apiRouter.use("/auth", authRoutes_1.default);
+apiRouter.use("/dashboard", dashboardRoutes_1.default);
+apiRouter.use("/products", productRoutes_1.default);
+apiRouter.use("/users", userRoutes_1.default);
+apiRouter.use("/expenses", expenseRoutes_1.default);
+apiRouter.use("/notifications", notificationRoutes_1.default);
+apiRouter.use("/customers", customerRoutes_1.default);
+apiRouter.use("/reports", reportRoutes_1.default);
+apiRouter.use("/settings", settingsRoutes_1.default);
+apiRouter.use("/store-sales", storeSalesRoutes_1.default);
+apiRouter.use("/stores", storesRoutes_1.default);
+apiRouter.use("/invoices", invoiceRoutes_1.default);
+apiRouter.use("/purchases", purchasesRoutes_1.default);
+apiRouter.use("/sales-agents", salesAgentRoutes_1.default);
+apiRouter.use("/locations", locationRoutes_1.default);
+apiRouter.use("/contact", contactRoutes_1.default);
+apiRouter.use("/super-admin", superAdminRoutes_1.default);
+apiRouter.use("/ai", aiRoutes_1.default);
+// Mount API v1
+app.use("/api/v1", apiRouter);
+// Fallback for /api prefix (common default)
+app.use("/api", apiRouter);
+// Legacy support (optional, can be removed later)
+app.use("/", apiRouter);
 try {
     const swaggerDocument = yamljs_1.default.load(path_1.default.join(__dirname, "swagger/swagger.yaml"));
     app.use("/docs", swagger_ui_express_1.default.serve, swagger_ui_express_1.default.setup(swaggerDocument));

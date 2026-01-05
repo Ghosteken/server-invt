@@ -61,12 +61,8 @@ export const deleteCustomerPurchase = async (req: Request, res: Response): Promi
   try {
     const { id } = req.params;
     const tenantId = req.tenantId || req.user?.tenantId || "default";
-    const existing = await prisma.customerPurchases.findUnique({ where: { id } });
+    const existing = await prisma.customerPurchases.findFirst({ where: { id, tenantId } });
     if (!existing) {
-      res.status(404).json({ message: "Customer purchase not found" });
-      return;
-    }
-    if (existing.tenantId !== tenantId) {
       res.status(404).json({ message: "Customer purchase not found" });
       return;
     }

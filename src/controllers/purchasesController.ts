@@ -34,7 +34,7 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
       const productIds = Array.from(new Set(purchases.map((p: any) => p.productId)));
       const products = await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
       const productMap = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
-      const metaRows = await prisma.supplierPurchaseMeta.findMany({ where: { purchaseId: { in: purchases.map((p: any) => p.purchaseId) } } });
+      const metaRows = await prisma.supplierPurchaseMeta.findMany({ where: { purchaseId: { in: purchases.map((p: any) => p.purchaseId) }, tenantId } });
       const metaMap = new Map<string, any>(metaRows.map((m: any) => [m.purchaseId, m]));
       const pageList = purchases.map((p: any) => ({
         purchaseId: p.purchaseId,
@@ -68,7 +68,8 @@ export const deletePurchase = async (req: Request, res: Response): Promise<void>
     }
     // Reduce inventory based on stored unit meta (defaults to carton)
     try {
-      const metaRow = await prisma.supplierPurchaseMeta.findUnique({ where: { purchaseId: id } });
+      const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+      const metaRow = await prisma.supplierPurchaseMeta.findFirst({ where: { purchaseId: id, tenantId } });
       const unit = ((metaRow?.unit === "pcs" ? "pcs" : "ctn") as "ctn" | "pcs");
       const p = await prisma.products.findFirst({ where: { productId: existing.productId, tenantId } });
       if (p) {
@@ -210,8 +211,9 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
 export const addPurchasePayment = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     // Ensure the purchase exists
-    const existing = await prisma.purchases.findUnique({ where: { purchaseId: id } });
+    const existing = await prisma.purchases.findFirst({ where: { purchaseId: id, tenantId } });
     if (!existing) {
       res.status(404).json({ message: "Purchase not found" });
       return;
@@ -270,7 +272,8 @@ export const addPurchasePayment = async (req: Request, res: Response): Promise<v
 export const updatePurchaseMeta = async (req: Request, res: Response): Promise<void> => {
   try {
     const { id } = req.params;
-    const existing = await prisma.purchases.findUnique({ where: { purchaseId: id } });
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const existing = await prisma.purchases.findFirst({ where: { purchaseId: id, tenantId } });
     if (!existing) {
       res.status(404).json({ message: "Purchase not found" });
       return;
@@ -531,8 +534,8 @@ export const updateSupplier = async (req: Request, res: Response): Promise<void>
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const id = String(req.params.id || "").trim();
     const changes = req.body || {};
-    const existing = await prisma.suppliers.findUnique({ where: { id } });
-    if (!existing || existing.tenantId !== tenantId) { res.status(404).json({ message: "Supplier not found" }); return; }
+    const existing = await prisma.suppliers.findFirst({ where: { id, tenantId } });
+    if (!existing) { res.status(404).json({ message: "Supplier not found" }); return; }
     const next = await prisma.suppliers.update({
       where: { id },
       data: {
@@ -551,8 +554,8 @@ export const deleteSupplier = async (req: Request, res: Response): Promise<void>
   try {
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const id = String(req.params.id || "").trim();
-    const existing = await prisma.suppliers.findUnique({ where: { id } });
-    if (!existing || existing.tenantId !== tenantId) { res.status(404).json({ message: "Supplier not found" }); return; }
+    const existing = await prisma.suppliers.findFirst({ where: { id, tenantId } });
+    if (!existing) { res.status(404).json({ message: "Supplier not found" }); return; }
     await prisma.suppliers.delete({ where: { id } });
     res.json({ success: true });
   } catch (err) {
