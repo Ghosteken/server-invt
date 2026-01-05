@@ -8,9 +8,9 @@ router.get("/", authenticateToken, getInvoices);
 router.get("/stats", authenticateToken, getInvoiceStats);
 router.get("/:id", authenticateToken, getInvoiceById);
 router.get("/:id/print-options", authenticateToken, getInvoicePrintOptions);
-router.post("/", createInvoice);
-router.put("/:id", updateInvoice);
-router.post("/:id/payments", addPayment);
-router.delete("/:id", deleteInvoice);
+router.post("/", authenticateToken, createInvoice);
+router.put("/:id", authenticateToken, updateInvoice);
+router.post("/:id/payments", authenticateToken, addPayment);
+router.delete("/:id", authenticateToken, deleteInvoice);
 
 export default router;
