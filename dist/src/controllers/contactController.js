@@ -5,6 +5,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendContactEmail = void 0;
 const nodemailer_1 = __importDefault(require("nodemailer"));
+const errorHandler_1 = require("../utils/errorHandler");
 const sendContactEmail = async (req, res) => {
     try {
         const { name, email, message } = req.body;
@@ -56,9 +57,8 @@ const sendContactEmail = async (req, res) => {
         await transporter.sendMail(mailOptions);
         res.status(200).json({ message: "Email sent successfully" });
     }
-    catch (error) {
-        console.error("Error sending email:", error);
-        res.status(500).json({ message: "Failed to send email" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "Failed to send email"));
     }
 };
 exports.sendContactEmail = sendContactEmail;

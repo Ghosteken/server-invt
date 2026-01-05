@@ -317,7 +317,7 @@ export const setOrgAdminFeatures = async (req: Request, res: Response): Promise<
     flags[adminId] = features;
     flags["__allowed__"] = features;
     try {
-      const admin = await prisma.orgAdmins.findUnique({ where: { id: adminId } });
+      const admin = await prisma.orgAdmins.findFirst({ where: { id: adminId, orgId } });
       if (admin) {
         const user = await prisma.users.findFirst({ where: { email: admin.email, tenantId: orgId } });
         if (user) {

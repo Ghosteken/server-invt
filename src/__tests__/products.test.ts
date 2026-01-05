@@ -1,4 +1,5 @@
 import request from "supertest";
+import jwt from "jsonwebtoken";
 
 // Minimal Prisma mock used by product controller.
 // Define mock and register it BEFORE importing the app to ensure it takes effect.
@@ -16,11 +17,18 @@ jest.mock("../db/prisma", () => ({
 
 import createApp from "../app";
 
+const JWT_SECRET = process.env.JWT_SECRET || "test-secret-key";
+const generateToken = (userId: string, tenantId: string = "default") => {
+  return jwt.sign({ userId, tenantId, role: "user", email: "test@example.com" }, JWT_SECRET, { expiresIn: "1h" });
+};
+
 describe("GET /products search", () => {
   let app: ReturnType<typeof createApp>;
+  let token: string;
 
   beforeEach(() => {
     app = createApp();
+    token = generateToken("test-user", "default");
     jest.clearAllMocks();
   });
 
@@ -31,7 +39,7 @@ describe("GET /products search", () => {
     ];
     prismaMock.products.findMany.mockResolvedValueOnce(result);
 
-    const res1 = await request(app).get("/products").query({ search: "nutella" }).expect(200);
+    const res1 = await request(app).get("/products").query({ search: "nutella" }).set("Authorization", `Bearer ${token}`).expect(200);
     expect(res1.body).toEqual(result);
     expect(prismaMock.products.findMany).toHaveBeenCalledTimes(1);
     // Verify search filter shape
@@ -51,7 +59,7 @@ describe("GET /products search", () => {
     });
 
     // Second call should hit the in-memory cache and not call Prisma again
-    const res2 = await request(app).get("/products").query({ search: "nutella" }).expect(200);
+    const res2 = await request(app).get("/products").query({ search: "nutella" }).set("Authorization", `Bearer ${token}`).expect(200);
     expect(res2.body).toEqual(result);
     expect(prismaMock.products.findMany).toHaveBeenCalledTimes(1);
   });

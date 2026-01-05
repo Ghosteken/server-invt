@@ -43,6 +43,7 @@ const XLSX = __importStar(require("xlsx"));
 const storeService_1 = require("../services/storeService");
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
+const errorHandler_1 = require("../utils/errorHandler");
 // Use shared Prisma client
 // Canonical store chains to present in UI
 const CANONICAL_CHAINS = [
@@ -184,8 +185,7 @@ const getStores = async (req, res) => {
         res.json({ stores });
     }
     catch (err) {
-        console.error("getStores error:", err);
-        res.status(500).json({ message: "Failed to load stores" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "store", "Failed to load stores"));
     }
 };
 exports.getStores = getStores;
@@ -227,8 +227,7 @@ const getStoreBranchSales = async (req, res) => {
         res.json({ sales });
     }
     catch (err) {
-        console.error("getStoreBranchSales error:", err);
-        res.status(500).json({ message: "Failed to load store branch sales" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "store", "Failed to load store branch sales"));
     }
 };
 exports.getStoreBranchSales = getStoreBranchSales;
@@ -267,8 +266,7 @@ const importStoresBranches = async (req, res) => {
         res.json({ importedStores: stores.length });
     }
     catch (err) {
-        console.error("importStoresBranches error:", err);
-        res.status(500).json({ message: "Failed to import stores/branches" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "store", "Failed to import stores/branches"));
     }
 };
 exports.importStoresBranches = importStoresBranches;
@@ -323,8 +321,7 @@ const importStoresBranchesSample = async (_req, res) => {
         }
     }
     catch (err) {
-        console.error("importStoresBranchesSample error:", err);
-        res.status(500).json({ message: "Failed to import stores/branches from sample" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "store", "Failed to import stores/branches from sample"));
     }
 };
 exports.importStoresBranchesSample = importStoresBranchesSample;

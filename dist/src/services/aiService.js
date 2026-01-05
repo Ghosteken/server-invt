@@ -5,14 +5,13 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getPurchasingAdvice = void 0;
 const openai_1 = __importDefault(require("openai"));
-const openai = new openai_1.default({
-    baseURL: "https://openrouter.ai/api/v1",
-    apiKey: process.env.OPENROUTER_API_KEY,
-    defaultHeaders: {
-        "HTTP-Referer": "http://localhost:3000",
-        "X-Title": "InventorySaaS",
-    },
-});
+const getClient = () => {
+    // Deprecated: Internal logic now handles key rotation per request
+    return new openai_1.default({
+        apiKey: "dummy",
+        baseURL: "https://openrouter.ai/api/v1",
+    });
+};
 const getPurchasingAdvice = async (prisma, tenantId, mode = "general", userQuery) => {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -156,18 +155,45 @@ const getPurchasingAdvice = async (prisma, tenantId, mode = "general", userQuery
             break;
     }
     const MODELS = [
-        "google/gemini-2.0-flash-exp:free",
+        "deepseek/deepseek-r1-distill-llama-70b:free",
+        "deepseek/deepseek-r1:free",
+        "meta-llama/llama-3.2-11b-vision-instruct:free",
+        "qwen/qwen-2.5-72b-instruct:free",
+        "meta-llama/llama-3.1-8b-instruct:free",
+        "google/gemini-2.0-flash-lite-preview-02-05:free",
         "google/gemini-2.0-flash-thinking-exp:free",
-        "google/gemini-exp-1206:free",
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "meta-llama/llama-3-8b-instruct:free",
-        "mistralai/mistral-7b-instruct:free",
-        "microsoft/phi-3-mini-128k-instruct:free",
+        "mistralai/mistral-small-24b-instruct-2501:free",
+        "microsoft/phi-3.5-mini-128k-instruct:free",
+        "nvidia/llama-3.1-nemotron-70b-instruct:free"
     ];
     let analysis = "No analysis generated.";
     let error = null;
+    // Get all available keys
+    const keys = [
+        process.env.OPENROUTER_API_KEY,
+        process.env.OPENROUTER_API_KEY_2,
+        process.env.OPENROUTER_API_KEY_3,
+        ...(process.env.OPENROUTER_API_KEYS ? process.env.OPENROUTER_API_KEYS.split(",") : [])
+    ].filter(Boolean);
+    if (keys.length === 0) {
+        throw new Error("No OpenRouter API keys found.");
+    }
+    // Key rotation counter
+    let keyIndex = Math.floor(Math.random() * keys.length);
     for (const model of MODELS) {
         try {
+            // Rotate key for each attempt to maximize success rate
+            const currentKey = keys[keyIndex % keys.length];
+            keyIndex++;
+            const openai = new openai_1.default({
+                baseURL: "https://openrouter.ai/api/v1",
+                apiKey: currentKey,
+                defaultHeaders: {
+                    "HTTP-Referer": "http://localhost:3000",
+                    "X-Title": "InventorySaaS",
+                },
+            });
+            console.log(`Trying model: ${model} with key ending in ...${String(currentKey).slice(-4)}`);
             const completion = await openai.chat.completions.create({
                 model: model,
                 messages: [
@@ -185,6 +211,16 @@ const getPurchasingAdvice = async (prisma, tenantId, mode = "general", userQuery
         }
         catch (err) {
             console.error(`Error with model ${model}:`, err.message);
+            // Check for specific error codes to inform future logic (optional logging)
+            if (err.status === 404 || err.code === 404) {
+                console.warn(`Model ${model} not found (404).`);
+            }
+            else if (err.status === 400 || err.code === 400) {
+                console.warn(`Model ${model} request invalid (400).`);
+            }
+            else if (err.status === 429 || err.code === 429) {
+                console.warn(`Model ${model} rate limited (429).`);
+            }
             error = err;
             // Continue to next model
             continue;

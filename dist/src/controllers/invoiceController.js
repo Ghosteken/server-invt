@@ -10,6 +10,7 @@ const prisma_1 = __importDefault(require("../db/prisma"));
 const notificationService_1 = require("../services/notificationService");
 const invoiceMetaService_1 = require("../services/invoiceMetaService");
 const pcsInventoryService_1 = require("../services/pcsInventoryService");
+const errorHandler_1 = require("../utils/errorHandler");
 const CreateInvoiceBodySchema = zod_1.z.object({
     customerId: zod_1.z.string().optional(),
     customerName: zod_1.z.string().optional(),
@@ -147,11 +148,11 @@ const createInvoice = async (req, res) => {
         let resolvedLocation = location;
         let resolvedSalesAgent = salesAgent;
         if (locationId) {
-            const loc = await prisma_1.default.locations.findUnique({ where: { id: locationId } });
+            const loc = await prisma_1.default.locations.findFirst({ where: { id: locationId, tenantId } });
             resolvedLocation = loc?.name || location;
         }
         if (salesAgentId) {
-            const agent = await prisma_1.default.salesAgents.findUnique({ where: { id: salesAgentId } });
+            const agent = await prisma_1.default.salesAgents.findFirst({ where: { id: salesAgentId, tenantId } });
             resolvedSalesAgent = agent?.name || salesAgent;
         }
         const created = await prisma_1.default.invoices.create({
@@ -184,15 +185,15 @@ const createInvoice = async (req, res) => {
         const createdWithMeta = {
             ...created,
             invoiceNumber: invoiceNumber?.trim() || undefined,
-            customerName: resolvedCustomerId ? (await prisma_1.default.customers.findUnique({ where: { customerId: resolvedCustomerId } }))?.name : undefined
+            customerName: resolvedCustomerId ? (await prisma_1.default.customers.findFirst({ where: { customerId: resolvedCustomerId, tenantId } }))?.name : undefined
         };
         try {
             const io = req.app.get("io");
             io.emit("invoice:created", createdWithMeta);
             io.emit("dashboard:refresh", { tenantId });
         }
-        catch (error) {
-            console.warn("Socket emission failed for createInvoice", error);
+        catch (err) {
+            console.warn("Socket emission failed for createInvoice", err);
         }
         const pcsTotals = new Map();
         const ctnTotals = new Map();
@@ -246,16 +247,15 @@ const createInvoice = async (req, res) => {
         res.status(201).json(created);
     }
     catch (err) {
-        console.error("createInvoice error:", err);
-        const msg = err instanceof Error ? err.message : "Failed to create invoice";
-        res.status(500).json({ message: msg });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "invoice", "Failed to create invoice"));
     }
 };
 exports.createInvoice = createInvoice;
 const getInvoicePrintOptions = async (req, res) => {
     try {
         const { id } = req.params;
-        const existing = await prisma_1.default.invoices.findUnique({ where: { invoiceId: id } });
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const existing = await prisma_1.default.invoices.findFirst({ where: { invoiceId: id, tenantId } });
         if (!existing) {
             res.status(404).json({ message: "Invoice not found" });
             return;
@@ -272,7 +272,7 @@ const getInvoicePrintOptions = async (req, res) => {
         });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to load print options" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "invoice", "Failed to load print options"));
     }
 };
 exports.getInvoicePrintOptions = getInvoicePrintOptions;
@@ -363,9 +363,7 @@ const getInvoices = async (req, res) => {
         res.json({ invoices: pageSlice, total });
     }
     catch (err) {
-        console.error("getInvoices error:", err);
-        const msg = err instanceof Error ? err.message : "Failed to load invoices";
-        res.status(500).json({ message: msg });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "invoice", "Failed to load invoices"));
     }
 };
 exports.getInvoices = getInvoices;
@@ -390,7 +388,7 @@ const getInvoiceStats = async (req, res) => {
         res.json({ counts: { paid, unpaid, partial } });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to load invoice stats" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "invoice", "Failed to load invoice stats"));
     }
 };
 exports.getInvoiceStats = getInvoiceStats;
@@ -409,8 +407,7 @@ const getInvoiceById = async (req, res) => {
         res.json({ ...inv, status, invoiceNumber: meta?.invoiceNumber || undefined });
     }
     catch (err) {
-        console.error("getInvoiceById error:", err);
-        res.status(500).json({ message: "Failed to load invoice" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "invoice", "Failed to load invoice"));
     }
 };
 exports.getInvoiceById = getInvoiceById;
@@ -419,7 +416,7 @@ const updateInvoice = async (req, res) => {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
         const { id } = req.params;
         const body = UpdateInvoiceBodySchema.parse(req.body || {});
-        const existing = await prisma_1.default.invoices.findUnique({ where: { invoiceId: id }, include: { items: true, payments: true } });
+        const existing = await prisma_1.default.invoices.findFirst({ where: { invoiceId: id, tenantId }, include: { items: true, payments: true } });
         if (!existing) {
             res.status(404).json({ message: "Invoice not found" });
             return;
@@ -430,7 +427,7 @@ const updateInvoice = async (req, res) => {
             let unitPrice = typeof it.unitPrice === "number" ? it.unitPrice : undefined;
             let displayName = it.name;
             if (it.productId) {
-                const p = await prisma_1.default.products.findUnique({ where: { productId: it.productId } });
+                const p = await prisma_1.default.products.findFirst({ where: { productId: it.productId, tenantId } });
                 if (p) {
                     displayName = displayName || p.name;
                     if (unitPrice === undefined) {
@@ -455,12 +452,12 @@ const updateInvoice = async (req, res) => {
         let nextLocationId = body.locationId ?? existing.locationId ?? null;
         let nextSalesAgentId = body.salesAgentId ?? existing.salesAgentId ?? null;
         if (body.locationId) {
-            const loc = await prisma_1.default.locations.findUnique({ where: { id: body.locationId } });
+            const loc = await prisma_1.default.locations.findFirst({ where: { id: body.locationId, tenantId } });
             nextLocation = loc?.name || nextLocation;
             nextLocationId = body.locationId;
         }
         if (body.salesAgentId) {
-            const agent = await prisma_1.default.salesAgents.findUnique({ where: { id: body.salesAgentId } });
+            const agent = await prisma_1.default.salesAgents.findFirst({ where: { id: body.salesAgentId, tenantId } });
             nextSalesAgent = agent?.name || nextSalesAgent;
             nextSalesAgentId = body.salesAgentId;
         }
@@ -567,14 +564,13 @@ const updateInvoice = async (req, res) => {
             io.emit("invoice:updated", updatedWithMeta);
             io.emit("dashboard:refresh", { tenantId: req.tenantId || req.user?.tenantId || "default" });
         }
-        catch (error) {
-            console.warn("Socket emission failed for updateInvoice", error);
+        catch (err) {
+            console.warn("Socket emission failed for updateInvoice", err);
         }
         res.json(updatedWithMeta);
     }
     catch (err) {
-        console.error("updateInvoice error:", err);
-        res.status(500).json({ message: "Failed to update invoice" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "invoice", "Failed to update invoice"));
     }
 };
 exports.updateInvoice = updateInvoice;
@@ -615,15 +611,14 @@ const addPayment = async (req, res) => {
                 io.emit("invoice:updated", { ...fullInvoice, invoiceNumber: meta?.invoiceNumber });
                 io.emit("dashboard:refresh", { tenantId });
             }
-            catch (error) {
-                console.warn("Socket emission failed for addPayment", error);
+            catch (err) {
+                console.warn("Socket emission failed for addPayment", err);
             }
         }
         res.status(201).json({ payment, invoice: updatedInv });
     }
     catch (err) {
-        console.error("addPayment error:", err);
-        res.status(500).json({ message: "Failed to add payment" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "invoice", "Failed to add payment"));
     }
 };
 exports.addPayment = addPayment;
@@ -641,7 +636,7 @@ const deleteInvoice = async (req, res) => {
         for (const it of inv.items) {
             const qty = Math.max(0, Number(it.quantity) || 0);
             if (it.unit === "ctn" && it.productId) {
-                const p = await prisma_1.default.products.findUnique({ where: { productId: it.productId } });
+                const p = await prisma_1.default.products.findFirst({ where: { productId: it.productId, tenantId } });
                 if (p) {
                     const newQty = Math.max(0, Number(p.stockQuantity) + qty);
                     await prisma_1.default.products.update({ where: { productId: it.productId }, data: { stockQuantity: newQty } });
@@ -678,15 +673,13 @@ const deleteInvoice = async (req, res) => {
             io.emit("invoice:deleted", { invoiceId: id });
             io.emit("dashboard:refresh", { tenantId });
         }
-        catch (error) {
-            console.warn("Socket emission failed for deleteInvoice", error);
+        catch (err) {
+            console.warn("Socket emission failed for deleteInvoice", err);
         }
         res.json({ success: true });
     }
     catch (err) {
-        console.error("deleteInvoice error:", err);
-        const msg = err instanceof Error ? err.message : "Failed to delete invoice";
-        res.status(500).json({ message: msg });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "invoice", "Failed to delete invoice"));
     }
 };
 exports.deleteInvoice = deleteInvoice;

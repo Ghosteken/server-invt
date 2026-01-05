@@ -10,13 +10,19 @@ const crypto_1 = require("crypto");
 const prisma_1 = __importDefault(require("../db/prisma"));
 const zod_1 = require("zod");
 const featureFlagsService_1 = require("../services/featureFlagsService");
+const errorHandler_1 = require("../utils/errorHandler");
 const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";
 const superAdminLogin = async (req, res) => {
     try {
         const email = String((req.body || {}).email || "").toLowerCase();
         const password = String((req.body || {}).password || "");
-        const configuredEmail = String(process.env.SUPER_ADMIN_EMAIL || "super@inventory.com").toLowerCase();
-        const configuredPassword = String(process.env.SUPER_ADMIN_PASSWORD || "super_admin_password");
+        const configuredEmail = String(process.env.MASTER_ADMIN_EMAIL || "").toLowerCase();
+        const configuredPassword = String(process.env.MASTER_ADMIN_PASSWORD || "");
+        if (!configuredEmail || !configuredPassword) {
+            console.error("Super admin credentials not configured in environment");
+            res.status(500).json({ message: "Server configuration error" });
+            return;
+        }
         if (email === configuredEmail && password === configuredPassword) {
             const token = jsonwebtoken_1.default.sign({ userId: "super-admin", email, role: "super_admin" }, JWT_SECRET, { expiresIn: "24h" });
             res.json({ token, user: { userId: "super-admin", name: "Super Admin", email, role: "super_admin" } });
@@ -24,8 +30,8 @@ const superAdminLogin = async (req, res) => {
         }
         res.status(401).json({ message: "Invalid credentials" });
     }
-    catch {
-        res.status(500).json({ message: "Error during super admin login" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, undefined, "Error during super admin login"));
     }
 };
 exports.superAdminLogin = superAdminLogin;
@@ -93,7 +99,30 @@ const createOrg = async (req, res) => {
         try {
             const existingAdmin = await prisma_1.default.orgAdmins.findFirst({ where: { orgId, email: adminEmail } });
             if (!existingAdmin) {
-                await prisma_1.default.orgAdmins.create({ data: { id: (0, crypto_1.randomUUID)(), orgId, name: "Admin", email: adminEmail, passwordHash } });
+                const newAdmin = await prisma_1.default.orgAdmins.create({ data: { id: (0, crypto_1.randomUUID)(), orgId, name: "Admin", email: adminEmail, passwordHash } });
+                // Lock AI features by default for new org admins
+                const ALL_FEATURES = [
+                    "reports",
+                    "storeSales",
+                    "inventory",
+                    "productTracker",
+                    "products",
+                    "customers",
+                    "invoices",
+                    "expenses",
+                    "expenseApproval",
+                    "salesAgents",
+                    "purchases",
+                    "customerGroups",
+                    "logistics",
+                    "purchasingAdvisor",
+                    "expenseAnomalyDetection"
+                ];
+                const allFeaturesExceptAI = ALL_FEATURES.filter(f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection");
+                await (0, featureFlagsService_1.writeFlags)({
+                    [newAdmin.id]: allFeaturesExceptAI,
+                    "__allowed__": allFeaturesExceptAI
+                }, orgId);
             }
             const existingUser = await prisma_1.default.users.findFirst({ where: { email: adminEmail, tenantId: orgId } });
             if (!existingUser) {
@@ -104,7 +133,7 @@ const createOrg = async (req, res) => {
         res.status(201).json({ org: { id: org.id, name: org.name, apiBaseUrl: org.apiBaseUrl, adminEmail: org.adminEmail } });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to create organization" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "Failed to create organization"));
     }
 };
 exports.createOrg = createOrg;
@@ -158,7 +187,7 @@ const createOrgAdmin = async (req, res) => {
         res.status(201).json({ admin: { id: admin.id, name: admin.name, email: admin.email } });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to create org admin" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "Failed to create org admin"));
     }
 };
 exports.createOrgAdmin = createOrgAdmin;
@@ -224,7 +253,7 @@ const deleteOrg = async (req, res) => {
         res.json({ success: true });
     }
     catch (err) {
-        res.status(500).json({ message: "Failed to delete organization" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "Failed to delete organization"));
     }
 };
 exports.deleteOrg = deleteOrg;
@@ -285,6 +314,9 @@ const getOrgAdminFeatures = async (req, res) => {
             "purchases",
             "customerGroups",
             "logistics",
+            "expenseApproval",
+            "purchasingAdvisor",
+            "expenseAnomalyDetection",
         ];
         const list = flags[adminId] && Array.isArray(flags[adminId]) ? flags[adminId] : allFeatures;
         res.json({ features: list });
@@ -294,7 +326,7 @@ const getOrgAdminFeatures = async (req, res) => {
             res.status(400).json({ message: "Invalid input", errors: err.issues });
             return;
         }
-        res.status(500).json({ message: "Failed to read features" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "Failed to read features"));
     }
 };
 exports.getOrgAdminFeatures = getOrgAdminFeatures;
@@ -311,7 +343,7 @@ const setOrgAdminFeatures = async (req, res) => {
         flags[adminId] = features;
         flags["__allowed__"] = features;
         try {
-            const admin = await prisma_1.default.orgAdmins.findUnique({ where: { id: adminId } });
+            const admin = await prisma_1.default.orgAdmins.findFirst({ where: { id: adminId, orgId } });
             if (admin) {
                 const user = await prisma_1.default.users.findFirst({ where: { email: admin.email, tenantId: orgId } });
                 if (user) {
@@ -328,7 +360,7 @@ const setOrgAdminFeatures = async (req, res) => {
             res.status(400).json({ message: "Invalid input", errors: err.issues });
             return;
         }
-        res.status(500).json({ message: "Failed to write features" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "Failed to write features"));
     }
 };
 exports.setOrgAdminFeatures = setOrgAdminFeatures;

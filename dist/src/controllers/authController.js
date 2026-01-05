@@ -9,10 +9,13 @@ const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const crypto_1 = require("crypto");
 const featureFlagsService_1 = require("../services/featureFlagsService");
+const errorHandler_1 = require("../utils/errorHandler");
 // Use shared Prisma client
 // Load JWT secret from environment (server/index.ts calls dotenv.config()).
-// Fallback kept for local/dev convenience but you should set JWT_SECRET in production.
-const JWT_SECRET = process.env.JWT_SECRET || "inventory-management-secret-key";
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    throw new Error("JWT_SECRET environment variable is not defined");
+}
 const ALL_FEATURES = [
     "reports",
     "storeSales",
@@ -26,6 +29,8 @@ const ALL_FEATURES = [
     "purchases",
     "customerGroups",
     "logistics",
+    "purchasingAdvisor",
+    "expenseAnomalyDetection",
 ];
 const compareAsync = (p, h) => new Promise((resolve) => bcryptjs_1.default.compare(p, h, (err, res) => resolve(!!res)));
 const hashAsync = (p, rounds) => new Promise((resolve, reject) => bcryptjs_1.default.hash(p, rounds, (err, res) => { if (err)
@@ -74,9 +79,8 @@ const signup = async (req, res) => {
             },
         });
     }
-    catch (error) {
-        console.error("Signup error:", error);
-        res.status(500).json({ message: "Error creating user" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, undefined, "Error creating user"));
     }
 };
 exports.signup = signup;
@@ -135,9 +139,8 @@ const login = async (req, res) => {
             },
         });
     }
-    catch (error) {
-        console.error("Login error:", error);
-        res.status(500).json({ message: "Error during login" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, undefined, "Error during login"));
     }
 };
 exports.login = login;
@@ -243,9 +246,8 @@ const adminLogin = async (req, res) => {
             user: { userId: user.userId, name: user.name, email: user.email, role: user.role, tenantId },
         });
     }
-    catch (error) {
-        console.error("Admin login error:", error);
-        res.status(500).json({ message: "Error during admin login" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, undefined, "Error during admin login"));
     }
 };
 exports.adminLogin = adminLogin;
@@ -297,7 +299,7 @@ const verifyToken = async (req, res) => {
             },
         });
     }
-    catch (error) {
+    catch (err) {
         res.status(401).json({ message: "Invalid token" });
     }
 };
@@ -332,8 +334,8 @@ const orgAdminLogin = async (req, res) => {
         const token = jsonwebtoken_1.default.sign({ userId: admin.id, email: admin.email, role: "org_admin", tenantId: admin.orgId }, JWT_SECRET, { expiresIn: "24h" });
         res.json({ message: "Login successful", token, user: { userId: admin.id, name: admin.name, email: admin.email, role: "org_admin" } });
     }
-    catch (error) {
-        res.status(500).json({ message: "Error during org admin login" });
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, undefined, "Error during org admin login"));
     }
 };
 exports.orgAdminLogin = orgAdminLogin;
@@ -398,6 +400,12 @@ const signupOrg = async (req, res) => {
         const newOrgAdmin = await prisma_1.default.orgAdmins.findFirst({ where: { email: normalizedEmail, orgId } });
         if (!newOrgAdmin)
             throw new Error("Failed to retrieve created admin");
+        // Lock AI features by default for new org admins
+        const allFeaturesExceptAI = ALL_FEATURES.filter(f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection");
+        await (0, featureFlagsService_1.writeFlags)({
+            [newOrgAdmin.id]: allFeaturesExceptAI,
+            "__allowed__": allFeaturesExceptAI
+        }, orgId);
         const token = jsonwebtoken_1.default.sign({ userId: newOrgAdmin.id, email: newOrgAdmin.email, role: "org_admin", tenantId: orgId }, JWT_SECRET, { expiresIn: "24h" });
         res.status(201).json({
             message: "Organization registered successfully",
@@ -412,8 +420,7 @@ const signupOrg = async (req, res) => {
         });
     }
     catch (err) {
-        console.error("Signup Org Error:", err);
-        res.status(500).json({ message: "Failed to register organization" });
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, undefined, "Failed to register organization"));
     }
 };
 exports.signupOrg = signupOrg;
