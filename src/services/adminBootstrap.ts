@@ -1,6 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "node:crypto";
+import { writeFlags } from "./featureFlagsService";
 
 // Ensure an admin user exists and matches configured credentials.
 // Call this on server startup to keep admin in sync with environment.
@@ -21,7 +22,7 @@ export async function ensureAdminUser() {
     const hashedPassword = bcrypt.hashSync(String(adminPassword), 10);
 
     if (!existing) {
-      await prisma.users.create({
+      const newAdmin = await prisma.users.create({
         data: {
           userId: randomUUID(),
           name: "Admin User",
@@ -30,6 +31,34 @@ export async function ensureAdminUser() {
           role: "admin",
         },
       });
+      // Lock AI features by default for bootstrap admin
+      const ALL_FEATURES = [
+        "reports",
+        "storeSales",
+        "inventory",
+        "productTracker",
+        "products",
+        "customers",
+        "invoices",
+        "expenses",
+        "expenseApproval",
+        "salesAgents",
+        "purchases",
+        "customerGroups",
+        "logistics",
+        "purchasingAdvisor",
+        "expenseAnomalyDetection"
+      ];
+      const allFeaturesExceptAI = ALL_FEATURES.filter(
+        f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection"
+      );
+      await writeFlags(
+        { 
+          [newAdmin.userId]: allFeaturesExceptAI,
+          "__allowed__": allFeaturesExceptAI
+        },
+        "default"
+      );
       console.log(`adminBootstrap: created admin ${adminEmail}`);
     } else {
       const passwordMatches = bcrypt.compareSync(String(adminPassword), existing.password);
