@@ -50,8 +50,9 @@ describe('Error Handler', () => {
       const result = sanitizeError(prismaError);
       
       expect(result).not.toContain('Foreign key');
-      expect(result).not.toContain('constraint');
+      expect(result).not.toContain('customerId');
       expect(result).not.toContain('field');
+      expect(result).toMatch(/related|cannot|failed/i);
     });
 
     test('should provide context-specific messages for invoice operations', () => {
@@ -102,6 +103,7 @@ describe('Error Handler', () => {
 
       const result = sanitizeError(error, undefined, fallback);
       
+      // Fallback should be used for generic errors when provided
       expect(result).toBe(fallback);
     });
 
@@ -126,6 +128,7 @@ describe('Error Handler', () => {
 
       expect(response).toHaveProperty('message');
       expect(typeof response.message).toBe('string');
+      // When fallback is provided, it should be used
       expect(response.message).toBe('Operation failed');
     });
 

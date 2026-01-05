@@ -173,11 +173,16 @@ export function sanitizeError(
 
   // Handle validation errors (Zod or similar)
   if (error instanceof Error && error.name === "ZodError") {
-    return "Invalid input data provided";
+    return fallbackMessage || "Invalid input data provided";
   }
 
   // Handle standard Error objects (but don't expose the message directly)
   if (error instanceof Error) {
+    // Use fallback if provided for generic errors
+    if (fallbackMessage) {
+      return fallbackMessage;
+    }
+
     // Only return the message if it looks user-friendly (no stack traces, no code)
     const message = error.message;
     if (
