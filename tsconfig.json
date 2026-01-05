@@ -13,6 +13,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["src", "prisma/**/*.ts", "prisma.config.ts"],
+  "include": ["src", "prisma/**/*.ts", "prisma.config.ts", "scripts/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

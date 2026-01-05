@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../db/prisma";
 import { readPcsInventory } from "../services/pcsInventoryService";
 import { withCache } from "../services/cache";
+import { createErrorResponse } from "../utils/errorHandler";
 
 // Use shared Prisma client
 // Only include products currently in inventory: Qty > 0
@@ -173,8 +174,8 @@ export const getDashboardMetrics = async (
       popularProducts,
     });
     
-  } catch (error) {
-    res.status(500).json({ message: "Error retrieving dashboard metrics" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "Error retrieving dashboard metrics"));
   }
 };
 
@@ -215,8 +216,8 @@ export const getLowStockProducts = async (req: Request, res: Response): Promise<
     });
     res.set("Cache-Control", "public, max-age=30");
     res.json(products.map((p: { price: unknown }) => ({ ...p, price: Number(p.price) })));
-  } catch (error) {
-    res.status(500).json({ message: "Error retrieving low-stock products" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "Error retrieving low-stock products"));
   }
 };
 
@@ -235,8 +236,8 @@ export const getExpiringProducts = async (req: Request, res: Response): Promise<
     });
     res.set("Cache-Control", "public, max-age=30");
     res.json(products.map((p: { price: unknown }) => ({ ...p, price: Number(p.price) })));
-  } catch (error) {
-    res.status(500).json({ message: "Error retrieving expiring products" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "Error retrieving expiring products"));
   }
 };
 
@@ -265,8 +266,8 @@ export const getDeadStockProducts = async (req: Request, res: Response): Promise
     });
     res.set("Cache-Control", "public, max-age=30");
     res.json(dead.map((d: { price: unknown }) => ({ ...d, price: Number(d.price) })));
-  } catch (error) {
-    res.status(500).json({ message: "Error retrieving dead stock products" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "Error retrieving dead stock products"));
   }
 };
 
@@ -294,8 +295,8 @@ export const getTopCustomers = async (req: Request, res: Response): Promise<void
     })).sort((a: any, b: any) => b.totalPurchaseValue - a.totalPurchaseValue);
     res.set("Cache-Control", "public, max-age=60");
     res.json(result);
-  } catch (error) {
-    res.status(500).json({ message: "Error retrieving top customers" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "Error retrieving top customers"));
   }
 };
 
@@ -342,7 +343,7 @@ export const getLowStockPcs = async (req: Request, res: Response): Promise<void>
     });
     res.set("Cache-Control", "public, max-age=30");
     res.json(low);
-  } catch (error) {
-    res.status(500).json({ message: "Error retrieving low-stock PCS items" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "Error retrieving low-stock PCS items"));
   }
 };

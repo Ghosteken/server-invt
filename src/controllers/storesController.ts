@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { randomUUID } from "crypto";
 import prisma from "../db/prisma";
+import { createErrorResponse } from "../utils/errorHandler";
 
 export const listStores = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -12,8 +13,7 @@ export const listStores = async (req: Request, res: Response): Promise<void> => 
       : stores;
     res.json({ stores: filtered });
   } catch (err) {
-    console.error("listStores error:", err);
-    res.status(500).json({ message: "Failed to list stores" });
+    res.status(500).json(createErrorResponse(err, "store", "Failed to list stores"));
   }
 };
 
@@ -30,7 +30,7 @@ export const createStore = async (req: Request, res: Response): Promise<void> =>
   } catch (err) {
     console.error("createStore error:", err);
     const msg = (err as any)?.code === "P2002" ? "Store name must be unique" : "Failed to create store";
-    res.status(500).json({ message: msg });
+    res.status(500).json(createErrorResponse(err, "store", msg));
   }
 };
 
@@ -48,8 +48,7 @@ export const updateStore = async (req: Request, res: Response): Promise<void> =>
     const updated = await prisma.stores.update({ where: { id }, data: { name } });
     res.json(updated);
   } catch (err) {
-    console.error("updateStore error:", err);
-    res.status(500).json({ message: "Failed to update store" });
+    res.status(500).json(createErrorResponse(err, "store", "Failed to update store"));
   }
 };
 
@@ -64,8 +63,7 @@ export const deleteStore = async (req: Request, res: Response): Promise<void> =>
     await prisma.stores.delete({ where: { id } });
     res.json({ success: true });
   } catch (err) {
-    console.error("deleteStore error:", err);
-    res.status(500).json({ message: "Failed to delete store" });
+    res.status(500).json(createErrorResponse(err, "store", "Failed to delete store"));
   }
 };
 
@@ -78,8 +76,7 @@ export const listBranches = async (req: Request, res: Response): Promise<void> =
     const branches = await prisma.branches.findMany({ where: { storeId, tenantId }, orderBy: { name: "asc" } });
     res.json({ branches });
   } catch (err) {
-    console.error("listBranches error:", err);
-    res.status(500).json({ message: "Failed to list branches" });
+    res.status(500).json(createErrorResponse(err, "store", "Failed to list branches"));
   }
 };
 
@@ -106,7 +103,7 @@ export const createBranch = async (req: Request, res: Response): Promise<void> =
   } catch (err) {
     console.error("createBranch error:", err);
     const msg = (err as any)?.code === "P2002" ? "Branch name must be unique per store" : "Failed to create branch";
-    res.status(500).json({ message: msg });
+    res.status(500).json(createErrorResponse(err, "store", msg));
   }
 };
 
@@ -125,8 +122,7 @@ export const updateBranch = async (req: Request, res: Response): Promise<void> =
     const updated = await prisma.branches.update({ where: { id }, data: { ...(name ? { name } : {}), city, state, address, ...(isActive === undefined ? {} : { isActive }) } });
     res.json(updated);
   } catch (err) {
-    console.error("updateBranch error:", err);
-    res.status(500).json({ message: "Failed to update branch" });
+    res.status(500).json(createErrorResponse(err, "store", "Failed to update branch"));
   }
 };
 
@@ -139,7 +135,6 @@ export const deleteBranch = async (req: Request, res: Response): Promise<void> =
     await prisma.branches.delete({ where: { id } });
     res.json({ success: true });
   } catch (err) {
-    console.error("deleteBranch error:", err);
-    res.status(500).json({ message: "Failed to delete branch" });
+    res.status(500).json(createErrorResponse(err, "store", "Failed to delete branch"));
   }
 };

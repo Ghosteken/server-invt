@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../db/prisma";
 import { readExpenses } from "../services/expensesService";
+import { createErrorResponse } from "../utils/errorHandler";
 
 
 export const getSalesReport = async (req: Request, res: Response): Promise<void> => {
@@ -60,8 +61,7 @@ export const getSalesReport = async (req: Request, res: Response): Promise<void>
 
     res.json({ total, count: items.length, items, daily });
   } catch (err) {
-    console.error("getSalesReport error:", err);
-    res.status(500).json({ message: "Failed to load sales report" });
+    res.status(500).json(createErrorResponse(err, "Failed to load sales report"));
   }
 };
 
@@ -138,8 +138,7 @@ export const getFinancialReport = async (req: Request, res: Response): Promise<v
 
     res.json({ salesTotal, purchasesTotal, expensesTotal, net, from: fromRaw || null, to: toRaw || null, salesItems, purchaseItems, expenseItems });
   } catch (err) {
-    console.error("getFinancialReport error:", err);
-    res.status(500).json({ message: "Failed to load financial report" });
+    res.status(500).json(createErrorResponse(err, "Failed to load financial report"));
   }
 };
 
@@ -197,7 +196,6 @@ export const getPurchasesReport = async (req: Request, res: Response): Promise<v
 
     res.json({ total, count: items.length, items, daily });
   } catch (err) {
-    console.error("getPurchasesReport error:", err);
-    res.status(500).json({ message: "Failed to load purchases report" });
+    res.status(500).json(createErrorResponse(err, "Failed to load purchases report"));
   }
 };

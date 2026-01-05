@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import prisma from "../db/prisma";
 import { getInvoiceMeta } from "../services/invoiceMetaService";
+import { createErrorResponse } from "../utils/errorHandler";
 
 // Simple in-memory cache for product search results (per process)
 const PRODUCT_SEARCH_CACHE = new Map<string, { ts: number; data: any[] }>();
@@ -70,8 +71,8 @@ export const getProducts = async (
     });
     PRODUCT_SEARCH_CACHE.set(cacheKey, { ts: now, data: products });
     res.json(products);
-  } catch (error) {
-    res.status(500).json({ message: "Error retrieving products" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Error retrieving products"));
   }
 };
 
@@ -115,13 +116,13 @@ export const createProduct = async (
       const io = req.app.get("io");
       io.emit("product:created", product);
       io.emit("dashboard:refresh", { tenantId });
-    } catch (error) {
-      console.warn("Socket emission failed for createProduct", error);
+    } catch (err) {
+      console.warn("Socket emission failed for createProduct", err);
     }
 
     res.status(201).json(product);
-  } catch (error) {
-    res.status(500).json({ message: "Error creating product" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Error creating product"));
   }
 };
 
@@ -138,8 +139,8 @@ export const getProductById = async (
       return;
     }
     res.json(product);
-  } catch (error) {
-    res.status(500).json({ message: "Error retrieving product" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Error retrieving product"));
   }
 };
 
@@ -218,14 +219,13 @@ export const updateProduct = async (
       const io = req.app.get("io");
       io.emit("product:updated", updated);
       io.emit("dashboard:refresh", { tenantId });
-    } catch (error) {
-      console.warn("Socket emission failed for updateProduct", error);
+    } catch (err) {
+      console.warn("Socket emission failed for updateProduct", err);
     }
 
     res.json(updated);
-  } catch (error) {
-    console.error("updateProduct error:", error);
-    res.status(500).json({ message: "Error updating product" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Error updating product"));
   }
 };
 
@@ -240,9 +240,8 @@ export const exportProducts = async (
     res.setHeader("Content-Type", "application/json");
     res.setHeader("Content-Disposition", "attachment; filename=products.json");
     res.status(200).send(json);
-  } catch (error) {
-    console.error("exportProducts error:", error);
-    res.status(500).json({ message: "Failed to export products" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Failed to export products"));
   }
 };
 
@@ -282,9 +281,8 @@ export const exportProductsExcel = async (
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", "attachment; filename=products.xlsx");
     res.status(200).send(buf);
-  } catch (error) {
-    console.error("exportProductsExcel error:", error);
-    res.status(500).json({ message: "Failed to export products as Excel" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Failed to export products as Excel"));
   }
 };
 
@@ -369,8 +367,8 @@ export const getProductMovements = async (
       },
       items,
     });
-  } catch (error) {
-    res.status(500).json({ message: "Error retrieving product movements" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Error retrieving product movements"));
   }
 };
 
@@ -467,8 +465,7 @@ export const getPcsProducts = async (req: Request, res: Response): Promise<void>
     }
     res.json(enriched);
   } catch (err) {
-    console.error("getPcsProducts error:", err);
-    res.status(500).json({ message: "Failed to load PCS products" });
+    res.status(500).json(createErrorResponse(err, "product", "Failed to load PCS products"));
   }
 };
 
@@ -478,8 +475,7 @@ export const reloadPcs = async (req: Request, res: Response): Promise<void> => {
     const pcs = await reloadPcsInventory(req.tenantId || req.user?.tenantId || "default");
     res.json({ reloaded: pcs.length });
   } catch (err) {
-    console.error("reloadPcs error:", err);
-    res.status(500).json({ message: "Failed to reload PCS inventory" });
+    res.status(500).json(createErrorResponse(err, "product", "Failed to reload PCS inventory"));
   }
 };
 
@@ -777,8 +773,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
     try { await syncProductsJsonFromDb(prisma); } catch {}
     res.json({ imported: importedCount, total: merged.length });
   } catch (err) {
-    console.error("importPcsProducts error:", err);
-    res.status(500).json({ message: "Failed to import PCS products" });
+    res.status(500).json(createErrorResponse(err, "product", "Failed to import PCS products"));
   }
 };
 
@@ -809,8 +804,7 @@ export const upsertPcsItems = async (req: Request, res: Response): Promise<void>
     appendNotification({ type: "product", message: `Upserted ${items.length} PCS item(s)`, actorUserId: req.user?.userId });
     res.json({ upserted: items.length, total: merged.length });
   } catch (err) {
-    console.error("upsertPcsItems error:", err);
-    res.status(500).json({ message: "Failed to upsert PCS items" });
+    res.status(500).json(createErrorResponse(err, "product", "Failed to upsert PCS items"));
   }
 };
 /**
@@ -1575,10 +1569,8 @@ export const importProducts = async (
     // Sync JSON snapshot with DB after import
     await syncProductsJsonFromDb(prisma);
     res.status(201).json({ insertedCount, updatedCount, deletedCount, attempted: productsToInsert.length });
-  } catch (error) {
-    const msg = (error && (error as any).message) ? String((error as any).message) : "Error importing products";
-    console.error("importProducts error:", error);
-    res.status(500).json({ message: msg });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Error importing products"));
   }
 };
 
@@ -1947,9 +1939,8 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
 
     appendNotification({ type: "inventory", message: `Processed invoice for ${cust.name}; updated ${updates.length} product(s).`, actorUserId: req.user?.userId });
     res.json({ customer: cust, items, updates });
-  } catch (error) {
-    console.error("processInvoice error:", error);
-    res.status(500).json({ message: "Error processing invoice" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Error processing invoice"));
   }
 };
 
@@ -2041,9 +2032,8 @@ export const processInvoiceManual = async (req: Request, res: Response): Promise
 
     // appendNotification({ type: "inventory", message: `Processed manual invoice for ${cust.name}; updated ${updates.length} product(s).`, actorUserId: req.user?.userId });
     res.json({ customer: cust, updates });
-  } catch (error) {
-    console.error("processInvoiceManual error:", error);
-    res.status(500).json({ message: "Error processing manual invoice" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Error processing manual invoice"));
   }
 };
 
@@ -2084,14 +2074,13 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
       const io = req.app.get("io");
       io.emit("product:deleted", { productId });
       io.emit("dashboard:refresh", { tenantId: req.user?.tenantId || "default" });
-    } catch (error) {
-      console.warn("Socket emission failed for deleteProduct", error);
+    } catch (err) {
+      console.warn("Socket emission failed for deleteProduct", err);
     }
 
     res.status(200).json({ success: true });
-  } catch (error) {
-    console.error("deleteProduct error:", error);
-    res.status(500).json({ message: "Error deleting product" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Error deleting product"));
   }
 };
 
@@ -2107,9 +2096,8 @@ export const purgeProducts = async (req: Request, res: Response): Promise<void> 
     await syncProductsJsonFromDb(prisma);
     appendNotification({ type: "product", message: "Purged all products and related records", actorUserId: req.user?.userId });
     res.status(200).json({ success: true });
-  } catch (error) {
-    console.error("purgeProducts error:", error);
-    res.status(500).json({ message: "Error purging products" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Error purging products"));
   }
 };
 
@@ -2220,8 +2208,7 @@ export const getImportSample = async (
     res.setHeader("Content-Disposition", "attachment; filename=barcode-products-updated.xlsx");
     res.status(200).send(buffer);
   } catch (err) {
-    console.error("getImportSample error:", err);
-    res.status(500).json({ message: "Failed to generate sample file" });
+    res.status(500).json(createErrorResponse(err, "product", "Failed to generate sample file"));
   }
 };
 
@@ -2275,8 +2262,7 @@ export const getPcsSample = async (
     res.setHeader("Content-Disposition", "attachment; filename=PCS-sample.xlsx");
     res.status(200).send(buf);
   } catch (err) {
-    console.error("getPcsSample error:", err);
-    res.status(500).json({ message: "Failed to generate PCS sample file" });
+    res.status(500).json(createErrorResponse(err, "product", "Failed to generate PCS sample file"));
   }
 };
 
@@ -2321,8 +2307,7 @@ export const exportPcsExcel = async (
     res.setHeader("Content-Disposition", "attachment; filename=pcs.xlsx");
     res.status(200).send(buf);
   } catch (err) {
-    console.error("exportPcsExcel error:", err);
-    res.status(500).json({ message: "Failed to export PCS inventory as Excel" });
+    res.status(500).json(createErrorResponse(err, "product", "Failed to export PCS inventory as Excel"));
   }
 };
 
@@ -2340,7 +2325,6 @@ export const getProductUpdatesLast = async (
     const payload = ids.map((id) => ({ productId: id, name: nameMap.get(id) || "Unknown", last: last[id] }));
     res.json(payload);
   } catch (err) {
-    console.error("getProductUpdatesLast error:", err);
-    res.status(500).json({ message: "Failed to load last updates" });
+    res.status(500).json(createErrorResponse(err, "product", "Failed to load last updates"));
   }
 };

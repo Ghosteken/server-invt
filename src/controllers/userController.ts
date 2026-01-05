@@ -5,6 +5,7 @@ import { randomUUID } from "crypto";
 import fs from "node:fs";
 import path from "node:path";
 import { appendNotification } from "../services/notificationService";
+import { createErrorResponse } from "../utils/errorHandler";
 
 // Use shared Prisma client
 
@@ -23,9 +24,8 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
       orderBy: { name: "asc" },
     });
     res.json(users);
-  } catch (error) {
-    console.error("getUsers error:", error);
-    res.status(500).json({ message: "Error retrieving users" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "user", "Error retrieving users"));
   }
 };
 
@@ -116,9 +116,8 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       message: `User created: ${newUser.name} (${newUser.email}) as ${newUser.role}`,
       actorUserId: req.user?.userId,
     });
-  } catch (error) {
-    console.error("createUser error:", error);
-    res.status(500).json({ message: "Error creating user" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "user", "Error creating user"));
   }
 };
 
@@ -134,9 +133,8 @@ export const purgeNonAdminUsers = async (req: Request, res: Response): Promise<v
       message: `Purged ${result.count} non-admin user(s)`,
       actorUserId: req.user?.userId,
     });
-  } catch (error) {
-    console.error("purgeNonAdminUsers error:", error);
-    res.status(500).json({ message: "Error purging users" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "user", "Error purging users"));
   }
 };
 
@@ -198,9 +196,8 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       message: `User deleted: ${target.name} (${target.email})`,
       actorUserId: req.user?.userId,
     });
-  } catch (error) {
-    console.error("deleteUser error:", error);
-    res.status(500).json({ message: "Error deleting user" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "user", "Error deleting user"));
   }
 };
 
@@ -236,9 +233,8 @@ export const blockUser = async (req: Request, res: Response): Promise<void> => {
       message: `User blocked: ${updated.name} (${updated.email})`,
       actorUserId: req.user?.userId,
     });
-  } catch (error) {
-    console.error("blockUser error:", error);
-    res.status(500).json({ message: "Error blocking user" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "user", "Error blocking user"));
   }
 };
 
@@ -266,9 +262,8 @@ export const unblockUser = async (req: Request, res: Response): Promise<void> =>
       message: `User unblocked: ${updated.name} (${updated.email})`,
       actorUserId: req.user?.userId,
     });
-  } catch (error) {
-    console.error("unblockUser error:", error);
-    res.status(500).json({ message: "Error unblocking user" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "user", "Error unblocking user"));
   }
 };
 
@@ -319,8 +314,7 @@ export const updateUser = async (req: Request, res: Response): Promise<void> => 
     }
 
     res.json(updated);
-  } catch (error) {
-    console.error("updateUser error:", error);
-    res.status(500).json({ message: "Error updating user" });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "user", "Error updating user"));
   }
 };

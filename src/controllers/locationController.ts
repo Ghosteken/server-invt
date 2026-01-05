@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { randomUUID } from "crypto";
 import prisma from "../db/prisma";
 import { appendNotification } from "../services/notificationService";
+import { createErrorResponse } from "../utils/errorHandler";
 
 export const getLocations = async (_req: Request, res: Response): Promise<void> => {
   try {
@@ -11,8 +12,7 @@ export const getLocations = async (_req: Request, res: Response): Promise<void> 
     const locations = await prisma.locations.findMany({ where, orderBy: { name: "asc" }, select: { id: true, name: true } });
     res.json({ locations: locations.map((l: { id: string; name: string }) => ({ id: l.id, name: l.name })) });
   } catch (err) {
-    console.error("getLocations error:", err);
-    res.status(500).json({ message: "Failed to load locations" });
+    res.status(500).json(createErrorResponse(err, "location", "Failed to load locations"));
   }
 };
 
@@ -29,7 +29,7 @@ export const createLocation = async (req: Request, res: Response): Promise<void>
   } catch (err: any) {
     console.error("createLocation error:", err);
     const msg = err?.code === 'P2002' ? 'Location name must be unique' : (err instanceof Error ? err.message : 'Failed to create location');
-    res.status(500).json({ message: msg });
+    res.status(500).json(createErrorResponse(err, "location", msg));
   }
 };
 
@@ -46,7 +46,7 @@ export const updateLocation = async (req: Request, res: Response): Promise<void>
     res.json({ id: updated.id, name: updated.name });
   } catch (err: any) {
     const msg = err?.code === 'P2002' ? 'Location name must be unique' : (err instanceof Error ? err.message : 'Failed to update location');
-    res.status(500).json({ message: msg });
+    res.status(500).json(createErrorResponse(err, "location", msg));
   }
 };
 
@@ -62,6 +62,6 @@ export const deleteLocation = async (req: Request, res: Response): Promise<void>
     try { appendNotification({ type: "location", message: `Location deleted: ${existing.name}`, actorUserId: req.user?.userId }); } catch {}
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ message: "Failed to delete location" });
+    res.status(500).json(createErrorResponse(err, "location", "Failed to delete location"));
   }
 };

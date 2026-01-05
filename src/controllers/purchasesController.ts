@@ -7,6 +7,7 @@ import { appendNotification } from "../services/notificationService";
 import { upsertSupplierMeta, addSupplierPayment } from "../services/supplierPurchasesService";
 import * as XLSX from "xlsx";
 import multer from "multer";
+import { createErrorResponse } from "../utils/errorHandler";
 export const upload = multer({ storage: multer.memoryStorage() });
 
 // GET /purchases - list all customer purchases with joined names
@@ -51,8 +52,7 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
 
     res.json({ purchases: list, total });
   } catch (err) {
-    console.error("getPurchases error:", err);
-    res.status(500).json({ message: "Failed to load purchases" });
+    res.status(500).json(createErrorResponse(err, "purchase", "Failed to load purchases"));
   }
 };
 
@@ -92,14 +92,13 @@ export const deletePurchase = async (req: Request, res: Response): Promise<void>
       const io = req.app.get("io");
       io.emit("purchase:deleted", { purchaseId: id });
       io.emit("dashboard:refresh", { tenantId });
-    } catch (error) {
-      console.warn("Socket emission failed for deletePurchase", error);
+    } catch (err) {
+      console.warn("Socket emission failed for deletePurchase", err);
     }
 
     res.json({ success: true });
   } catch (err) {
-    console.error("deletePurchase error:", err);
-    res.status(500).json({ message: "Failed to delete purchase" });
+    res.status(500).json(createErrorResponse(err, "purchase", "Failed to delete purchase"));
   }
 };
 
@@ -195,15 +194,15 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
          }
       }
       io.emit("dashboard:refresh", { tenantId });
-    } catch (error) {
-      console.warn("Socket emission failed for createPurchase", error);
+    } catch (err) {
+      console.warn("Socket emission failed for createPurchase", err);
     }
 
     res.json({ success: true, purchases: created });
   } catch (err) {
     console.error("createPurchase error:", err);
     const msg = err instanceof Error ? err.message : "Failed to create purchase";
-    res.status(500).json({ message: msg });
+    res.status(500).json(createErrorResponse(err, "purchase", msg));
   }
 };
 
@@ -255,15 +254,15 @@ export const addPurchasePayment = async (req: Request, res: Response): Promise<v
         const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
         io.emit("dashboard:refresh", { tenantId });
       }
-    } catch (error) {
-      console.warn("Socket emission failed for addPurchasePayment", error);
+    } catch (err) {
+      console.warn("Socket emission failed for addPurchasePayment", err);
     }
 
     res.status(201).json({ payment });
   } catch (err) {
     console.error("addPurchasePayment error:", err);
     const msg = err instanceof Error ? err.message : "Failed to add payment";
-    res.status(500).json({ message: msg });
+    res.status(500).json(createErrorResponse(err, "purchase", msg));
   }
 };
 
@@ -288,7 +287,7 @@ export const updatePurchaseMeta = async (req: Request, res: Response): Promise<v
   } catch (err) {
     console.error("updatePurchaseMeta error:", err);
     const msg = err instanceof Error ? err.message : "Failed to update purchase meta";
-    res.status(500).json({ message: msg });
+    res.status(500).json(createErrorResponse(err, "purchase", msg));
   }
 };
 
@@ -383,7 +382,7 @@ export const updatePurchase = async (req: Request, res: Response): Promise<void>
   } catch (err) {
     console.error("updatePurchase error:", err);
     const msg = err instanceof Error ? err.message : "Failed to update purchase";
-    res.status(500).json({ message: msg });
+    res.status(500).json(createErrorResponse(err, "purchase", msg));
   }
 };
 
@@ -406,7 +405,7 @@ export const getPurchasePrintOptions = async (req: Request, res: Response): Prom
       },
     });
   } catch (err) {
-    res.status(500).json({ message: "Failed to load print options" });
+    res.status(500).json(createErrorResponse(err, "purchase", "Failed to load print options"));
   }
 };
 
@@ -472,7 +471,7 @@ export const importSuppliers = async (req: Request, res: Response): Promise<void
     }
     res.json({ importedSuppliers: out.length });
   } catch (err) {
-    res.status(500).json({ message: "Failed to import suppliers" });
+    res.status(500).json(createErrorResponse(err, "purchase", "Failed to import suppliers"));
   }
 };
 
@@ -503,7 +502,7 @@ export const exportSuppliersExcel = async (req: Request, res: Response): Promise
     res.setHeader("Content-Disposition", "attachment; filename=suppliers.xlsx");
     res.status(200).send(buf);
   } catch (err) {
-    res.status(500).json({ message: "Failed to export suppliers" });
+    res.status(500).json(createErrorResponse(err, "purchase", "Failed to export suppliers"));
   }
 };
 
@@ -522,7 +521,7 @@ export const createSupplier = async (req: Request, res: Response): Promise<void>
     await prisma.suppliers.create({ data: { id: randomUUID(), tenantId, name, mobile: mobile || undefined } });
     res.status(201).json({ supplier: { name, mobile } });
   } catch (err) {
-    res.status(500).json({ message: "Failed to create supplier" });
+    res.status(500).json(createErrorResponse(err, "purchase", "Failed to create supplier"));
   }
 };
 
@@ -543,7 +542,7 @@ export const updateSupplier = async (req: Request, res: Response): Promise<void>
     });
     res.json({ supplier: { id: next.id, name: next.name, mobile: next.mobile } });
   } catch (err) {
-    res.status(500).json({ message: "Failed to update supplier" });
+    res.status(500).json(createErrorResponse(err, "purchase", "Failed to update supplier"));
   }
 };
 
@@ -557,6 +556,6 @@ export const deleteSupplier = async (req: Request, res: Response): Promise<void>
     await prisma.suppliers.delete({ where: { id } });
     res.json({ success: true });
   } catch (err) {
-    res.status(500).json({ message: "Failed to delete supplier" });
+    res.status(500).json(createErrorResponse(err, "purchase", "Failed to delete supplier"));
   }
 };
