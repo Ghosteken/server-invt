@@ -5,8 +5,10 @@ import { randomUUID } from "node:crypto";
 // Schema: array of { purchaseId, supplierName?, supplierMobile?, paymentTerm?, date?, dueDate? }
 export type SupplierPurchaseMeta = {
   purchaseId: string;
+  tenantId?: string;
   supplierName?: string | null;
   supplierMobile?: string | null;
+  invoiceNumber?: string | null;
   paymentTerm?: string | null;
   date?: string | null; // ISO string
   dueDate?: string | null; // ISO string
@@ -38,36 +40,38 @@ export function readSupplierMeta(): SupplierPurchaseMeta[] {
   return [];
 }
 
-export function upsertSupplierMeta(entry: SupplierPurchaseMeta): void {
+export async function upsertSupplierMeta(entry: SupplierPurchaseMeta): Promise<void> {
   META_CACHE.set(entry.purchaseId, {
     purchaseId: entry.purchaseId,
     supplierName: entry.supplierName ?? null,
     supplierMobile: entry.supplierMobile ?? null,
+    invoiceNumber: entry.invoiceNumber ?? null,
     paymentTerm: entry.paymentTerm ?? null,
     date: entry.date ?? null,
     dueDate: entry.dueDate ?? null,
     unit: entry.unit ?? null,
   });
-  (async () => {
-    const tenantId = await getTenantForPurchase(entry.purchaseId);
-    const data: any = {
-      tenantId: tenantId || "default",
-      purchaseId: entry.purchaseId,
-      supplierName: entry.supplierName ?? undefined,
-      supplierMobile: entry.supplierMobile ?? undefined,
-      paymentTerm: entry.paymentTerm ?? undefined,
-      date: entry.date ? new Date(entry.date) : undefined,
-      dueDate: entry.dueDate ? new Date(entry.dueDate) : undefined,
-      unit: entry.unit ?? undefined,
-    };
-    try {
-      await prisma.supplierPurchaseMeta.upsert({
-        where: { purchaseId: entry.purchaseId },
-        update: data,
-        create: data,
-      });
-    } catch {}
-  })();
+  const tenantId = entry.tenantId || await getTenantForPurchase(entry.purchaseId);
+  const data: any = {
+    tenantId: tenantId || "default",
+    purchaseId: entry.purchaseId,
+    supplierName: entry.supplierName ?? undefined,
+    supplierMobile: entry.supplierMobile ?? undefined,
+    invoiceNumber: entry.invoiceNumber ?? undefined,
+    paymentTerm: entry.paymentTerm ?? undefined,
+    date: entry.date ? new Date(entry.date) : undefined,
+    dueDate: entry.dueDate ? new Date(entry.dueDate) : undefined,
+    unit: entry.unit ?? undefined,
+  };
+  try {
+    await prisma.supplierPurchaseMeta.upsert({
+      where: { purchaseId: entry.purchaseId },
+      update: data,
+      create: { ...data, id: randomUUID() },
+    });
+  } catch (e) {
+    console.warn("upsertSupplierMeta failed", e);
+  }
 }
 
 export function getSupplierMetaFor(purchaseId: string): SupplierPurchaseMeta | undefined {

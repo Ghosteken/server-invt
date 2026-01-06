@@ -47,6 +47,11 @@ export const listExpenses = async (req: Request, res: Response): Promise<void> =
     const category = String(req.query.category || "").trim();
     const from = req.query.from ? new Date(String(req.query.from)) : undefined;
     const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+    
+    if (to) {
+      to.setHours(23, 59, 59, 999);
+    }
+
     const where: any = { tenantId };
     if (category) where.category = { contains: category, mode: "insensitive" };
     if (from || to) {

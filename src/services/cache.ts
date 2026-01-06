@@ -86,3 +86,42 @@ export async function withCache<T>(key: string, ttlSeconds: number, loader: () =
   await cacheSet(key, val, ttlSeconds);
   return val;
 }
+
+export async function cacheDelete(key: string): Promise<void> {
+  const rc = await ensureRedis();
+  if (rc && rc.isOpen) {
+    try {
+      await rc.del(key);
+      return;
+    } catch (e) {
+      console.warn("Redis delete failed", e);
+    }
+  }
+  memoryCache.delete(key);
+}
+
+export async function cacheDeletePattern(pattern: string): Promise<void> {
+  const rc = await ensureRedis();
+  if (rc && rc.isOpen) {
+    try {
+      // Use keys for simplicity, though SCAN is better for large DBs
+      const keys = await rc.keys(pattern);
+      if (keys.length > 0) {
+        await rc.del(keys);
+      }
+      return;
+    } catch (e) {
+      console.warn("Redis delete pattern failed", e);
+    }
+  }
+
+  // Memory Fallback
+  // Convert glob-like pattern (e.g. "prefix:*") to regex
+  // This is a simple implementation assuming * is the only wildcard
+  const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
+  for (const key of memoryCache.keys()) {
+    if (regex.test(key)) {
+      memoryCache.delete(key);
+    }
+  }
+}

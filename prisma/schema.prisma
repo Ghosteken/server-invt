@@ -21,6 +21,7 @@ model Users {
   userId    String  @id
   name      String
   email     String  @unique
+  phone     String?
   password  String
   role      String  @default("user") // "admin" or "user"
   isBlocked Boolean @default(false)
@@ -437,6 +438,7 @@ model SupplierPurchaseMeta {
   purchaseId     String   @unique
   supplierName   String?
   supplierMobile String?
+  invoiceNumber  String?
   paymentTerm    String?
   date           DateTime?
   dueDate        DateTime?
