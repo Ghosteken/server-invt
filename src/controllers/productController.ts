@@ -804,7 +804,7 @@ export const upsertPcsItems = async (req: Request, res: Response): Promise<void>
     }
 
     const merged = await upsertPcsEntries(items);
-    appendNotification({ type: "product", message: `Upserted ${items.length} PCS item(s)`, actorUserId: req.user?.userId, tenantId });
+    await appendNotification({ type: "product", message: `Upserted ${items.length} PCS item(s)`, actorUserId: req.user?.userId, tenantId });
     res.json({ upserted: items.length, total: merged.length });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "product", "Failed to upsert PCS items"));
@@ -2102,7 +2102,7 @@ export const purgeProducts = async (req: Request, res: Response): Promise<void> 
     writeEmptyProductsJson();
     writeEmptyImportedProductsJson();
     await syncProductsJsonFromDb(prisma);
-    appendNotification({ type: "product", message: "Purged all products and related records", actorUserId: req.user?.userId, tenantId });
+    await appendNotification({ type: "product", message: "Purged all products and related records", actorUserId: req.user?.userId, tenantId });
     res.status(200).json({ success: true });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "product", "Error purging products"));

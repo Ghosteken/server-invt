@@ -31,11 +31,12 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
 
 export const createUser = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { name, email, password, role } = req.body as {
+    const { name, email, password, role, phone } = req.body as {
       name: string;
       email: string;
       password: string;
       role?: string;
+      phone?: string;
     };
 
     if (!name || !email || !password) {
@@ -62,6 +63,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
         password: hashedPassword,
         role: (role || "user").toLowerCase(),
         tenantId,
+        phone: phone || null,
       },
     });
 

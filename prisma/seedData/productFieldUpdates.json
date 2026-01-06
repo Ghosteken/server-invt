@@ -35728,5 +35728,17 @@
     "field": "category",
     "updatedAt": "2026-01-06T12:29:09.004Z",
     "source": "api"
+  },
+  {
+    "productId": "aa05cf46-47ed-4121-88a9-fd7404ce99bc",
+    "field": "purchaseprice",
+    "updatedAt": "2026-01-06T14:38:15.725Z",
+    "source": "api"
+  },
+  {
+    "productId": "aa05cf46-47ed-4121-88a9-fd7404ce99bc",
+    "field": "stockquantity",
+    "updatedAt": "2026-01-06T16:08:26.790Z",
+    "source": "api"
   }
 ]

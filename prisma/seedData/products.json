@@ -3,8 +3,26 @@
     "productId": "aa05cf46-47ed-4121-88a9-fd7404ce99bc",
     "name": "Ben",
     "price": 10,
-    "stockQuantity": 20,
+    "stockQuantity": 10,
     "category": "clothes",
+    "packSize": null,
+    "barcode": null
+  },
+  {
+    "productId": "251203a2-8717-4651-b18e-e05f7e212d10",
+    "name": "duu",
+    "price": 220,
+    "stockQuantity": 0,
+    "category": null,
+    "packSize": null,
+    "barcode": null
+  },
+  {
+    "productId": "c9a7674c-a9db-4212-bcd2-6bb010dbb9b4",
+    "name": "soms",
+    "price": 1000,
+    "stockQuantity": 0,
+    "category": null,
     "packSize": null,
     "barcode": null
   }
