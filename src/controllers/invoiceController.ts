@@ -77,7 +77,7 @@ function daysUntil(date: Date): number {
   return Math.ceil(ms / (1000 * 60 * 60 * 24));
 }
 
-async function maybeNotifyDueSoon(inv: { invoiceId: string; customerId: string; status: string; dueDate: Date | null; dueSoonNotifiedAt: Date | null }, actorUserId?: string) {
+async function maybeNotifyDueSoon(inv: { invoiceId: string; customerId: string; status: string; dueDate: Date | null; dueSoonNotifiedAt: Date | null; tenantId?: string }, actorUserId?: string) {
   if (!inv.dueDate) return;
   if (inv.status === "paid") return;
   const days = daysUntil(inv.dueDate);
@@ -86,6 +86,7 @@ async function maybeNotifyDueSoon(inv: { invoiceId: string; customerId: string; 
       type: "invoice",
       message: `Invoice ${inv.invoiceId} for customer ${inv.customerId} has 5 days remaining to complete payment`,
       actorUserId,
+      tenantId: inv.tenantId || "default",
     });
     await prisma.invoices.update({ where: { invoiceId: inv.invoiceId }, data: { dueSoonNotifiedAt: new Date() } });
   }
@@ -240,7 +241,7 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
       await prisma.customerPurchases.createMany({ data: purchaseRows });
     }
 
-    appendNotification({ type: "invoice", message: `Invoice created: ${created.invoiceId} (${created.location})`, actorUserId: req.user?.userId });
+    appendNotification({ type: "invoice", message: `Invoice created: ${created.invoiceId} (${created.location})`, actorUserId: req.user?.userId, tenantId });
     await maybeNotifyDueSoon(created as any, req.user?.userId);
     res.status(201).json(created);
   } catch (err) {
@@ -545,7 +546,7 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
       }
     }
     if (changedCount > 0) {
-      appendNotification({ type: "inventory", message: `Reconciled inventory for invoice ${id}; ${changedCount} item group(s) adjusted.`, actorUserId: req.user?.userId });
+      appendNotification({ type: "inventory", message: `Reconciled inventory for invoice ${id}; ${changedCount} item group(s) adjusted.`, actorUserId: req.user?.userId, tenantId });
     }
     await maybeNotifyDueSoon(updated as any, req.user?.userId);
     const meta = await getInvoiceMeta(id, req.tenantId || req.user?.tenantId || "default");
@@ -590,7 +591,7 @@ export const addPayment = async (req: Request, res: Response): Promise<void> => 
     const paymentsSum = (inv.payments || []).reduce((acc: number, p: any) => acc + p.amount, 0) + payment.amount;
     const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
     const updatedInv = await prisma.invoices.update({ where: { invoiceId: id }, data: { status } });
-    appendNotification({ type: "invoice", message: `Payment added for invoice ${id}: ₦${payment.amount.toFixed(2)} (${payment.bankName})`, actorUserId: req.user?.userId });
+    appendNotification({ type: "invoice", message: `Payment added for invoice ${id}: ₦${payment.amount.toFixed(2)} (${payment.bankName})`, actorUserId: req.user?.userId, tenantId });
 
     const fullInvoice = await prisma.invoices.findUnique({
       where: { invoiceId: id },
@@ -658,7 +659,7 @@ export const deleteInvoice = async (req: Request, res: Response): Promise<void> 
     await prisma.invoices.delete({ where: { invoiceId: id } });
     // Remove meta on delete for cleanliness
     try { await removeInvoiceMeta(id); } catch {}
-    appendNotification({ type: "invoice", message: `Invoice deleted: ${id}`, actorUserId: req.user?.userId });
+    appendNotification({ type: "invoice", message: `Invoice deleted: ${id}`, actorUserId: req.user?.userId, tenantId });
     
     try {
       const io = req.app.get("io");

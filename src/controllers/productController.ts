@@ -107,6 +107,7 @@ export const createProduct = async (
       type: "product",
       message: `Product created: ${name} (qty: ${stockQuantity})`,
       actorUserId: req.user?.userId,
+      tenantId,
     });
     // Sync JSON snapshot after write
     await syncProductsJsonFromDb(prisma);
@@ -210,6 +211,7 @@ export const updateProduct = async (
       type: "product",
       message: `Product updated: ${updated.name}`,
       actorUserId: req.user?.userId,
+      tenantId,
     });
     // Sync JSON snapshot after update
     await syncProductsJsonFromDb(prisma);
@@ -741,7 +743,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
     const doPcsUpsert = !updateFieldsSet || updateFieldsSet.has("pcsquantity");
     const merged = doPcsUpsert ? await upsertPcsEntries(incoming, tenantId) : await readPcsInventory(tenantId);
     const importedCount = doPcsUpsert ? incoming.length : 0;
-    appendNotification({ type: "product", message: `Imported ${importedCount} PCS products`, actorUserId: req.user?.userId });
+    appendNotification({ type: "product", message: `Imported ${importedCount} PCS products`, actorUserId: req.user?.userId, tenantId });
     // Persist imported PCS snapshot to JSON
     try {
       const seedDir = path.join(__dirname, "../../prisma/seedData");
@@ -780,6 +782,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
 // Upsert a PCS entry (or multiple) directly via JSON body
 export const upsertPcsItems = async (req: Request, res: Response): Promise<void> => {
   try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     const Item = z.object({ name: z.string().min(1), quantity: z.coerce.number().int().nonnegative(), packSize: z.string().nullable().optional() });
     const Body = z.union([z.array(Item), Item]);
     const body = Body.parse(req.body);
@@ -801,7 +804,7 @@ export const upsertPcsItems = async (req: Request, res: Response): Promise<void>
     }
 
     const merged = await upsertPcsEntries(items);
-    appendNotification({ type: "product", message: `Upserted ${items.length} PCS item(s)`, actorUserId: req.user?.userId });
+    appendNotification({ type: "product", message: `Upserted ${items.length} PCS item(s)`, actorUserId: req.user?.userId, tenantId });
     res.json({ upserted: items.length, total: merged.length });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "product", "Failed to upsert PCS items"));
@@ -1564,6 +1567,7 @@ export const importProducts = async (
       type: "product",
       message: `Imported ${insertedCount}, updated ${updatedCount}, deleted ${deletedCount} (processed ${productsToInsert.length})`,
       actorUserId: req.user?.userId,
+      tenantId,
     });
     // Sync JSON snapshot with DB after import
     await syncProductsJsonFromDb(prisma);
@@ -1938,7 +1942,7 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
       console.warn("Failed to persist customerSales JSON:", persistErr);
     }
 
-    appendNotification({ type: "inventory", message: `Processed invoice for ${cust.name}; updated ${updates.length} product(s).`, actorUserId: req.user?.userId });
+    appendNotification({ type: "inventory", message: `Processed invoice for ${cust.name}; updated ${updates.length} product(s).`, actorUserId: req.user?.userId, tenantId });
     res.json({ customer: cust, items, updates });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "product", "Error processing invoice"));
@@ -2070,7 +2074,7 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
     await prisma.sales.deleteMany({ where: { productId } });
     await prisma.purchases.deleteMany({ where: { productId } });
     await prisma.products.delete({ where: { productId } });
-    appendNotification({ type: "product", message: `Product deleted: ${existing.name}`, actorUserId: req.user?.userId });
+    appendNotification({ type: "product", message: `Product deleted: ${existing.name}`, actorUserId: req.user?.userId, tenantId });
     await syncProductsJsonFromDb(prisma);
 
     try {
@@ -2090,6 +2094,7 @@ export const deleteProduct = async (req: Request, res: Response): Promise<void> 
 // Purge all products and dependent rows, clear JSON files, and sync
 export const purgeProducts = async (req: Request, res: Response): Promise<void> => {
   try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
     await prisma.customerPurchases.deleteMany({});
     await prisma.sales.deleteMany({});
     await prisma.purchases.deleteMany({});
@@ -2097,7 +2102,7 @@ export const purgeProducts = async (req: Request, res: Response): Promise<void> 
     writeEmptyProductsJson();
     writeEmptyImportedProductsJson();
     await syncProductsJsonFromDb(prisma);
-    appendNotification({ type: "product", message: "Purged all products and related records", actorUserId: req.user?.userId });
+    appendNotification({ type: "product", message: "Purged all products and related records", actorUserId: req.user?.userId, tenantId });
     res.status(200).json({ success: true });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "product", "Error purging products"));

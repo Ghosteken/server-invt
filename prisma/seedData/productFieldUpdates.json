@@ -35710,5 +35710,23 @@
     "field": "category",
     "updatedAt": "2026-01-05T12:15:00.020Z",
     "source": "api"
+  },
+  {
+    "productId": "aa05cf46-47ed-4121-88a9-fd7404ce99bc",
+    "field": "purchaseprice",
+    "updatedAt": "2026-01-06T12:29:09.004Z",
+    "source": "api"
+  },
+  {
+    "productId": "aa05cf46-47ed-4121-88a9-fd7404ce99bc",
+    "field": "expirydate",
+    "updatedAt": "2026-01-06T12:29:09.004Z",
+    "source": "api"
+  },
+  {
+    "productId": "aa05cf46-47ed-4121-88a9-fd7404ce99bc",
+    "field": "category",
+    "updatedAt": "2026-01-06T12:29:09.004Z",
+    "source": "api"
   }
 ]
