@@ -354,6 +354,19 @@ model AuditLogs {
   @@map("audit_logs")
 }
 
+// In-app notifications scoped by tenant
+model Notifications {
+  id          String   @id
+  tenantId    String   @default("default")
+  type        String
+  message     String
+  actorUserId String?
+  timestamp   DateTime @default(now())
+
+  @@index([tenantId, timestamp])
+  @@map("notifications")
+}
+
 // Support inbox / in-app feedback
 model SupportMessages {
   id        String   @id

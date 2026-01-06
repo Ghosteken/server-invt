@@ -115,6 +115,7 @@ export const createUser = async (req: Request, res: Response): Promise<void> => 
       type: "user",
       message: `User created: ${newUser.name} (${newUser.email}) as ${newUser.role}`,
       actorUserId: req.user?.userId,
+      tenantId,
     });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "user", "Error creating user"));
@@ -132,6 +133,7 @@ export const purgeNonAdminUsers = async (req: Request, res: Response): Promise<v
       type: "user",
       message: `Purged ${result.count} non-admin user(s)`,
       actorUserId: req.user?.userId,
+      tenantId,
     });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "user", "Error purging users"));
@@ -176,6 +178,7 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
         type: "user",
         message: `Admin user deleted: ${target.name} (${target.email})`,
         actorUserId: req.user?.userId,
+        tenantId,
       });
       return;
     }
@@ -191,6 +194,7 @@ export const deleteUser = async (req: Request, res: Response): Promise<void> => 
       type: "user",
       message: `User deleted: ${target.name} (${target.email})`,
       actorUserId: req.user?.userId,
+      tenantId,
     });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "user", "Error deleting user"));
@@ -224,6 +228,7 @@ export const blockUser = async (req: Request, res: Response): Promise<void> => {
       type: "user",
       message: `User blocked: ${updated.name} (${updated.email})`,
       actorUserId: req.user?.userId,
+      tenantId,
     });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "user", "Error blocking user"));
@@ -249,6 +254,7 @@ export const unblockUser = async (req: Request, res: Response): Promise<void> =>
       type: "user",
       message: `User unblocked: ${updated.name} (${updated.email})`,
       actorUserId: req.user?.userId,
+      tenantId,
     });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "user", "Error unblocking user"));
