@@ -122,7 +122,7 @@ export const updateExpenseController = async (req: Request, res: Response): Prom
     if (changes.amount !== undefined) data.amount = Number(changes.amount) || 0;
     if (changes.date !== undefined) data.timestamp = new Date(String(changes.date));
     const next = await prisma.expenses.update({ where: { expenseId: id }, data });
-    appendNotification({ type: "expense", message: `Updated expense '${existing.category}' (${next.category}) to ₦${Number(next.amount || 0).toLocaleString("en")}` });
+    appendNotification({ type: "expense", message: `Updated expense '${existing.category}' (${next.category}) to ₦${Number(next.amount || 0).toLocaleString("en")}`, tenantId, actorUserId: req.user?.userId });
     
     // Emit socket event
     const io = req.app.get("io");
@@ -151,7 +151,7 @@ export const deleteExpenseController = async (req: Request, res: Response): Prom
     const existing = await prisma.expenses.findFirst({ where: { expenseId: id, tenantId } });
     if (!existing) { res.status(404).json({ message: "Expense not found" }); return; }
     await prisma.expenses.delete({ where: { expenseId: id } });
-    appendNotification({ type: "expense", message: `Deleted expense ${id}` });
+    appendNotification({ type: "expense", message: `Deleted expense ${id}`, tenantId, actorUserId: req.user?.userId });
 
     // Emit socket event
     const io = req.app.get("io");

@@ -87,7 +87,7 @@ export const deletePurchase = async (req: Request, res: Response): Promise<void>
     }
     await prisma.purchases.delete({ where: { purchaseId: id } });
     // Notify: purchase deleted
-    appendNotification({ type: "purchase", message: `Deleted purchase ${id}` });
+    appendNotification({ type: "purchase", message: `Deleted purchase ${id}`, tenantId, actorUserId: req.user?.userId });
 
     try {
       const io = req.app.get("io");
@@ -169,7 +169,7 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
       });
       created.push({ purchaseId, productId, quantity, unitCost, totalCost, timestamp: date });
       // Notify: purchase item created
-      appendNotification({ type: "purchase", message: `Purchased ${quantity} ${it.unit} of '${p.name}' for ₦${totalCost.toLocaleString("en")}` });
+      appendNotification({ type: "purchase", message: `Purchased ${quantity} ${it.unit} of '${p.name}' for ₦${totalCost.toLocaleString("en")}`, tenantId, actorUserId: req.user?.userId });
     }
 
     try {
@@ -246,7 +246,7 @@ export const addPurchasePayment = async (req: Request, res: Response): Promise<v
       notes,
     });
     // Notify: supplier payment added
-    appendNotification({ type: "purchase", message: `Added supplier payment ₦${amount.toLocaleString("en")} to purchase ${id} (${bankName})` });
+    appendNotification({ type: "purchase", message: `Added supplier payment ₦${amount.toLocaleString("en")} to purchase ${id} (${bankName})`, tenantId, actorUserId: req.user?.userId });
 
     try {
       const io = req.app.get("io");
@@ -285,7 +285,7 @@ export const updatePurchaseMeta = async (req: Request, res: Response): Promise<v
     const dueDate = body.dueDate !== undefined ? (body.dueDate ? String(body.dueDate) : null) : undefined;
     upsertSupplierMeta({ purchaseId: id, supplierName, supplierMobile, paymentTerm, dueDate });
       const meta = { purchaseId: id, supplierName: supplierName ?? null, supplierMobile: supplierMobile ?? null, paymentTerm: paymentTerm ?? null, dueDate: dueDate ?? null };
-      appendNotification({ type: "purchase", message: `Updated purchase ${id} meta: supplier=${meta.supplierName || "-"}, term=${meta.paymentTerm || "-"}` });
+      appendNotification({ type: "purchase", message: `Updated purchase ${id} meta: supplier=${meta.supplierName || "-"}, term=${meta.paymentTerm || "-"}`, tenantId, actorUserId: req.user?.userId });
       res.json({ meta });
   } catch (err) {
     console.error("updatePurchaseMeta error:", err);
@@ -379,7 +379,7 @@ export const updatePurchase = async (req: Request, res: Response): Promise<void>
     upsertSupplierMeta({ purchaseId: id, unit: nextUnit ?? undefined, date: nextDate ? nextDate.toISOString() : undefined });
 
     // Notify
-    appendNotification({ type: "purchase", message: `Updated purchase ${id}: ${newQty} ${effectiveNewUnit} of '${newProduct.name}'` });
+    appendNotification({ type: "purchase", message: `Updated purchase ${id}: ${newQty} ${effectiveNewUnit} of '${newProduct.name}'`, tenantId, actorUserId: req.user?.userId });
 
     res.json({ purchase: updated });
   } catch (err) {

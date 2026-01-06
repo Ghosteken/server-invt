@@ -224,7 +224,7 @@ router.post("/banks", authenticateToken, requireAdmin, async (req: Request, res:
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
     const list = await addBank(tenantId, { name, account });
-    try { appendNotification({ type: "bank", message: `Bank account created: ${name} - ${account}`, actorUserId: req.user?.userId }); } catch {}
+    try { appendNotification({ type: "bank", message: `Bank account created: ${name} - ${account}`, actorUserId: req.user?.userId, tenantId }); } catch {}
     res.status(201).json({ banks: list });
   } catch (err) {
     if (err instanceof ZodError) {
@@ -247,7 +247,7 @@ router.put("/banks", authenticateToken, requireAdmin, async (req: Request, res: 
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
     const list = await updateBank(tenantId, { name: oldName, account: oldAccount }, { name, account });
-    try { appendNotification({ type: "bank", message: `Bank account updated: ${oldName} - ${oldAccount} → ${name} - ${account}`, actorUserId: req.user?.userId }); } catch {}
+    try { appendNotification({ type: "bank", message: `Bank account updated: ${oldName} - ${oldAccount} → ${name} - ${account}`, actorUserId: req.user?.userId, tenantId }); } catch {}
     res.json({ banks: list });
   } catch (err) {
     if (err instanceof ZodError) {
@@ -265,7 +265,7 @@ router.delete("/banks", authenticateToken, requireAdmin, async (req: Request, re
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
     const list = await removeBank(tenantId, { name, account });
-    try { appendNotification({ type: "bank", message: `Bank account removed: ${name} - ${account}`, actorUserId: req.user?.userId }); } catch {}
+    try { appendNotification({ type: "bank", message: `Bank account removed: ${name} - ${account}`, actorUserId: req.user?.userId, tenantId }); } catch {}
     res.json({ banks: list });
   } catch (err) {
     if (err instanceof ZodError) {
