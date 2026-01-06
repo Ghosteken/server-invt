@@ -12,50 +12,49 @@ export const getSalesReport = async (req: Request, res: Response): Promise<void>
     const from = fromRaw ? new Date(fromRaw) : undefined;
     const to = toRaw ? new Date(toRaw) : undefined;
 
-    let timestampFilter: any | undefined = undefined;
-    if (from) timestampFilter = { ...(timestampFilter || {}), gte: from };
-    if (to) timestampFilter = { ...(timestampFilter || {}), lte: to };
-    const where: any = timestampFilter
-      ? { tenantId, timestamp: timestampFilter }
+    let dateFilter: any | undefined = undefined;
+    if (from) dateFilter = { ...(dateFilter || {}), gte: from };
+    if (to) dateFilter = { ...(dateFilter || {}), lte: to };
+    const where: any = dateFilter
+      ? { tenantId, date: dateFilter }
       : { tenantId };
 
-    const purchases = await prisma.customerPurchases.findMany({
+    const invoices = await prisma.invoices.findMany({
       where,
-      orderBy: { timestamp: "desc" },
+      orderBy: { date: "desc" },
+      include: {
+        items: true,
+        customer: { select: { name: true } }
+      }
     });
 
-    // Preload product and customer names
-    const productIds = Array.from(new Set(purchases.map((p: any) => p.productId).filter(Boolean)));
-    const customerIds = Array.from(new Set(purchases.map((p: any) => p.customerId).filter(Boolean)));
-    const products = productIds.length
-      ? await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } })
-      : [];
-    const customers = customerIds.length
-      ? await prisma.customers.findMany({ where: { tenantId, customerId: { in: customerIds } }, select: { customerId: true, name: true } })
-      : [];
-    const productNameMap = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
-    const customerNameMap = new Map<string, string>(customers.map((c: any) => [c.customerId, c.name] as const));
+    const invoiceIds = invoices.map(i => i.invoiceId);
+    const metas = await prisma.invoiceMeta.findMany({ where: { invoiceId: { in: invoiceIds } } });
+    const metaMap = new Map(metas.map(m => [m.invoiceId, m.invoiceNumber]));
 
-    const items = purchases.map((p: any) => ({
-      id: p.id,
-      productId: p.productId,
-      productName: productNameMap.get(p.productId) || undefined,
-      customerId: p.customerId,
-      customerName: customerNameMap.get(p.customerId) || undefined,
-      quantity: p.quantity,
-      unitPrice: Number(p.unitPrice || 0),
-      totalCost: Number(p.totalCost || 0),
-      timestamp: p.timestamp,
-    }));
+    const items = invoices.flatMap(inv => 
+      inv.items.map(item => ({
+        id: item.id,
+        invoiceNumber: metaMap.get(inv.invoiceId) || inv.invoiceId,
+        productId: item.productId,
+        productName: item.name,
+        customerId: inv.customerId,
+        customerName: inv.customer?.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalCost: item.subtotal,
+        timestamp: inv.date
+      }))
+    );
 
     const total = items.reduce((sum: number, it: any) => sum + it.totalCost, 0);
 
     // Aggregate by day
     const dailyMap = new Map<string, number>();
-    for (const it of items as any[]) {
-      const d = new Date((it as any).timestamp);
+    for (const it of items) {
+      const d = new Date(it.timestamp);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      dailyMap.set(key, (dailyMap.get(key) || 0) + (it as any).totalCost);
+      dailyMap.set(key, (dailyMap.get(key) || 0) + it.totalCost);
     }
     const daily = Array.from(dailyMap.entries()).map(([date, totalCost]) => ({ date, totalCost }));
 
@@ -77,32 +76,34 @@ export const getFinancialReport = async (req: Request, res: Response): Promise<v
     if (from) timestampFilter = { ...(timestampFilter || {}), gte: from };
     if (to) timestampFilter = { ...(timestampFilter || {}), lte: to };
 
-    // Sales from customer purchases (total and detailed items)
+    // Sales from invoices (total and detailed items)
     const salesWhere: any = timestampFilter
-      ? { tenantId, timestamp: timestampFilter }
+      ? { tenantId, date: timestampFilter }
       : { tenantId };
-    const salesRowsFull = await prisma.customerPurchases.findMany({ where: salesWhere, orderBy: { timestamp: "desc" } });
-    const salesProductIds = Array.from(new Set(salesRowsFull.map((p: any) => p.productId).filter(Boolean)));
-    const salesCustomerIds = Array.from(new Set(salesRowsFull.map((p: any) => p.customerId).filter(Boolean)));
-    const salesProducts = salesProductIds.length
-      ? await prisma.products.findMany({ where: { tenantId, productId: { in: salesProductIds } }, select: { productId: true, name: true } })
-      : [];
-    const salesCustomers = salesCustomerIds.length
-      ? await prisma.customers.findMany({ where: { tenantId, customerId: { in: salesCustomerIds } }, select: { customerId: true, name: true } })
-      : [];
-    const salesProductNameMap = new Map<string, string>(salesProducts.map((p: any) => [p.productId, p.name] as const));
-    const salesCustomerNameMap = new Map<string, string>(salesCustomers.map((c: any) => [c.customerId, c.name] as const));
-    const salesItems = salesRowsFull.map((p: any) => ({
-      id: p.id,
-      productId: p.productId,
-      productName: salesProductNameMap.get(p.productId) || undefined,
-      customerId: p.customerId,
-      customerName: salesCustomerNameMap.get(p.customerId) || undefined,
-      quantity: p.quantity,
-      unitPrice: Number(p.unitPrice || 0),
-      totalCost: Number(p.totalCost || 0),
-      timestamp: p.timestamp,
-    }));
+    const salesInvoices = await prisma.invoices.findMany({ 
+      where: salesWhere, 
+      orderBy: { date: "desc" },
+      include: { items: true, customer: { select: { name: true } } }
+    });
+    
+    const salesInvoiceIds = salesInvoices.map(i => i.invoiceId);
+    const salesMetas = await prisma.invoiceMeta.findMany({ where: { invoiceId: { in: salesInvoiceIds } } });
+    const salesMetaMap = new Map(salesMetas.map(m => [m.invoiceId, m.invoiceNumber]));
+
+    const salesItems = salesInvoices.flatMap(inv => 
+      inv.items.map(item => ({
+        id: item.id,
+        invoiceNumber: salesMetaMap.get(inv.invoiceId) || inv.invoiceId,
+        productId: item.productId,
+        productName: item.name,
+        customerId: inv.customerId,
+        customerName: inv.customer?.name,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        totalCost: item.subtotal,
+        timestamp: inv.date
+      }))
+    );
     const salesTotal = salesItems.reduce((sum: number, r: any) => sum + Number(r.totalCost || 0), 0);
 
     // Purchases from procurement purchases (total and detailed items)
@@ -126,6 +127,7 @@ export const getFinancialReport = async (req: Request, res: Response): Promise<v
       totalCost: Number(p.totalCost || 0),
       timestamp: p.timestamp,
       supplierName: metaMap.get(p.purchaseId)?.supplierName || undefined,
+      invoiceNumber: metaMap.get(p.purchaseId)?.invoiceNumber || undefined,
     }));
     const purchasesTotal = purchaseItems.reduce((sum: number, r: any) => sum + Number(r.totalCost || 0), 0);
 
@@ -177,6 +179,7 @@ export const getPurchasesReport = async (req: Request, res: Response): Promise<v
       productId: p.productId,
       productName: productNameMap.get(p.productId) || undefined,
       supplierName: metaMap2.get(p.purchaseId)?.supplierName || undefined,
+      invoiceNumber: metaMap2.get(p.purchaseId)?.invoiceNumber || undefined,
       quantity: p.quantity,
       unitCost: Number(p.unitCost || 0),
       totalCost: Number(p.totalCost || 0),

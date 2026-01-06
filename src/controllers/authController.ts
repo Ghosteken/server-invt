@@ -373,7 +373,7 @@ export const orgAdminLogin = async (req: Request, res: Response): Promise<void> 
 
 export const signupOrg = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { orgName, adminName, email, password } = req.body;
+    const { orgName, adminName, email, password, phone } = req.body;
     
     if (!orgName || !adminName || !email || !password) {
       res.status(400).json({ message: "All fields are required" });
@@ -433,7 +433,8 @@ export const signupOrg = async (req: Request, res: Response): Promise<void> => {
           password: passwordHash,
           role: "admin",
           tenantId: orgId,
-          isBlocked: false
+          isBlocked: false,
+          phone: phone || null
         }
       });
     });
