@@ -33,9 +33,10 @@ export const getProducts = async (
     const pageRaw = req.query.page?.toString();
     const limit = limitRaw ? Math.max(1, Math.min(200, Number(limitRaw) || 20)) : undefined;
     const page = pageRaw ? Math.max(1, Number(pageRaw) || 1) : undefined;
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
 
     // Cache key per search term
-    const cacheKey = search.toLowerCase();
+    const cacheKey = `${tenantId}:${search.toLowerCase()}`;
     const now = Date.now();
     const cached = PRODUCT_SEARCH_CACHE.get(cacheKey);
     if (cached && now - cached.ts < PRODUCT_SEARCH_TTL_MS) {
@@ -45,7 +46,6 @@ export const getProducts = async (
 
     // If a search term is provided, perform a case-insensitive contains match.
     // If no search term, return all products.
-    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const products = await prisma.products.findMany({
       where: {
         tenantId,
