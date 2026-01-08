@@ -7,13 +7,23 @@ export type PcsEntry = {
   quantity: number;
   productId?: string | null;
   packSize?: string | null;
+  salesPrice?: number | null;
+  purchasePrice?: number | null;
   tenantId?: string;
 };
 
 export const readPcsInventory = async (tenantId = "default"): Promise<PcsEntry[]> => {
   try {
     const rows = await prisma.pcsInventory.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
-    return rows.map((r: any) => ({ name: r.name, quantity: r.quantity, productId: r.productId ?? null, packSize: r.packSize ?? null, tenantId: r.tenantId }));
+    return rows.map((r: any) => ({
+      name: r.name,
+      quantity: r.quantity,
+      productId: r.productId ?? null,
+      packSize: r.packSize ?? null,
+      salesPrice: r.salesPrice ?? null,
+      purchasePrice: r.purchasePrice ?? null,
+      tenantId: r.tenantId
+    }));
   } catch {
     try {
       const jsonPath = path.join(__dirname, "../../prisma/seedData/pcsInventory.json");
@@ -26,6 +36,8 @@ export const readPcsInventory = async (tenantId = "default"): Promise<PcsEntry[]
         quantity: Math.max(0, Number(e?.quantity) || 0),
         productId: e?.productId ?? null,
         packSize: e?.packSize ?? null,
+        salesPrice: e?.salesPrice ?? null,
+        purchasePrice: e?.purchasePrice ?? null,
         tenantId,
       }));
     } catch {
@@ -35,7 +47,7 @@ export const readPcsInventory = async (tenantId = "default"): Promise<PcsEntry[]
 };
 
 export const upsertPcsEntries = async (
-  incoming: { name: string; quantity: number; packSize?: string | null }[],
+  incoming: { name: string; quantity: number; packSize?: string | null; salesPrice?: number | null; purchasePrice?: number | null; productId?: string | null }[],
   tenantId = "default"
 ): Promise<PcsEntry[]> => {
   const existing = await readPcsInventory(tenantId);
@@ -45,12 +57,35 @@ export const upsertPcsEntries = async (
     const key = inc.name.toLowerCase();
     const prev = map.get(key);
     const nextQty = Math.max(0, Number(inc.quantity) || 0);
-    const next: PcsEntry = { name: inc.name, quantity: nextQty, productId: prev?.productId ?? null, packSize: inc.packSize ?? prev?.packSize ?? null, tenantId };
+    const next: PcsEntry = {
+      name: inc.name,
+      quantity: nextQty,
+      productId: inc.productId ?? prev?.productId ?? null,
+      packSize: inc.packSize ?? prev?.packSize ?? null,
+      salesPrice: inc.salesPrice !== undefined ? inc.salesPrice : (prev?.salesPrice ?? null),
+      purchasePrice: inc.purchasePrice !== undefined ? inc.purchasePrice : (prev?.purchasePrice ?? null),
+      tenantId
+    };
     map.set(key, next);
     await prisma.pcsInventory.upsert({
       where: { tenantId_name: { tenantId, name: inc.name } },
-      create: { id: cryptoRandom(), tenantId, name: inc.name, quantity: nextQty, productId: next.productId ?? null, packSize: next.packSize ?? null },
-      update: { quantity: nextQty, packSize: next.packSize ?? null },
+      create: {
+        id: cryptoRandom(),
+        tenantId,
+        name: inc.name,
+        quantity: nextQty,
+        productId: next.productId ?? null,
+        packSize: next.packSize ?? null,
+        salesPrice: next.salesPrice ?? null,
+        purchasePrice: next.purchasePrice ?? null
+      },
+      update: {
+        quantity: nextQty,
+        productId: next.productId ?? null,
+        packSize: next.packSize ?? null,
+        salesPrice: next.salesPrice ?? null,
+        purchasePrice: next.purchasePrice ?? null
+      },
     });
   }
   return Array.from(map.values());

@@ -334,6 +334,8 @@ model PcsInventory {
   quantity  Int      @default(0)
   productId String?
   packSize  String?
+  salesPrice Float?
+  purchasePrice Float?
   updatedAt DateTime @updatedAt
 
   @@unique([tenantId, name])

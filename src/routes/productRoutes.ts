@@ -13,8 +13,8 @@ router.get("/import/sample", authenticateToken, getImportSample);
 router.get("/export", authenticateToken, exportProducts); // legacy JSON export
 router.get("/export/excel", authenticateToken, exportProductsExcel);
 router.get("/updates/last", authenticateToken, getProductUpdatesLast);
-router.get("/pcs", authenticateToken, getPcsProducts);
 router.get("/pcs/sample", authenticateToken, getPcsSample);
+router.get("/pcs", authenticateToken, getPcsProducts);
 router.get("/pcs/export", authenticateToken, exportPcsExcel);
 router.post("/pcs/import", authenticateToken, upload.single("file"), importPcsProducts);
 router.post("/pcs/upsert", authenticateToken, upsertPcsItems);

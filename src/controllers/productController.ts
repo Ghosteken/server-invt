@@ -10,7 +10,7 @@ import { appendNotification } from "../services/notificationService";
 import { syncProductsJsonFromDb, writeEmptyProductsJson, writeEmptyImportedProductsJson } from "../services/productSyncService";
 import { appendCustomerSales } from "../services/customerSalesService";
 import { readPcsInventory, upsertPcsEntries, adjustPcsQuantity, reloadPcsInventory } from "../services/pcsInventoryService";
-import { recordFieldUpdates, getLastFieldUpdates } from "../services/productUpdateAuditService";
+import { recordFieldUpdates, recordFieldUpdatesBulk, getLastFieldUpdates } from "../services/productUpdateAuditService";
 import XLSX from "xlsx";
 import { z } from "zod";
 import fs from "node:fs";
@@ -467,8 +467,8 @@ export const getPcsProducts = async (req: Request, res: Response): Promise<void>
         packSize: (matched?.packSize ?? e.packSize ?? null) as string | null,
         category: matched?.category ?? null,
         expiryDate: matched?.expiryDate ?? null,
-        price: matched?.price ?? 0,
-        purchasePrice: matched?.purchasePrice ?? null,
+        price: e.salesPrice ?? matched?.price ?? 0,
+        purchasePrice: e.purchasePrice ?? matched?.purchasePrice ?? null,
       } as const;
       agg.set(key, payload as any);
     }
@@ -548,7 +548,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       const n = Number(m[0]);
       return Number.isFinite(n) ? n : null;
     };
-    const incoming: { name: string; quantity: number; packSize?: string | null }[] = [];
+    const incoming: { name: string; quantity: number; packSize?: string | null; salesPrice?: number | null; purchasePrice?: number | null; productId?: string | null }[] = [];
     const importedSnapshot: Array<{
       productId?: string;
       name: string;
@@ -643,7 +643,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       const expiryDate = parseDate(expiryDateRaw);
       const description = kv["description"] ? String(kv["description"]).trim() : null;
 
-      incoming.push({ name: String(name).trim(), quantity: Math.max(0, Number(qty)), packSize: packSize ? String(packSize).trim() : null });
+      // incoming.push moved to after matching logic to include productId
       importedSnapshot.push({
         productId: productId ? String(productId) : undefined,
         name: String(name).trim(),
@@ -658,6 +658,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       });
     }
     // Optionally update matching Product records for selected fields
+    const productAuditUpdates: { productId: string; fields: string[]; source?: string }[] = [];
     try {
       const should = (field: string) => !updateFieldsSet || updateFieldsSet.has(field);
       const existingProducts = await prisma.products.findMany({ where: { tenantId } });
@@ -669,20 +670,64 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
         const bc = (p as any).barcode;
         if (bc) existingByBarcode.set(String(bc).trim(), p);
       }
+
+      // Helper functions for fuzzy matching (duplicated from importProducts to ensure isolation)
+      const normalizeToken = (t: string) => {
+        let x = t.toLowerCase();
+        if (x === "drinks") x = "drink";
+        if (x === "bitters") x = "bitter";
+        if (x === "liquer") x = "liqueur";
+        if (x === "liquor") x = "liqueur";
+        if (x.endsWith("s")) x = x.slice(0, -1);
+        return x;
+      };
+      const tokenize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean).map(normalizeToken);
+      const jaccard = (a: string, b: string): number => {
+        const ta = tokenize(a);
+        const tb = tokenize(b);
+        if (!ta.length || !tb.length) return 0;
+        const setA = new Set(ta);
+        const setB = new Set(tb);
+        let inter = 0;
+        for (const t of setA) if (setB.has(t)) inter += 1;
+        const union = setA.size + setB.size - inter;
+        return inter / Math.max(1, union);
+      };
+
       for (const item of importedSnapshot) {
         let target: any = null;
+        // Priority 1: Product ID
         if (item.productId) {
           target = await prisma.products.findFirst({ where: { productId: item.productId, tenantId } });
         }
+        // Priority 2: Barcode (New File Column)
         if (!target && item.barcode) {
           target = existingByBarcode.get(String(item.barcode).trim());
         }
+        // Priority 3: Exact Name + PackSize
         if (!target) {
           target = existingByKey.get(keyOf({ name: item.name, packSize: (item.packSize ?? null) as any }));
         }
+        // Priority 4: Exact Name
         if (!target) {
           target = await prisma.products.findFirst({ where: { name: item.name, tenantId } });
         }
+        // Priority 5: Fuzzy Name Match (Fallback)
+        if (!target) {
+          let best: any = null;
+          let bestScore = 0;
+          for (const p of existingProducts) {
+            const score = jaccard(item.name, p.name) + (String(item.packSize ?? "").toLowerCase() === String((p as any).packSize ?? "").toLowerCase() ? 0.15 : 0);
+            if (score > bestScore) {
+              bestScore = score;
+              best = p;
+            }
+          }
+          if (bestScore >= 0.6) {
+            target = best;
+          }
+        }
+
         if (!target) {
           const created = await prisma.products.create({
             data: {
@@ -690,7 +735,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
               name: item.name,
               price: item.salesPrice != null ? Number(item.salesPrice) : 0,
               purchasePrice: item.purchasePrice != null ? Number(item.purchasePrice) : null,
-              stockQuantity: 0,
+              stockQuantity: 0, // Ensure stock is 0 for PCS-only imports
               expiryDate: (item.expiryDate instanceof Date) ? item.expiryDate : (item.expiryDate ? new Date(item.expiryDate) : null),
               category: item.category ?? null,
               description: item.description ?? null,
@@ -700,17 +745,21 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
             },
           });
           try {
-            recordFieldUpdates(created.productId, [
-              "name",
-              ...(item.salesPrice != null ? ["price"] : []),
-              ...(item.purchasePrice != null ? ["purchasePrice"] : []),
-              "stockQuantity",
-              ...(item.expiryDate ? ["expiryDate"] : []),
-              ...(item.category ? ["category"] : []),
-              ...(item.description ? ["description"] : []),
-              ...(item.packSize ? ["packSize"] : []),
-              ...(item.barcode ? ["barcode"] : []),
-            ], "import");
+            productAuditUpdates.push({
+              productId: created.productId,
+              fields: [
+                "name",
+                ...(item.salesPrice != null ? ["price"] : []),
+                ...(item.purchasePrice != null ? ["purchasePrice"] : []),
+                "stockQuantity",
+                ...(item.expiryDate ? ["expiryDate"] : []),
+                ...(item.category ? ["category"] : []),
+                ...(item.description ? ["description"] : []),
+                ...(item.packSize ? ["packSize"] : []),
+                ...(item.barcode ? ["barcode"] : []),
+              ],
+              source: "import"
+            });
           } catch {}
           existingByKey.set(keyOf({ name: created.name, packSize: (created as any).packSize ?? null }), created);
           if (created.barcode) existingByBarcode.set(String(created.barcode).trim(), created);
@@ -718,8 +767,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
         }
         const dataUpdate: any = {};
         if (should("name") && item.name) dataUpdate.name = item.name;
-        if (should("price") && item.salesPrice != null) dataUpdate.price = Number(item.salesPrice);
-        if (should("purchaseprice") && item.purchasePrice != null) dataUpdate.purchasePrice = Number(item.purchasePrice);
+        // Skip updating product price/stock from PCS import as they are separate entities
         if (should("expirydate")) {
           const v = item.expiryDate;
           dataUpdate.expiryDate = v instanceof Date ? v : (v ? new Date(v) : null);
@@ -728,7 +776,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
         if (should("description")) dataUpdate.description = item.description ?? target.description ?? null;
         if (should("packsize")) dataUpdate.packSize = item.packSize ?? target.packSize ?? null;
         if (should("barcode")) dataUpdate.barcode = item.barcode ?? target.barcode ?? null;
-        dataUpdate.stockQuantity = Math.max(0, Number(item.pcsQuantity || 0));
+        
         if (Object.keys(dataUpdate).length > 0) {
           const existing = target;
           const updated = await prisma.products.update({ where: { productId: target.productId }, data: dataUpdate });
@@ -741,11 +789,21 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
               const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
               if (oldNorm !== newNorm) changed.push(k);
             }
-            if (changed.length) recordFieldUpdates(target.productId, changed, "import");
+            if (changed.length) productAuditUpdates.push({ productId: target.productId, fields: changed, source: "import" });
           } catch (logErr) {
             console.warn("Failed to log field updates on PCS import update:", logErr);
           }
         }
+        
+        // Prepare for PCS upsert
+        incoming.push({
+          name: item.name,
+          quantity: item.pcsQuantity,
+          packSize: item.packSize,
+          salesPrice: item.salesPrice,
+          purchasePrice: item.purchasePrice,
+          productId: target.productId
+        });
       }
     } catch (updateErr) {
       console.warn("Selective product updates on PCS import failed:", updateErr);
@@ -756,6 +814,25 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
     const merged = doPcsUpsert ? await upsertPcsEntries(incoming, tenantId) : await readPcsInventory(tenantId);
     const importedCount = doPcsUpsert ? incoming.length : 0;
     appendNotification({ type: "product", message: `Imported ${importedCount} PCS products`, actorUserId: req.user?.userId, tenantId });
+    
+    // Flush bulk audit updates for PCS and Product updates
+    try {
+      if (productAuditUpdates.length) {
+        recordFieldUpdatesBulk(productAuditUpdates);
+      }
+      // Accumulate audit entries for PCS items
+      const updates = incoming.map(i => ({
+        productId: i.productId || i.name, // Use name as fallback if no ID
+        fields: ["name", "pcsQuantity", "salesPrice", "purchasePrice", "packSize"].filter(f => (i as any)[f] !== undefined),
+        source: "import"
+      }));
+      if (updates.length) {
+        recordFieldUpdatesBulk(updates as any);
+      }
+    } catch (auditErr) {
+      console.warn("Failed to flush bulk audit updates for PCS:", auditErr);
+    }
+
     // Persist imported PCS snapshot to JSON
     try {
       const seedDir = path.join(__dirname, "../../prisma/seedData");
@@ -764,7 +841,8 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       let existing: any[] = [];
       if (fs.existsSync(outPath)) {
         try {
-          existing = JSON.parse(fs.readFileSync(outPath, "utf-8"));
+          const content = await fs.promises.readFile(outPath, "utf-8");
+          existing = JSON.parse(content);
         } catch {
           existing = [];
         }
@@ -778,7 +856,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
         map.set(keyOf(item), item);
       }
       const mergedSnap = Array.from(map.values());
-      fs.writeFileSync(outPath, JSON.stringify(mergedSnap, null, 2), "utf-8");
+      await fs.promises.writeFile(outPath, JSON.stringify(mergedSnap, null, 2), "utf-8");
     } catch (persistErr) {
       console.warn("Failed to persist imported PCS snapshot to JSON:", persistErr);
     }
@@ -1103,6 +1181,9 @@ export const importProducts = async (
       barcode: string | null;
     }> = [];
 
+    // Accumulate audit updates to write in bulk
+    const pendingAuditUpdates: Array<{ productId: string; fields: string[]; source?: string }> = [];
+
     // Parse optional selective update fields from multipart form (CSV or JSON array)
     const rawUpdateFields = (req.body?.updateFields as string | undefined) ?? undefined;
     let updateFieldsSet: Set<string> | null = null;
@@ -1255,8 +1336,8 @@ export const importProducts = async (
               if (oldNorm !== newNorm) changed.push(k);
             }
             if (changed.length) {
-              // Log updates (synchronous, safe)
-              recordFieldUpdates(existing.productId, changed, "import");
+              // Log updates (batch to memory)
+              pendingAuditUpdates.push({ productId: existing.productId, fields: changed, source: "import" });
             } else {
               batchedUpdates.pop();
             }
@@ -1289,8 +1370,8 @@ export const importProducts = async (
             newItemData.category = bestCategoryForName(item.name);
           }
           batchedCreates.push({ ...newItemData, tenantId });
-          // Log create (synchronous, safe)
-          recordFieldUpdates(item.productId, ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize", "barcode"].filter((f) => (item as any)[f] !== undefined), "import");
+          // Log create (batch to memory)
+          pendingAuditUpdates.push({ productId: item.productId, fields: ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize", "barcode"].filter((f) => (item as any)[f] !== undefined), source: "import" });
           mergedItemsForJson.push(item);
         }
       }
@@ -1312,6 +1393,13 @@ export const importProducts = async (
       // Explicitly clear batch arrays to free memory
       batchedCreates.length = 0;
       batchedUpdates.length = 0;
+    }
+
+    // Flush audit updates once at the end
+    try {
+      recordFieldUpdatesBulk(pendingAuditUpdates);
+    } catch (auditErr) {
+      console.warn("Failed to flush bulk audit updates:", auditErr);
     }
 
     let deletedCount = 0;
@@ -1592,7 +1680,8 @@ export const importProducts = async (
       let existing: any[] = [];
       if (fs.existsSync(outPath)) {
         try {
-          existing = JSON.parse(fs.readFileSync(outPath, "utf-8"));
+          const content = await fs.promises.readFile(outPath, "utf-8");
+          existing = JSON.parse(content);
         } catch {
           existing = [];
         }
@@ -1616,7 +1705,7 @@ export const importProducts = async (
         });
       }
       const merged = Array.from(map.values());
-      fs.writeFileSync(outPath, JSON.stringify(merged, null, 2), "utf-8");
+      await fs.promises.writeFile(outPath, JSON.stringify(merged, null, 2), "utf-8");
     } catch (persistErr) {
       console.warn("Failed to persist imported products to JSON:", persistErr);
     }
@@ -2290,50 +2379,24 @@ export const getPcsSample = async (
 ): Promise<void> => {
   try {
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
-    const pcs = await readPcsInventory(tenantId);
-    const products = await prisma.products.findMany({ where: { tenantId } });
-    const byName = new Map<string, any>(products.map((p: any) => [String(p.name).toLowerCase(), p] as const));
+    console.log(`[getPcsSample] Request received. Tenant: ${tenantId}`);
 
-    const rows = tenantId === "default" ? pcs.map((e) => {
-      const match = byName.get(String(e.name).toLowerCase());
-      return {
-        Name: e.name,
-        Barcode: (match as any)?.barcode ?? "",
-        PackSize: e.packSize ?? (match as any)?.packSize ?? "",
-        Category: match?.category ?? "",
-        PCSQuantity: e.quantity ?? 0,
-        PurchasePrice: match?.purchasePrice ?? "",
-        SalesPrice: match?.price ?? "",
-        ExpiryDate: match?.expiryDate ? new Date(match.expiryDate).toLocaleDateString() : "",
-        Description: (match as any)?.description ?? "",
-      };
-    }) : [];
+    const samplePath = path.join(__dirname, "../../assets/pcs-sample1.xlsx");
 
-    const headerPcs = [
-      "Name",
-      "Barcode",
-      "PackSize",
-      "Category",
-      "PCSQuantity",
-      "PurchasePrice",
-      "SalesPrice",
-      "ExpiryDate",
-      "Description",
-    ];
-    const wb = XLSX.utils.book_new();
-    const ws = rows.length
-      ? XLSX.utils.json_to_sheet(rows, { header: headerPcs })
-      : XLSX.utils.aoa_to_sheet([headerPcs]);
-    XLSX.utils.book_append_sheet(wb, ws, "PCS");
-    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader("Content-Disposition", "attachment; filename=PCS-sample.xlsx");
-    res.status(200).send(buf);
+    // Always serve the static file if it exists, as it contains the correct format (Barcode, etc.)
+    if (fs.existsSync(samplePath)) {
+      console.log(`[getPcsSample] Serving static file: ${samplePath}`);
+      const buf = fs.readFileSync(samplePath);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=pcs-sample1.xlsx");
+      res.status(200).send(buf);
+      return;
+    }
+
+    res.status(404).json({ message: "Sample file not found on server." });
   } catch (err) {
-    res.status(500).json(createErrorResponse(err, "product", "Failed to generate PCS sample file"));
+    console.error(`[getPcsSample] Fatal error:`, err);
+    res.status(500).json(createErrorResponse(err, "product", "Failed to get PCS sample file"));
   }
 };
 
@@ -2343,8 +2406,9 @@ export const exportPcsExcel = async (
   res: Response
 ): Promise<void> => {
   try {
-    const pcs = await readPcsInventory();
-    const products = await prisma.products.findMany({});
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const pcs = await readPcsInventory(tenantId);
+    const products = await prisma.products.findMany({ where: { tenantId } });
     const byName = new Map<string, any>(products.map((p: any) => [String(p.name).toLowerCase(), p] as const));
     const rows = pcs.map((e) => {
       const match = byName.get(String(e.name).toLowerCase());
