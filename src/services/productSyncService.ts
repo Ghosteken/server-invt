@@ -35,7 +35,7 @@ export async function syncProductsJsonFromDb(prisma: PrismaClient) {
       orderBy: { name: "asc" },
       select: { productId: true, name: true, price: true, stockQuantity: true, category: true, packSize: true, barcode: true },
     });
-    fs.writeFileSync(productsJsonPath, JSON.stringify(products, null, 2), "utf-8");
+    await fs.promises.writeFile(productsJsonPath, JSON.stringify(products, null, 2), "utf-8");
   } catch (e) {
     console.warn("syncProductsJsonFromDb failed:", e);
   }

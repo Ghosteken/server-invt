@@ -35,7 +35,7 @@ const hashAsync = (p: string, rounds: number) => new Promise<string>((resolve, r
 export const signup = async (req: Request, res: Response): Promise<void> => {
   try {
     const { name, email, password } = req.body;
-    const normalizedEmail = String(email).toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
     console.log(`auth: signup request for email=${email}`);
 
     // Check if user already exists
@@ -91,7 +91,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
-    const normalizedEmail = String(email).toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
     console.log(`auth: login request for email=${email}`);
 
     const configuredAdminEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "").trim().toLowerCase();
@@ -161,7 +161,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
 export const adminLogin = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body;
-    const normalizedEmail = String(email).toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
     console.log(`auth: admin login request for email=${email}`);
 
     // Master admin path removed; super admin login is handled via dedicated route under /super-admin
@@ -336,7 +336,7 @@ export const verifyToken = async (req: Request, res: Response): Promise<void> =>
 export const orgAdminLogin = async (req: Request, res: Response): Promise<void> => {
   try {
     const { email, password } = req.body || {};
-    const normalizedEmail = String(email || "").toLowerCase();
+    const normalizedEmail = String(email || "").trim().toLowerCase();
     if (!normalizedEmail || !password) {
       res.status(400).json({ message: "email and password are required" });
       return;
@@ -380,7 +380,7 @@ export const signupOrg = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const normalizedEmail = String(email).toLowerCase();
+    const normalizedEmail = String(email).trim().toLowerCase();
 
     // Check if email already exists
     const existingUser = await prisma.users.findFirst({ where: { email: normalizedEmail } });
