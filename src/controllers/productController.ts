@@ -33,10 +33,14 @@ export const getProducts = async (
     const pageRaw = req.query.page?.toString();
     const limit = limitRaw ? Math.max(1, Math.min(200, Number(limitRaw) || 20)) : undefined;
     const page = pageRaw ? Math.max(1, Number(pageRaw) || 1) : undefined;
+    const fromRaw = req.query.startDate?.toString();
+    const toRaw = req.query.endDate?.toString();
+    const from = fromRaw ? new Date(fromRaw) : undefined;
+    const to = toRaw ? new Date(toRaw) : undefined;
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
 
     // Cache key per search term
-    const cacheKey = `${tenantId}:${search.toLowerCase()}`;
+    const cacheKey = `${tenantId}:${search.toLowerCase()}:${fromRaw || ''}:${toRaw || ''}`;
     const now = Date.now();
     const cached = PRODUCT_SEARCH_CACHE.get(cacheKey);
     if (cached && now - cached.ts < PRODUCT_SEARCH_TTL_MS) {
@@ -44,11 +48,19 @@ export const getProducts = async (
       return;
     }
 
+    let dateFilter: any = undefined;
+    if ((from && !isNaN(from.getTime())) || (to && !isNaN(to.getTime()))) {
+      dateFilter = {};
+      if (from && !isNaN(from.getTime())) dateFilter.gte = from;
+      if (to && !isNaN(to.getTime())) dateFilter.lte = to;
+    }
+
     // If a search term is provided, perform a case-insensitive contains match.
     // If no search term, return all products.
     const products = await prisma.products.findMany({
       where: {
         tenantId,
+        ...(dateFilter ? { createdAt: dateFilter } : {}),
         ...(search
           ? {
               OR: [
@@ -298,8 +310,8 @@ export const getProductMovements = async (
     const from = fromRaw ? new Date(fromRaw) : undefined;
     const to = toRaw ? new Date(toRaw) : undefined;
     let timestampFilter: any = undefined;
-    if (from) timestampFilter = { ...(timestampFilter || {}), gte: from };
-    if (to) timestampFilter = { ...(timestampFilter || {}), lte: to };
+    if (from && !isNaN(from.getTime())) timestampFilter = { ...(timestampFilter || {}), gte: from };
+    if (to && !isNaN(to.getTime())) timestampFilter = { ...(timestampFilter || {}), lte: to };
 
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const product = await prisma.products.findFirst({ where: { productId, tenantId } });
@@ -846,6 +858,11 @@ export const importProducts = async (
     const worksheet = workbook.Sheets[firstSheetName];
     const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, { defval: null, raw: false });
     
+    if (rows.length > 1000) {
+      res.status(400).json({ message: "Import limit exceeded. Maximum 1,000 products allowed per file." });
+      return;
+    }
+    
     console.log(`[importProducts] Excel parsed. Rows found: ${rows.length}`);
     
     if (!rows.length) {
@@ -1070,28 +1087,9 @@ export const importProducts = async (
 
     // Deduplicate by name + packSize: prepare batch updates and batch creates to minimize per-row DB ops
     const normalizeText = (s: string | null | undefined) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
-    const names = Array.from(new Set(productsToInsert.map(p => p.name)));
-    const barcodes = Array.from(new Set(productsToInsert.map(p => p.barcode).filter((b): b is string => !!b)));
-    const existingCandidates = await prisma.products.findMany({
-      where: { tenantId, name: { in: names } },
-    });
-    const existingByBarcode = barcodes.length
-      ? await prisma.products.findMany({ where: { tenantId, barcode: { in: barcodes } } })
-      : [];
-    const keyOf = (p: { name: string; packSize: string | null }) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`;
-    const existingMap = new Map<string, any>();
-    for (const p of existingCandidates) {
-      existingMap.set(keyOf({ name: p.name, packSize: (p as any).packSize ?? null }), p);
-    }
-    const barcodeMap = new Map<string, any>();
-    for (const p of existingByBarcode) {
-      const bc = (p as any).barcode;
-      if (bc) barcodeMap.set(String(bc).trim(), p);
-    }
-
+    
     let insertedCount = 0;
     let updatedCount = 0;
-    let deletedCount = 0;
     const mergedItemsForJson: Array<{
       productId: string;
       name: string;
@@ -1188,96 +1186,135 @@ export const importProducts = async (
       return bestScore >= 0.6 ? best : null;
     };
 
-    const idList = Array.from(new Set(productsToInsert.map((p: any) => p.productId)));
-    const existingById = idList.length ? await prisma.products.findMany({ where: { tenantId, productId: { in: idList } } }) : [];
-    const idMap = new Map<string, any>(existingById.map((p: any) => [p.productId, p]));
+    const BATCH_SIZE = 1000;
+    const UPDATE_BATCH_SIZE = 50;
+    const keyOf = (p: { name: string; packSize: string | null }) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`;
+    
+    // Accumulate all names processed to run deduplication logic at the end
+    const allImportedNames = new Set<string>();
 
-    const batchedUpdates: Array<{ where: { productId: string }, data: any }> = [];
-    const batchedCreates: Array<any> = [];
-
-    for (const item of productsToInsert) {
-      const key = keyOf({ name: item.name, packSize: item.packSize });
-      let existing = idMap.get(item.productId) || (item.barcode ? barcodeMap.get(String(item.barcode).trim()) : undefined) || existingMap.get(key);
-      // Avoid expensive fuzzy search for huge imports; cap with a simple guard
-      if (!existing && productsToInsert.length <= 500) {
-        existing = await fuzzyFindExisting({ name: item.name, packSize: item.packSize });
+    for (let i = 0; i < productsToInsert.length; i += BATCH_SIZE) {
+      const batch = productsToInsert.slice(i, i + BATCH_SIZE);
+      const names = Array.from(new Set(batch.map(p => p.name)));
+      names.forEach(n => allImportedNames.add(n));
+      const barcodes = Array.from(new Set(batch.map(p => p.barcode).filter((b): b is string => !!b)));
+      
+      const existingCandidates = await prisma.products.findMany({
+        where: { tenantId, name: { in: names } },
+      });
+      const existingByBarcode = barcodes.length
+        ? await prisma.products.findMany({ where: { tenantId, barcode: { in: barcodes } } })
+        : [];
+      
+      const existingMap = new Map<string, any>();
+      for (const p of existingCandidates) {
+        existingMap.set(keyOf({ name: p.name, packSize: (p as any).packSize ?? null }), p);
       }
-      if (existing) {
-        const dataUpdate: any = {};
-        const present = (item as any).__present as Set<string>;
-        const should = (field: string) => (!updateFieldsSet || updateFieldsSet.has(field)) && present.has(field);
-        if (should("name")) dataUpdate.name = item.name;
-        if (should("price") && item.price !== undefined) dataUpdate.price = item.price;
-        if (should("purchaseprice") && item.purchasePrice !== undefined) dataUpdate.purchasePrice = item.purchasePrice;
-        if (should("stockquantity") && item.stockQuantity !== undefined) dataUpdate.stockQuantity = item.stockQuantity;
-        if (should("expirydate")) dataUpdate.expiryDate = item.expiryDate ?? null;
-        if (should("category")) dataUpdate.category = (item.category ?? existing.category ?? null);
-        if (should("description")) dataUpdate.description = item.description ?? existing.description ?? null;
-        if (should("packsize")) dataUpdate.packSize = item.packSize ?? existing.packSize ?? null;
-        if (should("barcode")) dataUpdate.barcode = item.barcode ?? existing.barcode ?? null;
-        batchedUpdates.push({ where: { productId: existing.productId }, data: dataUpdate });
-        try {
-          const changed: string[] = [];
-          for (const k of Object.keys(dataUpdate)) {
-            const oldVal = (existing as any)[k];
-            const newVal = (dataUpdate as any)[k];
-            const oldNorm = oldVal instanceof Date ? oldVal.getTime() : oldVal;
-            const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
-            if (oldNorm !== newNorm) changed.push(k);
-          }
-          if (changed.length) {
-            recordFieldUpdates(existing.productId, changed, "import");
-          } else {
-            // If nothing changed, drop this update to avoid false-positive counts
-            batchedUpdates.pop();
-          }
-        } catch (logErr) {
-          console.warn("Failed to log field updates on import update:", logErr);
+      const barcodeMap = new Map<string, any>();
+      for (const p of existingByBarcode) {
+        const bc = (p as any).barcode;
+        if (bc) barcodeMap.set(String(bc).trim(), p);
+      }
+
+      const idList = Array.from(new Set(batch.map((p: any) => p.productId)));
+      const existingById = idList.length ? await prisma.products.findMany({ where: { tenantId, productId: { in: idList } } }) : [];
+      const idMap = new Map<string, any>(existingById.map((p: any) => [p.productId, p]));
+
+      const batchedUpdates: Array<{ where: { productId: string }, data: any }> = [];
+      const batchedCreates: Array<any> = [];
+
+      for (const item of batch) {
+        const key = keyOf({ name: item.name, packSize: item.packSize });
+        let existing = idMap.get(item.productId) || (item.barcode ? barcodeMap.get(String(item.barcode).trim()) : undefined) || existingMap.get(key);
+        // Only run fuzzy search if total import size is small (<= 500) to preserve performance
+        if (!existing && productsToInsert.length <= 500) {
+          existing = await fuzzyFindExisting({ name: item.name, packSize: item.packSize });
         }
-        mergedItemsForJson.push({ ...item, productId: existing.productId });
-      } else {
-        const { __present, ...raw } = (item as any);
-        const allowed = new Set([
-          "productId",
-          "name",
-          "price",
-          "purchasePrice",
-          "stockQuantity",
-          "expiryDate",
-          "category",
-          "description",
-          "packSize",
-          "barcode",
-        ]);
-        const newItemData: any = {};
-        for (const k of Object.keys(raw)) {
-          if (allowed.has(k)) newItemData[k] = raw[k];
-        }
-        if (newItemData.category) {
-          const mapped = bestCategoryForValue(String(newItemData.category));
-          newItemData.category = mapped ?? newItemData.category;
+        if (existing) {
+          const dataUpdate: any = {};
+          const present = (item as any).__present as Set<string>;
+          const should = (field: string) => (!updateFieldsSet || updateFieldsSet.has(field)) && present.has(field);
+          if (should("name")) dataUpdate.name = item.name;
+          if (should("price") && item.price !== undefined) dataUpdate.price = item.price;
+          if (should("purchaseprice") && item.purchasePrice !== undefined) dataUpdate.purchasePrice = item.purchasePrice;
+          if (should("stockquantity") && item.stockQuantity !== undefined) dataUpdate.stockQuantity = item.stockQuantity;
+          if (should("expirydate")) dataUpdate.expiryDate = item.expiryDate ?? null;
+          if (should("category")) dataUpdate.category = (item.category ?? existing.category ?? null);
+          if (should("description")) dataUpdate.description = item.description ?? existing.description ?? null;
+          if (should("packsize")) dataUpdate.packSize = item.packSize ?? existing.packSize ?? null;
+          if (should("barcode")) dataUpdate.barcode = item.barcode ?? existing.barcode ?? null;
+          batchedUpdates.push({ where: { productId: existing.productId }, data: dataUpdate });
+          
+          try {
+            const changed: string[] = [];
+            for (const k of Object.keys(dataUpdate)) {
+              const oldVal = (existing as any)[k];
+              const newVal = (dataUpdate as any)[k];
+              const oldNorm = oldVal instanceof Date ? oldVal.getTime() : oldVal;
+              const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
+              if (oldNorm !== newNorm) changed.push(k);
+            }
+            if (changed.length) {
+              // Log updates (synchronous, safe)
+              recordFieldUpdates(existing.productId, changed, "import");
+            } else {
+              batchedUpdates.pop();
+            }
+          } catch (logErr) {
+            console.warn("Failed to log field updates on import update:", logErr);
+          }
+          mergedItemsForJson.push({ ...item, productId: existing.productId });
         } else {
-          newItemData.category = bestCategoryForName(item.name);
-        }
-        batchedCreates.push({ ...newItemData, tenantId });
-        try {
+          const { __present, ...raw } = (item as any);
+          const allowed = new Set([
+            "productId",
+            "name",
+            "price",
+            "purchasePrice",
+            "stockQuantity",
+            "expiryDate",
+            "category",
+            "description",
+            "packSize",
+            "barcode",
+          ]);
+          const newItemData: any = {};
+          for (const k of Object.keys(raw)) {
+            if (allowed.has(k)) newItemData[k] = raw[k];
+          }
+          if (newItemData.category) {
+            const mapped = bestCategoryForValue(String(newItemData.category));
+            newItemData.category = mapped ?? newItemData.category;
+          } else {
+            newItemData.category = bestCategoryForName(item.name);
+          }
+          batchedCreates.push({ ...newItemData, tenantId });
+          // Log create (synchronous, safe)
           recordFieldUpdates(item.productId, ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize", "barcode"].filter((f) => (item as any)[f] !== undefined), "import");
-        } catch (logErr) {
-          console.warn("Failed to log field updates on import create:", logErr);
+          mergedItemsForJson.push(item);
         }
-        mergedItemsForJson.push(item);
       }
+
+      if (batchedCreates.length) {
+        await prisma.products.createMany({ data: batchedCreates });
+        insertedCount += batchedCreates.length;
+      }
+      
+      // Process updates in smaller sub-batches to prevent transaction timeouts
+      if (batchedUpdates.length) {
+        for (let j = 0; j < batchedUpdates.length; j += UPDATE_BATCH_SIZE) {
+          const updateChunk = batchedUpdates.slice(j, j + UPDATE_BATCH_SIZE);
+          await prisma.$transaction(updateChunk.map((u) => prisma.products.update(u)));
+          updatedCount += updateChunk.length;
+        }
+      }
+      
+      // Explicitly clear batch arrays to free memory
+      batchedCreates.length = 0;
+      batchedUpdates.length = 0;
     }
 
-    if (batchedCreates.length) {
-      await prisma.products.createMany({ data: batchedCreates });
-      insertedCount += batchedCreates.length;
-    }
-    if (batchedUpdates.length) {
-      await prisma.$transaction(batchedUpdates.map((u) => prisma.products.update(u)));
-      updatedCount += batchedUpdates.length;
-    }
-
+    let deletedCount = 0;
     // Purge products missing from the uploaded sheet (by Name+PackSize or matching Barcode)
     try {
       const normalizeText = (s: string | null | undefined) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
@@ -1305,23 +1342,49 @@ export const importProducts = async (
 
     // After processing import rows, collapse any existing duplicates in DB for the same name+packSize
     try {
-      const candidatesForDedupe = await prisma.products.findMany({ where: { tenantId, name: { in: names } } });
-      // Cluster by fuzzy name similarity and identical packSize
+      // Chunk the deduplication candidates fetch to avoid massive IN clauses
+      const uniqueNames = Array.from(allImportedNames);
+      const DEDUPE_CHUNK_SIZE = 1000;
+      let candidatesForDedupe: any[] = [];
+      
+      for (let i = 0; i < uniqueNames.length; i += DEDUPE_CHUNK_SIZE) {
+        const chunk = uniqueNames.slice(i, i + DEDUPE_CHUNK_SIZE);
+        const fetched = await prisma.products.findMany({ where: { tenantId, name: { in: chunk } } });
+        candidatesForDedupe = candidatesForDedupe.concat(fetched);
+      }
+
+      // Cluster logic
       type Prod = typeof candidatesForDedupe[number] & { packSize?: string | null };
       const clusters: Prod[][] = [];
       const samePack = (a: Prod, b: Prod) => normalizeText((a as any).packSize ?? null) === normalizeText((b as any).packSize ?? null);
       const SIM_THRESHOLD = 0.6;
-      for (const p of candidatesForDedupe as Prod[]) {
-        let placed = false;
-        for (const cluster of clusters) {
-          // If any member is sufficiently similar and pack size matches, place into cluster
-          if (cluster.some((m: Prod) => samePack(m, p) && jaccard(m.name, p.name) >= SIM_THRESHOLD)) {
-            cluster.push(p);
-            placed = true;
-            break;
+      
+      // If dataset is large, skip expensive fuzzy matching and use strict normalization only
+      // O(N) vs O(N^2)
+      if (candidatesForDedupe.length > 200) {
+         const map = new Map<string, Prod[]>();
+         for (const p of candidatesForDedupe as Prod[]) {
+            const key = `${normalizeText(p.name)}|${normalizeText(p.packSize ?? null)}`;
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(p);
+         }
+         for (const group of map.values()) {
+            clusters.push(group);
+         }
+      } else {
+          // Small batch: use fuzzy matching
+          for (const p of candidatesForDedupe as Prod[]) {
+            let placed = false;
+            for (const cluster of clusters) {
+              // If any member is sufficiently similar and pack size matches, place into cluster
+              if (cluster.some((m: Prod) => samePack(m, p) && jaccard(m.name, p.name) >= SIM_THRESHOLD)) {
+                cluster.push(p);
+                placed = true;
+                break;
+              }
+            }
+            if (!placed) clusters.push([p]);
           }
-        }
-        if (!placed) clusters.push([p]);
       }
       let dedupedCount = 0;
       for (const arr of clusters) {
@@ -2331,7 +2394,10 @@ export const getProductUpdatesLast = async (
     const ids = Object.keys(last);
     const products = ids.length ? await prisma.products.findMany({ where: { productId: { in: ids }, tenantId } }) : [];
     const nameMap = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
-    const payload = ids.map((id) => ({ productId: id, name: nameMap.get(id) || "Unknown", last: last[id] }));
+    // Filter to only include products that actually exist in this tenant's scope
+    const payload = ids
+      .filter((id) => nameMap.has(id))
+      .map((id) => ({ productId: id, name: nameMap.get(id)!, last: last[id] }));
     res.json(payload);
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "product", "Failed to load last updates"));

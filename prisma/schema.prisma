@@ -43,6 +43,7 @@ model Products {
   barcode           String?
   // Optional purchase price (cost) from supplier/import sheet
   purchasePrice     Float?
+  createdAt         DateTime            @default(now())
   tenantId          String              @default("default")
   Sales             Sales[]
   Purchases         Purchases[]
