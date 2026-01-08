@@ -10,7 +10,7 @@ import { appendNotification } from "../services/notificationService";
 import { syncProductsJsonFromDb, writeEmptyProductsJson, writeEmptyImportedProductsJson } from "../services/productSyncService";
 import { appendCustomerSales } from "../services/customerSalesService";
 import { readPcsInventory, upsertPcsEntries, adjustPcsQuantity, reloadPcsInventory } from "../services/pcsInventoryService";
-import { recordFieldUpdates, getLastFieldUpdates } from "../services/productUpdateAuditService";
+import { recordFieldUpdates, recordFieldUpdatesBulk, getLastFieldUpdates } from "../services/productUpdateAuditService";
 import XLSX from "xlsx";
 import { z } from "zod";
 import fs from "node:fs";
@@ -33,10 +33,14 @@ export const getProducts = async (
     const pageRaw = req.query.page?.toString();
     const limit = limitRaw ? Math.max(1, Math.min(200, Number(limitRaw) || 20)) : undefined;
     const page = pageRaw ? Math.max(1, Number(pageRaw) || 1) : undefined;
+    const fromRaw = req.query.startDate?.toString();
+    const toRaw = req.query.endDate?.toString();
+    const from = fromRaw ? new Date(fromRaw) : undefined;
+    const to = toRaw ? new Date(toRaw) : undefined;
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
 
     // Cache key per search term
-    const cacheKey = `${tenantId}:${search.toLowerCase()}`;
+    const cacheKey = `${tenantId}:${search.toLowerCase()}:${fromRaw || ''}:${toRaw || ''}`;
     const now = Date.now();
     const cached = PRODUCT_SEARCH_CACHE.get(cacheKey);
     if (cached && now - cached.ts < PRODUCT_SEARCH_TTL_MS) {
@@ -44,11 +48,19 @@ export const getProducts = async (
       return;
     }
 
+    let dateFilter: any = undefined;
+    if ((from && !isNaN(from.getTime())) || (to && !isNaN(to.getTime()))) {
+      dateFilter = {};
+      if (from && !isNaN(from.getTime())) dateFilter.gte = from;
+      if (to && !isNaN(to.getTime())) dateFilter.lte = to;
+    }
+
     // If a search term is provided, perform a case-insensitive contains match.
     // If no search term, return all products.
     const products = await prisma.products.findMany({
       where: {
         tenantId,
+        ...(dateFilter ? { createdAt: dateFilter } : {}),
         ...(search
           ? {
               OR: [
@@ -298,8 +310,8 @@ export const getProductMovements = async (
     const from = fromRaw ? new Date(fromRaw) : undefined;
     const to = toRaw ? new Date(toRaw) : undefined;
     let timestampFilter: any = undefined;
-    if (from) timestampFilter = { ...(timestampFilter || {}), gte: from };
-    if (to) timestampFilter = { ...(timestampFilter || {}), lte: to };
+    if (from && !isNaN(from.getTime())) timestampFilter = { ...(timestampFilter || {}), gte: from };
+    if (to && !isNaN(to.getTime())) timestampFilter = { ...(timestampFilter || {}), lte: to };
 
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     const product = await prisma.products.findFirst({ where: { productId, tenantId } });
@@ -455,8 +467,8 @@ export const getPcsProducts = async (req: Request, res: Response): Promise<void>
         packSize: (matched?.packSize ?? e.packSize ?? null) as string | null,
         category: matched?.category ?? null,
         expiryDate: matched?.expiryDate ?? null,
-        price: matched?.price ?? 0,
-        purchasePrice: matched?.purchasePrice ?? null,
+        price: e.salesPrice ?? matched?.price ?? 0,
+        purchasePrice: e.purchasePrice ?? matched?.purchasePrice ?? null,
       } as const;
       agg.set(key, payload as any);
     }
@@ -536,7 +548,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       const n = Number(m[0]);
       return Number.isFinite(n) ? n : null;
     };
-    const incoming: { name: string; quantity: number; packSize?: string | null }[] = [];
+    const incoming: { name: string; quantity: number; packSize?: string | null; salesPrice?: number | null; purchasePrice?: number | null; productId?: string | null }[] = [];
     const importedSnapshot: Array<{
       productId?: string;
       name: string;
@@ -631,7 +643,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       const expiryDate = parseDate(expiryDateRaw);
       const description = kv["description"] ? String(kv["description"]).trim() : null;
 
-      incoming.push({ name: String(name).trim(), quantity: Math.max(0, Number(qty)), packSize: packSize ? String(packSize).trim() : null });
+      // incoming.push moved to after matching logic to include productId
       importedSnapshot.push({
         productId: productId ? String(productId) : undefined,
         name: String(name).trim(),
@@ -646,6 +658,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       });
     }
     // Optionally update matching Product records for selected fields
+    const productAuditUpdates: { productId: string; fields: string[]; source?: string }[] = [];
     try {
       const should = (field: string) => !updateFieldsSet || updateFieldsSet.has(field);
       const existingProducts = await prisma.products.findMany({ where: { tenantId } });
@@ -657,20 +670,64 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
         const bc = (p as any).barcode;
         if (bc) existingByBarcode.set(String(bc).trim(), p);
       }
+
+      // Helper functions for fuzzy matching (duplicated from importProducts to ensure isolation)
+      const normalizeToken = (t: string) => {
+        let x = t.toLowerCase();
+        if (x === "drinks") x = "drink";
+        if (x === "bitters") x = "bitter";
+        if (x === "liquer") x = "liqueur";
+        if (x === "liquor") x = "liqueur";
+        if (x.endsWith("s")) x = x.slice(0, -1);
+        return x;
+      };
+      const tokenize = (s: string) => s.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean).map(normalizeToken);
+      const jaccard = (a: string, b: string): number => {
+        const ta = tokenize(a);
+        const tb = tokenize(b);
+        if (!ta.length || !tb.length) return 0;
+        const setA = new Set(ta);
+        const setB = new Set(tb);
+        let inter = 0;
+        for (const t of setA) if (setB.has(t)) inter += 1;
+        const union = setA.size + setB.size - inter;
+        return inter / Math.max(1, union);
+      };
+
       for (const item of importedSnapshot) {
         let target: any = null;
+        // Priority 1: Product ID
         if (item.productId) {
           target = await prisma.products.findFirst({ where: { productId: item.productId, tenantId } });
         }
+        // Priority 2: Barcode (New File Column)
         if (!target && item.barcode) {
           target = existingByBarcode.get(String(item.barcode).trim());
         }
+        // Priority 3: Exact Name + PackSize
         if (!target) {
           target = existingByKey.get(keyOf({ name: item.name, packSize: (item.packSize ?? null) as any }));
         }
+        // Priority 4: Exact Name
         if (!target) {
           target = await prisma.products.findFirst({ where: { name: item.name, tenantId } });
         }
+        // Priority 5: Fuzzy Name Match (Fallback)
+        if (!target) {
+          let best: any = null;
+          let bestScore = 0;
+          for (const p of existingProducts) {
+            const score = jaccard(item.name, p.name) + (String(item.packSize ?? "").toLowerCase() === String((p as any).packSize ?? "").toLowerCase() ? 0.15 : 0);
+            if (score > bestScore) {
+              bestScore = score;
+              best = p;
+            }
+          }
+          if (bestScore >= 0.6) {
+            target = best;
+          }
+        }
+
         if (!target) {
           const created = await prisma.products.create({
             data: {
@@ -678,7 +735,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
               name: item.name,
               price: item.salesPrice != null ? Number(item.salesPrice) : 0,
               purchasePrice: item.purchasePrice != null ? Number(item.purchasePrice) : null,
-              stockQuantity: 0,
+              stockQuantity: 0, // Ensure stock is 0 for PCS-only imports
               expiryDate: (item.expiryDate instanceof Date) ? item.expiryDate : (item.expiryDate ? new Date(item.expiryDate) : null),
               category: item.category ?? null,
               description: item.description ?? null,
@@ -688,17 +745,21 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
             },
           });
           try {
-            recordFieldUpdates(created.productId, [
-              "name",
-              ...(item.salesPrice != null ? ["price"] : []),
-              ...(item.purchasePrice != null ? ["purchasePrice"] : []),
-              "stockQuantity",
-              ...(item.expiryDate ? ["expiryDate"] : []),
-              ...(item.category ? ["category"] : []),
-              ...(item.description ? ["description"] : []),
-              ...(item.packSize ? ["packSize"] : []),
-              ...(item.barcode ? ["barcode"] : []),
-            ], "import");
+            productAuditUpdates.push({
+              productId: created.productId,
+              fields: [
+                "name",
+                ...(item.salesPrice != null ? ["price"] : []),
+                ...(item.purchasePrice != null ? ["purchasePrice"] : []),
+                "stockQuantity",
+                ...(item.expiryDate ? ["expiryDate"] : []),
+                ...(item.category ? ["category"] : []),
+                ...(item.description ? ["description"] : []),
+                ...(item.packSize ? ["packSize"] : []),
+                ...(item.barcode ? ["barcode"] : []),
+              ],
+              source: "import"
+            });
           } catch {}
           existingByKey.set(keyOf({ name: created.name, packSize: (created as any).packSize ?? null }), created);
           if (created.barcode) existingByBarcode.set(String(created.barcode).trim(), created);
@@ -706,8 +767,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
         }
         const dataUpdate: any = {};
         if (should("name") && item.name) dataUpdate.name = item.name;
-        if (should("price") && item.salesPrice != null) dataUpdate.price = Number(item.salesPrice);
-        if (should("purchaseprice") && item.purchasePrice != null) dataUpdate.purchasePrice = Number(item.purchasePrice);
+        // Skip updating product price/stock from PCS import as they are separate entities
         if (should("expirydate")) {
           const v = item.expiryDate;
           dataUpdate.expiryDate = v instanceof Date ? v : (v ? new Date(v) : null);
@@ -716,7 +776,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
         if (should("description")) dataUpdate.description = item.description ?? target.description ?? null;
         if (should("packsize")) dataUpdate.packSize = item.packSize ?? target.packSize ?? null;
         if (should("barcode")) dataUpdate.barcode = item.barcode ?? target.barcode ?? null;
-        dataUpdate.stockQuantity = Math.max(0, Number(item.pcsQuantity || 0));
+        
         if (Object.keys(dataUpdate).length > 0) {
           const existing = target;
           const updated = await prisma.products.update({ where: { productId: target.productId }, data: dataUpdate });
@@ -729,11 +789,21 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
               const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
               if (oldNorm !== newNorm) changed.push(k);
             }
-            if (changed.length) recordFieldUpdates(target.productId, changed, "import");
+            if (changed.length) productAuditUpdates.push({ productId: target.productId, fields: changed, source: "import" });
           } catch (logErr) {
             console.warn("Failed to log field updates on PCS import update:", logErr);
           }
         }
+        
+        // Prepare for PCS upsert
+        incoming.push({
+          name: item.name,
+          quantity: item.pcsQuantity,
+          packSize: item.packSize,
+          salesPrice: item.salesPrice,
+          purchasePrice: item.purchasePrice,
+          productId: target.productId
+        });
       }
     } catch (updateErr) {
       console.warn("Selective product updates on PCS import failed:", updateErr);
@@ -744,6 +814,25 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
     const merged = doPcsUpsert ? await upsertPcsEntries(incoming, tenantId) : await readPcsInventory(tenantId);
     const importedCount = doPcsUpsert ? incoming.length : 0;
     appendNotification({ type: "product", message: `Imported ${importedCount} PCS products`, actorUserId: req.user?.userId, tenantId });
+    
+    // Flush bulk audit updates for PCS and Product updates
+    try {
+      if (productAuditUpdates.length) {
+        recordFieldUpdatesBulk(productAuditUpdates);
+      }
+      // Accumulate audit entries for PCS items
+      const updates = incoming.map(i => ({
+        productId: i.productId || i.name, // Use name as fallback if no ID
+        fields: ["name", "pcsQuantity", "salesPrice", "purchasePrice", "packSize"].filter(f => (i as any)[f] !== undefined),
+        source: "import"
+      }));
+      if (updates.length) {
+        recordFieldUpdatesBulk(updates as any);
+      }
+    } catch (auditErr) {
+      console.warn("Failed to flush bulk audit updates for PCS:", auditErr);
+    }
+
     // Persist imported PCS snapshot to JSON
     try {
       const seedDir = path.join(__dirname, "../../prisma/seedData");
@@ -752,7 +841,8 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
       let existing: any[] = [];
       if (fs.existsSync(outPath)) {
         try {
-          existing = JSON.parse(fs.readFileSync(outPath, "utf-8"));
+          const content = await fs.promises.readFile(outPath, "utf-8");
+          existing = JSON.parse(content);
         } catch {
           existing = [];
         }
@@ -766,7 +856,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
         map.set(keyOf(item), item);
       }
       const mergedSnap = Array.from(map.values());
-      fs.writeFileSync(outPath, JSON.stringify(mergedSnap, null, 2), "utf-8");
+      await fs.promises.writeFile(outPath, JSON.stringify(mergedSnap, null, 2), "utf-8");
     } catch (persistErr) {
       console.warn("Failed to persist imported PCS snapshot to JSON:", persistErr);
     }
@@ -803,7 +893,7 @@ export const upsertPcsItems = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const merged = await upsertPcsEntries(items);
+    const merged = await upsertPcsEntries(items, tenantId);
     await appendNotification({ type: "product", message: `Upserted ${items.length} PCS item(s)`, actorUserId: req.user?.userId, tenantId });
     res.json({ upserted: items.length, total: merged.length });
   } catch (err) {
@@ -845,6 +935,11 @@ export const importProducts = async (
     const firstSheetName = workbook.SheetNames[0];
     const worksheet = workbook.Sheets[firstSheetName];
     const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, { defval: null, raw: false });
+    
+    if (rows.length > 1000) {
+      res.status(400).json({ message: "Import limit exceeded. Maximum 1,000 products allowed per file." });
+      return;
+    }
     
     console.log(`[importProducts] Excel parsed. Rows found: ${rows.length}`);
     
@@ -1070,28 +1165,9 @@ export const importProducts = async (
 
     // Deduplicate by name + packSize: prepare batch updates and batch creates to minimize per-row DB ops
     const normalizeText = (s: string | null | undefined) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
-    const names = Array.from(new Set(productsToInsert.map(p => p.name)));
-    const barcodes = Array.from(new Set(productsToInsert.map(p => p.barcode).filter((b): b is string => !!b)));
-    const existingCandidates = await prisma.products.findMany({
-      where: { tenantId, name: { in: names } },
-    });
-    const existingByBarcode = barcodes.length
-      ? await prisma.products.findMany({ where: { tenantId, barcode: { in: barcodes } } })
-      : [];
-    const keyOf = (p: { name: string; packSize: string | null }) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`;
-    const existingMap = new Map<string, any>();
-    for (const p of existingCandidates) {
-      existingMap.set(keyOf({ name: p.name, packSize: (p as any).packSize ?? null }), p);
-    }
-    const barcodeMap = new Map<string, any>();
-    for (const p of existingByBarcode) {
-      const bc = (p as any).barcode;
-      if (bc) barcodeMap.set(String(bc).trim(), p);
-    }
-
+    
     let insertedCount = 0;
     let updatedCount = 0;
-    let deletedCount = 0;
     const mergedItemsForJson: Array<{
       productId: string;
       name: string;
@@ -1104,6 +1180,9 @@ export const importProducts = async (
       packSize: string | null;
       barcode: string | null;
     }> = [];
+
+    // Accumulate audit updates to write in bulk
+    const pendingAuditUpdates: Array<{ productId: string; fields: string[]; source?: string }> = [];
 
     // Parse optional selective update fields from multipart form (CSV or JSON array)
     const rawUpdateFields = (req.body?.updateFields as string | undefined) ?? undefined;
@@ -1188,96 +1267,142 @@ export const importProducts = async (
       return bestScore >= 0.6 ? best : null;
     };
 
-    const idList = Array.from(new Set(productsToInsert.map((p: any) => p.productId)));
-    const existingById = idList.length ? await prisma.products.findMany({ where: { tenantId, productId: { in: idList } } }) : [];
-    const idMap = new Map<string, any>(existingById.map((p: any) => [p.productId, p]));
+    const BATCH_SIZE = 1000;
+    const UPDATE_BATCH_SIZE = 50;
+    const keyOf = (p: { name: string; packSize: string | null }) => `${normalizeText(p.name)}|${normalizeText(p.packSize)}`;
+    
+    // Accumulate all names processed to run deduplication logic at the end
+    const allImportedNames = new Set<string>();
 
-    const batchedUpdates: Array<{ where: { productId: string }, data: any }> = [];
-    const batchedCreates: Array<any> = [];
-
-    for (const item of productsToInsert) {
-      const key = keyOf({ name: item.name, packSize: item.packSize });
-      let existing = idMap.get(item.productId) || (item.barcode ? barcodeMap.get(String(item.barcode).trim()) : undefined) || existingMap.get(key);
-      // Avoid expensive fuzzy search for huge imports; cap with a simple guard
-      if (!existing && productsToInsert.length <= 500) {
-        existing = await fuzzyFindExisting({ name: item.name, packSize: item.packSize });
+    for (let i = 0; i < productsToInsert.length; i += BATCH_SIZE) {
+      const batch = productsToInsert.slice(i, i + BATCH_SIZE);
+      const names = Array.from(new Set(batch.map(p => p.name)));
+      names.forEach(n => allImportedNames.add(n));
+      const barcodes = Array.from(new Set(batch.map(p => p.barcode).filter((b): b is string => !!b)));
+      
+      const existingCandidates = await prisma.products.findMany({
+        where: { tenantId, name: { in: names } },
+      });
+      const existingByBarcode = barcodes.length
+        ? await prisma.products.findMany({ where: { tenantId, barcode: { in: barcodes } } })
+        : [];
+      
+      const existingMap = new Map<string, any>();
+      for (const p of existingCandidates) {
+        existingMap.set(keyOf({ name: p.name, packSize: (p as any).packSize ?? null }), p);
       }
-      if (existing) {
-        const dataUpdate: any = {};
-        const present = (item as any).__present as Set<string>;
-        const should = (field: string) => (!updateFieldsSet || updateFieldsSet.has(field)) && present.has(field);
-        if (should("name")) dataUpdate.name = item.name;
-        if (should("price") && item.price !== undefined) dataUpdate.price = item.price;
-        if (should("purchaseprice") && item.purchasePrice !== undefined) dataUpdate.purchasePrice = item.purchasePrice;
-        if (should("stockquantity") && item.stockQuantity !== undefined) dataUpdate.stockQuantity = item.stockQuantity;
-        if (should("expirydate")) dataUpdate.expiryDate = item.expiryDate ?? null;
-        if (should("category")) dataUpdate.category = (item.category ?? existing.category ?? null);
-        if (should("description")) dataUpdate.description = item.description ?? existing.description ?? null;
-        if (should("packsize")) dataUpdate.packSize = item.packSize ?? existing.packSize ?? null;
-        if (should("barcode")) dataUpdate.barcode = item.barcode ?? existing.barcode ?? null;
-        batchedUpdates.push({ where: { productId: existing.productId }, data: dataUpdate });
-        try {
-          const changed: string[] = [];
-          for (const k of Object.keys(dataUpdate)) {
-            const oldVal = (existing as any)[k];
-            const newVal = (dataUpdate as any)[k];
-            const oldNorm = oldVal instanceof Date ? oldVal.getTime() : oldVal;
-            const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
-            if (oldNorm !== newNorm) changed.push(k);
-          }
-          if (changed.length) {
-            recordFieldUpdates(existing.productId, changed, "import");
-          } else {
-            // If nothing changed, drop this update to avoid false-positive counts
-            batchedUpdates.pop();
-          }
-        } catch (logErr) {
-          console.warn("Failed to log field updates on import update:", logErr);
+      const barcodeMap = new Map<string, any>();
+      for (const p of existingByBarcode) {
+        const bc = (p as any).barcode;
+        if (bc) barcodeMap.set(String(bc).trim(), p);
+      }
+
+      const idList = Array.from(new Set(batch.map((p: any) => p.productId)));
+      const existingById = idList.length ? await prisma.products.findMany({ where: { tenantId, productId: { in: idList } } }) : [];
+      const idMap = new Map<string, any>(existingById.map((p: any) => [p.productId, p]));
+
+      const batchedUpdates: Array<{ where: { productId: string }, data: any }> = [];
+      const batchedCreates: Array<any> = [];
+
+      for (const item of batch) {
+        const key = keyOf({ name: item.name, packSize: item.packSize });
+        let existing = idMap.get(item.productId) || (item.barcode ? barcodeMap.get(String(item.barcode).trim()) : undefined) || existingMap.get(key);
+        // Only run fuzzy search if total import size is small (<= 500) to preserve performance
+        if (!existing && productsToInsert.length <= 500) {
+          existing = await fuzzyFindExisting({ name: item.name, packSize: item.packSize });
         }
-        mergedItemsForJson.push({ ...item, productId: existing.productId });
-      } else {
-        const { __present, ...raw } = (item as any);
-        const allowed = new Set([
-          "productId",
-          "name",
-          "price",
-          "purchasePrice",
-          "stockQuantity",
-          "expiryDate",
-          "category",
-          "description",
-          "packSize",
-          "barcode",
-        ]);
-        const newItemData: any = {};
-        for (const k of Object.keys(raw)) {
-          if (allowed.has(k)) newItemData[k] = raw[k];
-        }
-        if (newItemData.category) {
-          const mapped = bestCategoryForValue(String(newItemData.category));
-          newItemData.category = mapped ?? newItemData.category;
+        if (existing) {
+          const dataUpdate: any = {};
+          const present = (item as any).__present as Set<string>;
+          const should = (field: string) => (!updateFieldsSet || updateFieldsSet.has(field)) && present.has(field);
+          if (should("name")) dataUpdate.name = item.name;
+          if (should("price") && item.price !== undefined) dataUpdate.price = item.price;
+          if (should("purchaseprice") && item.purchasePrice !== undefined) dataUpdate.purchasePrice = item.purchasePrice;
+          if (should("stockquantity") && item.stockQuantity !== undefined) dataUpdate.stockQuantity = item.stockQuantity;
+          if (should("expirydate")) dataUpdate.expiryDate = item.expiryDate ?? null;
+          if (should("category")) dataUpdate.category = (item.category ?? existing.category ?? null);
+          if (should("description")) dataUpdate.description = item.description ?? existing.description ?? null;
+          if (should("packsize")) dataUpdate.packSize = item.packSize ?? existing.packSize ?? null;
+          if (should("barcode")) dataUpdate.barcode = item.barcode ?? existing.barcode ?? null;
+          batchedUpdates.push({ where: { productId: existing.productId }, data: dataUpdate });
+          
+          try {
+            const changed: string[] = [];
+            for (const k of Object.keys(dataUpdate)) {
+              const oldVal = (existing as any)[k];
+              const newVal = (dataUpdate as any)[k];
+              const oldNorm = oldVal instanceof Date ? oldVal.getTime() : oldVal;
+              const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
+              if (oldNorm !== newNorm) changed.push(k);
+            }
+            if (changed.length) {
+              // Log updates (batch to memory)
+              pendingAuditUpdates.push({ productId: existing.productId, fields: changed, source: "import" });
+            } else {
+              batchedUpdates.pop();
+            }
+          } catch (logErr) {
+            console.warn("Failed to log field updates on import update:", logErr);
+          }
+          mergedItemsForJson.push({ ...item, productId: existing.productId });
         } else {
-          newItemData.category = bestCategoryForName(item.name);
+          const { __present, ...raw } = (item as any);
+          const allowed = new Set([
+            "productId",
+            "name",
+            "price",
+            "purchasePrice",
+            "stockQuantity",
+            "expiryDate",
+            "category",
+            "description",
+            "packSize",
+            "barcode",
+          ]);
+          const newItemData: any = {};
+          for (const k of Object.keys(raw)) {
+            if (allowed.has(k)) newItemData[k] = raw[k];
+          }
+          if (newItemData.category) {
+            const mapped = bestCategoryForValue(String(newItemData.category));
+            newItemData.category = mapped ?? newItemData.category;
+          } else {
+            newItemData.category = bestCategoryForName(item.name);
+          }
+          batchedCreates.push({ ...newItemData, tenantId });
+          // Log create (batch to memory)
+          pendingAuditUpdates.push({ productId: item.productId, fields: ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize", "barcode"].filter((f) => (item as any)[f] !== undefined), source: "import" });
+          mergedItemsForJson.push(item);
         }
-        batchedCreates.push({ ...newItemData, tenantId });
-        try {
-          recordFieldUpdates(item.productId, ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize", "barcode"].filter((f) => (item as any)[f] !== undefined), "import");
-        } catch (logErr) {
-          console.warn("Failed to log field updates on import create:", logErr);
-        }
-        mergedItemsForJson.push(item);
       }
+
+      if (batchedCreates.length) {
+        await prisma.products.createMany({ data: batchedCreates });
+        insertedCount += batchedCreates.length;
+      }
+      
+      // Process updates in smaller sub-batches to prevent transaction timeouts
+      if (batchedUpdates.length) {
+        for (let j = 0; j < batchedUpdates.length; j += UPDATE_BATCH_SIZE) {
+          const updateChunk = batchedUpdates.slice(j, j + UPDATE_BATCH_SIZE);
+          await prisma.$transaction(updateChunk.map((u) => prisma.products.update(u)));
+          updatedCount += updateChunk.length;
+        }
+      }
+      
+      // Explicitly clear batch arrays to free memory
+      batchedCreates.length = 0;
+      batchedUpdates.length = 0;
     }
 
-    if (batchedCreates.length) {
-      await prisma.products.createMany({ data: batchedCreates });
-      insertedCount += batchedCreates.length;
-    }
-    if (batchedUpdates.length) {
-      await prisma.$transaction(batchedUpdates.map((u) => prisma.products.update(u)));
-      updatedCount += batchedUpdates.length;
+    // Flush audit updates once at the end
+    try {
+      recordFieldUpdatesBulk(pendingAuditUpdates);
+    } catch (auditErr) {
+      console.warn("Failed to flush bulk audit updates:", auditErr);
     }
 
+    let deletedCount = 0;
     // Purge products missing from the uploaded sheet (by Name+PackSize or matching Barcode)
     try {
       const normalizeText = (s: string | null | undefined) => (s ?? "").toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
@@ -1305,23 +1430,49 @@ export const importProducts = async (
 
     // After processing import rows, collapse any existing duplicates in DB for the same name+packSize
     try {
-      const candidatesForDedupe = await prisma.products.findMany({ where: { tenantId, name: { in: names } } });
-      // Cluster by fuzzy name similarity and identical packSize
+      // Chunk the deduplication candidates fetch to avoid massive IN clauses
+      const uniqueNames = Array.from(allImportedNames);
+      const DEDUPE_CHUNK_SIZE = 1000;
+      let candidatesForDedupe: any[] = [];
+      
+      for (let i = 0; i < uniqueNames.length; i += DEDUPE_CHUNK_SIZE) {
+        const chunk = uniqueNames.slice(i, i + DEDUPE_CHUNK_SIZE);
+        const fetched = await prisma.products.findMany({ where: { tenantId, name: { in: chunk } } });
+        candidatesForDedupe = candidatesForDedupe.concat(fetched);
+      }
+
+      // Cluster logic
       type Prod = typeof candidatesForDedupe[number] & { packSize?: string | null };
       const clusters: Prod[][] = [];
       const samePack = (a: Prod, b: Prod) => normalizeText((a as any).packSize ?? null) === normalizeText((b as any).packSize ?? null);
       const SIM_THRESHOLD = 0.6;
-      for (const p of candidatesForDedupe as Prod[]) {
-        let placed = false;
-        for (const cluster of clusters) {
-          // If any member is sufficiently similar and pack size matches, place into cluster
-          if (cluster.some((m: Prod) => samePack(m, p) && jaccard(m.name, p.name) >= SIM_THRESHOLD)) {
-            cluster.push(p);
-            placed = true;
-            break;
+      
+      // If dataset is large, skip expensive fuzzy matching and use strict normalization only
+      // O(N) vs O(N^2)
+      if (candidatesForDedupe.length > 200) {
+         const map = new Map<string, Prod[]>();
+         for (const p of candidatesForDedupe as Prod[]) {
+            const key = `${normalizeText(p.name)}|${normalizeText(p.packSize ?? null)}`;
+            if (!map.has(key)) map.set(key, []);
+            map.get(key)!.push(p);
+         }
+         for (const group of map.values()) {
+            clusters.push(group);
+         }
+      } else {
+          // Small batch: use fuzzy matching
+          for (const p of candidatesForDedupe as Prod[]) {
+            let placed = false;
+            for (const cluster of clusters) {
+              // If any member is sufficiently similar and pack size matches, place into cluster
+              if (cluster.some((m: Prod) => samePack(m, p) && jaccard(m.name, p.name) >= SIM_THRESHOLD)) {
+                cluster.push(p);
+                placed = true;
+                break;
+              }
+            }
+            if (!placed) clusters.push([p]);
           }
-        }
-        if (!placed) clusters.push([p]);
       }
       let dedupedCount = 0;
       for (const arr of clusters) {
@@ -1529,7 +1680,8 @@ export const importProducts = async (
       let existing: any[] = [];
       if (fs.existsSync(outPath)) {
         try {
-          existing = JSON.parse(fs.readFileSync(outPath, "utf-8"));
+          const content = await fs.promises.readFile(outPath, "utf-8");
+          existing = JSON.parse(content);
         } catch {
           existing = [];
         }
@@ -1553,7 +1705,7 @@ export const importProducts = async (
         });
       }
       const merged = Array.from(map.values());
-      fs.writeFileSync(outPath, JSON.stringify(merged, null, 2), "utf-8");
+      await fs.promises.writeFile(outPath, JSON.stringify(merged, null, 2), "utf-8");
     } catch (persistErr) {
       console.warn("Failed to persist imported products to JSON:", persistErr);
     }
@@ -2227,50 +2379,24 @@ export const getPcsSample = async (
 ): Promise<void> => {
   try {
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
-    const pcs = await readPcsInventory(tenantId);
-    const products = await prisma.products.findMany({ where: { tenantId } });
-    const byName = new Map<string, any>(products.map((p: any) => [String(p.name).toLowerCase(), p] as const));
+    console.log(`[getPcsSample] Request received. Tenant: ${tenantId}`);
 
-    const rows = tenantId === "default" ? pcs.map((e) => {
-      const match = byName.get(String(e.name).toLowerCase());
-      return {
-        Name: e.name,
-        Barcode: (match as any)?.barcode ?? "",
-        PackSize: e.packSize ?? (match as any)?.packSize ?? "",
-        Category: match?.category ?? "",
-        PCSQuantity: e.quantity ?? 0,
-        PurchasePrice: match?.purchasePrice ?? "",
-        SalesPrice: match?.price ?? "",
-        ExpiryDate: match?.expiryDate ? new Date(match.expiryDate).toLocaleDateString() : "",
-        Description: (match as any)?.description ?? "",
-      };
-    }) : [];
+    const samplePath = path.join(__dirname, "../../assets/pcs-sample1.xlsx");
 
-    const headerPcs = [
-      "Name",
-      "Barcode",
-      "PackSize",
-      "Category",
-      "PCSQuantity",
-      "PurchasePrice",
-      "SalesPrice",
-      "ExpiryDate",
-      "Description",
-    ];
-    const wb = XLSX.utils.book_new();
-    const ws = rows.length
-      ? XLSX.utils.json_to_sheet(rows, { header: headerPcs })
-      : XLSX.utils.aoa_to_sheet([headerPcs]);
-    XLSX.utils.book_append_sheet(wb, ws, "PCS");
-    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
-    res.setHeader(
-      "Content-Type",
-      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-    );
-    res.setHeader("Content-Disposition", "attachment; filename=PCS-sample.xlsx");
-    res.status(200).send(buf);
+    // Always serve the static file if it exists, as it contains the correct format (Barcode, etc.)
+    if (fs.existsSync(samplePath)) {
+      console.log(`[getPcsSample] Serving static file: ${samplePath}`);
+      const buf = fs.readFileSync(samplePath);
+      res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+      res.setHeader("Content-Disposition", "attachment; filename=pcs-sample1.xlsx");
+      res.status(200).send(buf);
+      return;
+    }
+
+    res.status(404).json({ message: "Sample file not found on server." });
   } catch (err) {
-    res.status(500).json(createErrorResponse(err, "product", "Failed to generate PCS sample file"));
+    console.error(`[getPcsSample] Fatal error:`, err);
+    res.status(500).json(createErrorResponse(err, "product", "Failed to get PCS sample file"));
   }
 };
 
@@ -2280,8 +2406,9 @@ export const exportPcsExcel = async (
   res: Response
 ): Promise<void> => {
   try {
-    const pcs = await readPcsInventory();
-    const products = await prisma.products.findMany({});
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const pcs = await readPcsInventory(tenantId);
+    const products = await prisma.products.findMany({ where: { tenantId } });
     const byName = new Map<string, any>(products.map((p: any) => [String(p.name).toLowerCase(), p] as const));
     const rows = pcs.map((e) => {
       const match = byName.get(String(e.name).toLowerCase());
@@ -2331,7 +2458,10 @@ export const getProductUpdatesLast = async (
     const ids = Object.keys(last);
     const products = ids.length ? await prisma.products.findMany({ where: { productId: { in: ids }, tenantId } }) : [];
     const nameMap = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
-    const payload = ids.map((id) => ({ productId: id, name: nameMap.get(id) || "Unknown", last: last[id] }));
+    // Filter to only include products that actually exist in this tenant's scope
+    const payload = ids
+      .filter((id) => nameMap.has(id))
+      .map((id) => ({ productId: id, name: nameMap.get(id)!, last: last[id] }));
     res.json(payload);
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "product", "Failed to load last updates"));

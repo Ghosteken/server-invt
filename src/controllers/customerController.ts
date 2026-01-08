@@ -490,14 +490,12 @@ export const exportCustomersExcel = async (req: Request, res: Response): Promise
     const nameById = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
 
     const customersSheetRows = customers.map((c: any) => ({
-      CustomerId: c.customerId,
       Name: c.name,
       Mobile: c.mobile ?? "",
       Address: c.address ?? "",
       City: c.city ?? "",
       State: c.state ?? "",
       Country: c.country ?? "",
-      CreatedAt: c.createdAt.toISOString(),
     }));
 
     const purchasesSheetRows = purchases.map((p: any) => ({
@@ -513,7 +511,7 @@ export const exportCustomersExcel = async (req: Request, res: Response): Promise
 
     const wb = XLSX.utils.book_new();
     const wsCustomers = XLSX.utils.json_to_sheet(customersSheetRows, {
-      header: ["CustomerId", "Name", "Mobile", "Address", "City", "State", "Country", "CreatedAt"],
+      header: ["Name", "Mobile", "Address", "City", "State", "Country"],
     });
     const wsPurchases = XLSX.utils.json_to_sheet(purchasesSheetRows, {
       header: ["CustomerId", "CustomerName", "ProductId", "ProductName", "Quantity", "UnitPrice", "TotalCost", "Timestamp"],

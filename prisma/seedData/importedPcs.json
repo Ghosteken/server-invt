@@ -397,5 +397,104 @@
     "salesPrice": 6000,
     "expiryDate": "2025-12-18T23:00:00.000Z",
     "description": "Beans"
+  },
+  {
+    "name": "didi",
+    "barcode": "8724021",
+    "packSize": "12",
+    "category": "oilford",
+    "pcsQuantity": 12,
+    "purchasePrice": 2000,
+    "salesPrice": 50,
+    "expiryDate": "2017-09-18T23:00:00.000Z",
+    "description": null
+  },
+  {
+    "name": "Product 1",
+    "barcode": "890000000001",
+    "packSize": "Pack",
+    "category": "Dairy",
+    "pcsQuantity": 300,
+    "purchasePrice": 1374.04,
+    "salesPrice": 1400,
+    "expiryDate": "2027-11-26T23:00:00.000Z",
+    "description": null
+  },
+  {
+    "name": "Product 10",
+    "barcode": "890000000010",
+    "packSize": "1L",
+    "category": "Groceries",
+    "pcsQuantity": 349,
+    "purchasePrice": 2315.85,
+    "salesPrice": 308.92,
+    "expiryDate": "2027-03-18T23:00:00.000Z",
+    "description": null
+  },
+  {
+    "name": "Product 100",
+    "barcode": "890000000100",
+    "packSize": "100g",
+    "category": "Frozen",
+    "pcsQuantity": 11,
+    "purchasePrice": 1289.23,
+    "salesPrice": 1620.58,
+    "expiryDate": "2027-01-19T23:00:00.000Z",
+    "description": null
+  },
+  {
+    "name": "Product 101",
+    "barcode": "890000000101",
+    "packSize": "250g",
+    "category": "Personal Care",
+    "pcsQuantity": 232,
+    "purchasePrice": 4247.8,
+    "salesPrice": 1111,
+    "expiryDate": "2026-12-09T23:00:00.000Z",
+    "description": null
+  },
+  {
+    "name": "Product 102",
+    "barcode": "890000000102",
+    "packSize": "500g",
+    "category": "Frozen",
+    "pcsQuantity": 74,
+    "purchasePrice": 3297,
+    "salesPrice": 4048.94,
+    "expiryDate": "2026-03-16T23:00:00.000Z",
+    "description": null
+  },
+  {
+    "name": "Product 103",
+    "barcode": "890000000103",
+    "packSize": "1L",
+    "category": "Groceries",
+    "pcsQuantity": 372,
+    "purchasePrice": 2731,
+    "salesPrice": 3764.53,
+    "expiryDate": "2027-02-21T23:00:00.000Z",
+    "description": null
+  },
+  {
+    "name": "Product 104",
+    "barcode": "890000000104",
+    "packSize": "2L",
+    "category": "Beverages",
+    "pcsQuantity": 34,
+    "purchasePrice": 3237.67,
+    "salesPrice": 4530.76,
+    "expiryDate": "2026-02-06T23:00:00.000Z",
+    "description": null
+  },
+  {
+    "name": "Product 105",
+    "barcode": "890000000105",
+    "packSize": "1kg",
+    "category": "Groceries",
+    "pcsQuantity": 127,
+    "purchasePrice": 4836.54,
+    "salesPrice": 6680.84,
+    "expiryDate": "2028-05-07T23:00:00.000Z",
+    "description": null
   }
 ]

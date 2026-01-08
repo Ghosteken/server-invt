@@ -125,16 +125,16 @@ const limiter = rateLimit({
 });
 app.use(limiter);
 
-// Simple request logger that prints method, url and body for debugging
-app.use((req, res, next) => {
-  try {
-    const safeBody = typeof req.body === 'object' ? JSON.stringify(req.body) : String(req.body);
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - body: ${safeBody}`);
-  } catch (e) {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - body: <unserializable>`);
-  }
-  next();
-});
+// Simple request logger disabled for performance
+// app.use((req, res, next) => {
+//   try {
+//     const safeBody = typeof req.body === 'object' ? JSON.stringify(req.body) : String(req.body);
+//     console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - body: ${safeBody}`);
+//   } catch (e) {
+//     console.log(`[${new Date().toISOString()}] ${req.method} ${req.originalUrl} - body: <unserializable>`);
+//   }
+//   next();
+// });
 
 /* STATIC FILES */
 app.use('/assets', express.static(path.join(__dirname, '../public/assets')));
