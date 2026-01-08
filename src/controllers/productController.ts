@@ -893,7 +893,7 @@ export const upsertPcsItems = async (req: Request, res: Response): Promise<void>
       return;
     }
 
-    const merged = await upsertPcsEntries(items);
+    const merged = await upsertPcsEntries(items, tenantId);
     await appendNotification({ type: "product", message: `Upserted ${items.length} PCS item(s)`, actorUserId: req.user?.userId, tenantId });
     res.json({ upserted: items.length, total: merged.length });
   } catch (err) {

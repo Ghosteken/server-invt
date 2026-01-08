@@ -2727,6 +2727,24 @@
     "barcode": "890000000099"
   },
   {
+    "productId": "122bff13-70b8-4e1d-adde-0fd6e12e7184",
+    "name": "sam",
+    "price": 10,
+    "stockQuantity": 10,
+    "category": "Beverages",
+    "packSize": null,
+    "barcode": null
+  },
+  {
+    "productId": "668bd029-9388-4015-aa68-ada69268aca6",
+    "name": "sam2",
+    "price": 1000,
+    "stockQuantity": 10,
+    "category": "Groceries",
+    "packSize": null,
+    "barcode": null
+  },
+  {
     "productId": "c9a7674c-a9db-4212-bcd2-6bb010dbb9b4",
     "name": "soms",
     "price": 1000,

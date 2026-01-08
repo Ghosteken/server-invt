@@ -57,10 +57,28 @@ export const upsertPcsEntries = async (
     const key = inc.name.toLowerCase();
     const prev = map.get(key);
     const nextQty = Math.max(0, Number(inc.quantity) || 0);
+    
+    // Try to resolve productId if not provided
+    let resolvedProductId = inc.productId ?? prev?.productId ?? null;
+    if (!resolvedProductId) {
+      const product = await prisma.products.findFirst({
+        where: { tenantId, name: { equals: inc.name } } // Exact match first
+      });
+      if (product) {
+        resolvedProductId = product.productId;
+      } else {
+         // Fallback to case insensitive match if needed, but exact is safer for linking
+         const productLoose = await prisma.products.findFirst({
+            where: { tenantId, name: inc.name } 
+         });
+         if (productLoose) resolvedProductId = productLoose.productId;
+      }
+    }
+
     const next: PcsEntry = {
       name: inc.name,
       quantity: nextQty,
-      productId: inc.productId ?? prev?.productId ?? null,
+      productId: resolvedProductId,
       packSize: inc.packSize ?? prev?.packSize ?? null,
       salesPrice: inc.salesPrice !== undefined ? inc.salesPrice : (prev?.salesPrice ?? null),
       purchasePrice: inc.purchasePrice !== undefined ? inc.purchasePrice : (prev?.purchasePrice ?? null),
