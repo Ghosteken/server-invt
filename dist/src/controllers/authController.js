@@ -40,7 +40,7 @@ else
 const signup = async (req, res) => {
     try {
         const { name, email, password } = req.body;
-        const normalizedEmail = String(email).toLowerCase();
+        const normalizedEmail = String(email).trim().toLowerCase();
         console.log(`auth: signup request for email=${email}`);
         // Check if user already exists
         const existingUser = await prisma_1.default.users.findFirst({
@@ -87,7 +87,7 @@ exports.signup = signup;
 const login = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const normalizedEmail = String(email).toLowerCase();
+        const normalizedEmail = String(email).trim().toLowerCase();
         console.log(`auth: login request for email=${email}`);
         const configuredAdminEmail = (process.env.MASTER_ADMIN_EMAIL || process.env.ADMIN_EMAIL || "").trim().toLowerCase();
         // Find user
@@ -147,7 +147,7 @@ exports.login = login;
 const adminLogin = async (req, res) => {
     try {
         const { email, password } = req.body;
-        const normalizedEmail = String(email).toLowerCase();
+        const normalizedEmail = String(email).trim().toLowerCase();
         console.log(`auth: admin login request for email=${email}`);
         // Master admin path removed; super admin login is handled via dedicated route under /super-admin
         // Org admin fallback: allow org admins to log in via this route
@@ -307,7 +307,7 @@ exports.verifyToken = verifyToken;
 const orgAdminLogin = async (req, res) => {
     try {
         const { email, password } = req.body || {};
-        const normalizedEmail = String(email || "").toLowerCase();
+        const normalizedEmail = String(email || "").trim().toLowerCase();
         if (!normalizedEmail || !password) {
             res.status(400).json({ message: "email and password are required" });
             return;
@@ -341,12 +341,12 @@ const orgAdminLogin = async (req, res) => {
 exports.orgAdminLogin = orgAdminLogin;
 const signupOrg = async (req, res) => {
     try {
-        const { orgName, adminName, email, password } = req.body;
+        const { orgName, adminName, email, password, phone } = req.body;
         if (!orgName || !adminName || !email || !password) {
             res.status(400).json({ message: "All fields are required" });
             return;
         }
-        const normalizedEmail = String(email).toLowerCase();
+        const normalizedEmail = String(email).trim().toLowerCase();
         // Check if email already exists
         const existingUser = await prisma_1.default.users.findFirst({ where: { email: normalizedEmail } });
         const existingOrgAdmin = await prisma_1.default.orgAdmins.findFirst({ where: { email: normalizedEmail } });
@@ -393,7 +393,8 @@ const signupOrg = async (req, res) => {
                     password: passwordHash,
                     role: "admin",
                     tenantId: orgId,
-                    isBlocked: false
+                    isBlocked: false,
+                    phone: phone || null
                 }
             });
         });

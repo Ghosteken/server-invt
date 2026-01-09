@@ -3,6 +3,8 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.cacheGet = cacheGet;
 exports.cacheSet = cacheSet;
 exports.withCache = withCache;
+exports.cacheDelete = cacheDelete;
+exports.cacheDeletePattern = cacheDeletePattern;
 const redis_1 = require("redis");
 const memoryCache = new Map();
 let redisClient = null;
@@ -82,4 +84,42 @@ async function withCache(key, ttlSeconds, loader) {
     const val = await loader();
     await cacheSet(key, val, ttlSeconds);
     return val;
+}
+async function cacheDelete(key) {
+    const rc = await ensureRedis();
+    if (rc && rc.isOpen) {
+        try {
+            await rc.del(key);
+            return;
+        }
+        catch (e) {
+            console.warn("Redis delete failed", e);
+        }
+    }
+    memoryCache.delete(key);
+}
+async function cacheDeletePattern(pattern) {
+    const rc = await ensureRedis();
+    if (rc && rc.isOpen) {
+        try {
+            // Use keys for simplicity, though SCAN is better for large DBs
+            const keys = await rc.keys(pattern);
+            if (keys.length > 0) {
+                await rc.del(keys);
+            }
+            return;
+        }
+        catch (e) {
+            console.warn("Redis delete pattern failed", e);
+        }
+    }
+    // Memory Fallback
+    // Convert glob-like pattern (e.g. "prefix:*") to regex
+    // This is a simple implementation assuming * is the only wildcard
+    const regex = new RegExp("^" + pattern.replace(/\*/g, ".*") + "$");
+    for (const key of memoryCache.keys()) {
+        if (regex.test(key)) {
+            memoryCache.delete(key);
+        }
+    }
 }

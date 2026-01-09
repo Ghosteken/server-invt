@@ -73,6 +73,9 @@ const listExpenses = async (req, res) => {
         const category = String(req.query.category || "").trim();
         const from = req.query.from ? new Date(String(req.query.from)) : undefined;
         const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+        if (to) {
+            to.setHours(23, 59, 59, 999);
+        }
         const where = { tenantId };
         if (category)
             where.category = { contains: category, mode: "insensitive" };
@@ -156,7 +159,7 @@ const updateExpenseController = async (req, res) => {
         if (changes.date !== undefined)
             data.timestamp = new Date(String(changes.date));
         const next = await prisma_1.default.expenses.update({ where: { expenseId: id }, data });
-        (0, notificationService_1.appendNotification)({ type: "expense", message: `Updated expense '${existing.category}' (${next.category}) to ₦${Number(next.amount || 0).toLocaleString("en")}` });
+        (0, notificationService_1.appendNotification)({ type: "expense", message: `Updated expense '${existing.category}' (${next.category}) to ₦${Number(next.amount || 0).toLocaleString("en")}`, tenantId, actorUserId: req.user?.userId });
         // Emit socket event
         const io = req.app.get("io");
         if (io) {
@@ -187,7 +190,7 @@ const deleteExpenseController = async (req, res) => {
             return;
         }
         await prisma_1.default.expenses.delete({ where: { expenseId: id } });
-        (0, notificationService_1.appendNotification)({ type: "expense", message: `Deleted expense ${id}` });
+        (0, notificationService_1.appendNotification)({ type: "expense", message: `Deleted expense ${id}`, tenantId, actorUserId: req.user?.userId });
         // Emit socket event
         const io = req.app.get("io");
         if (io) {

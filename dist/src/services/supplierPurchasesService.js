@@ -27,37 +27,39 @@ async function getTenantForPurchase(purchaseId) {
 function readSupplierMeta() {
     return [];
 }
-function upsertSupplierMeta(entry) {
+async function upsertSupplierMeta(entry) {
     META_CACHE.set(entry.purchaseId, {
         purchaseId: entry.purchaseId,
         supplierName: entry.supplierName ?? null,
         supplierMobile: entry.supplierMobile ?? null,
+        invoiceNumber: entry.invoiceNumber ?? null,
         paymentTerm: entry.paymentTerm ?? null,
         date: entry.date ?? null,
         dueDate: entry.dueDate ?? null,
         unit: entry.unit ?? null,
     });
-    (async () => {
-        const tenantId = await getTenantForPurchase(entry.purchaseId);
-        const data = {
-            tenantId: tenantId || "default",
-            purchaseId: entry.purchaseId,
-            supplierName: entry.supplierName ?? undefined,
-            supplierMobile: entry.supplierMobile ?? undefined,
-            paymentTerm: entry.paymentTerm ?? undefined,
-            date: entry.date ? new Date(entry.date) : undefined,
-            dueDate: entry.dueDate ? new Date(entry.dueDate) : undefined,
-            unit: entry.unit ?? undefined,
-        };
-        try {
-            await prisma_1.default.supplierPurchaseMeta.upsert({
-                where: { purchaseId: entry.purchaseId },
-                update: data,
-                create: data,
-            });
-        }
-        catch { }
-    })();
+    const tenantId = entry.tenantId || await getTenantForPurchase(entry.purchaseId);
+    const data = {
+        tenantId: tenantId || "default",
+        purchaseId: entry.purchaseId,
+        supplierName: entry.supplierName ?? undefined,
+        supplierMobile: entry.supplierMobile ?? undefined,
+        invoiceNumber: entry.invoiceNumber ?? undefined,
+        paymentTerm: entry.paymentTerm ?? undefined,
+        date: entry.date ? new Date(entry.date) : undefined,
+        dueDate: entry.dueDate ? new Date(entry.dueDate) : undefined,
+        unit: entry.unit ?? undefined,
+    };
+    try {
+        await prisma_1.default.supplierPurchaseMeta.upsert({
+            where: { purchaseId: entry.purchaseId },
+            update: data,
+            create: { ...data, id: (0, node_crypto_1.randomUUID)() },
+        });
+    }
+    catch (e) {
+        console.warn("upsertSupplierMeta failed", e);
+    }
 }
 function getSupplierMetaFor(purchaseId) {
     return META_CACHE.get(purchaseId);
