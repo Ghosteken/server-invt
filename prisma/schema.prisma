@@ -66,6 +66,9 @@ model Sales {
   totalAmount Float
   tenantId    String   @default("default")
   product     Products @relation(fields: [productId], references: [productId])
+
+  @@index([tenantId, timestamp])
+  @@index([productId])
 }
 
 model Purchases {
@@ -80,6 +83,9 @@ model Purchases {
   product    Products @relation(fields: [productId], references: [productId])
   supplierMeta SupplierPurchaseMeta? @relation("PurchaseMeta")
   payments     SupplierPayments[]     @relation("PurchasePayments")
+
+  @@index([tenantId, timestamp])
+  @@index([productId])
 }
 
 model Expenses {
@@ -154,6 +160,9 @@ model CustomerPurchases {
   tenantId   String    @default("default")
   customer   Customers @relation(fields: [customerId], references: [customerId])
   product    Products  @relation(fields: [productId], references: [productId])
+
+  @@index([tenantId, timestamp])
+  @@index([productId])
 }
 
 // New invoice and payment models
@@ -205,6 +214,7 @@ model Invoices {
   @@index([salesAgentId])
   @@index([locationId])
   @@index([tenantId])
+  @@index([tenantId, date])
 }
 
 model InvoiceItems {
@@ -220,6 +230,8 @@ model InvoiceItems {
 
   invoice Invoices  @relation(fields: [invoiceId], references: [invoiceId])
   product Products? @relation(fields: [productId], references: [productId])
+
+  @@index([productId])
 }
 
 model Payments {
