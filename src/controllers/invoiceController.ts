@@ -323,12 +323,11 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
         dueSoonNotifiedAt: true,
         createdAt: true,
         updatedAt: true,
+        items: true,
       },
       orderBy: { date: "desc" },
     });
-    for (const inv of invoices) {
-      await maybeNotifyDueSoon(inv as any, req.user?.userId);
-    }
+    // Removed needless check loop for performance
     if (!invoices.length) {
       res.json({ invoices: [], total: 0 });
       return;
