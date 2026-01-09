@@ -25,134 +25,141 @@ export const getDashboardMetrics = async (
         ? envNum
         : 5;
 
-    // Total products currently in inventory (CTN > 0)
-    const totalProducts = await withCache(`t=${tenantId}:metrics:totalProducts:inventory`, 60, async () => prisma.products.count({ where: { tenantId, ...nonInventoryFilter } }));
-    const lowStockCount = await withCache(
-      `t=${tenantId}:metrics:lowStock:${LOW_STOCK_THRESHOLD}`,
-      60,
-      async () =>
-        prisma.products.count({
-          where: { tenantId, stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
-        })
-    );
-
-    // PCS inventory counts (separate)
-    const { pcsInventoryCount, lowStockPcsCount, combinedInventoryCount, combinedLowStockCount } = await withCache(
-      `t=${tenantId}:metrics:pcs-and-combined:${LOW_STOCK_THRESHOLD}`,
-      60,
-      async () => {
-        const pcs = await readPcsInventory(tenantId);
-        const pcsInStock = pcs.filter((e: any) => Number(e.quantity || 0) > 0);
-        const pcsInventoryCountLocal = pcsInStock.length;
-        const lowPcsCountLocal = pcsInStock.filter((e: any) => Number(e.quantity || 0) <= LOW_STOCK_THRESHOLD).length;
-        // Build union of names: CTN in-stock + PCS in-stock
-        const ctnInStock = await prisma.products.findMany({
-          where: { tenantId, ...nonInventoryFilter },
-          select: { name: true, stockQuantity: true },
-        });
-        const nameSet = new Set<string>();
-        for (const p of ctnInStock) nameSet.add(String(p.name).toLowerCase());
-        for (const e of pcsInStock) nameSet.add(String(e.name || "").toLowerCase());
-        const combinedCountLocal = nameSet.size;
-        // Combined low-stock: union of names with CTN 1..T OR PCS 1..T
-        const ctnLow = await prisma.products.findMany({
-          where: { tenantId, stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
-          select: { name: true },
-        });
-        const lowNameSet = new Set<string>();
-        for (const p of ctnLow) lowNameSet.add(String(p.name).toLowerCase());
-        for (const e of pcsInStock) {
-          const q = Number(e.quantity || 0);
-          if (q > 0 && q <= LOW_STOCK_THRESHOLD) {
-            lowNameSet.add(String(e.name || "").toLowerCase());
+    // Parallelize independent queries
+    const [
+      totalProducts,
+      lowStockCount,
+      pcsData,
+      inventoryValue,
+      inventoryValuePcs,
+      sales7dTotal,
+      popularProducts
+    ] = await Promise.all([
+      withCache(`t=${tenantId}:metrics:totalProducts:inventory`, 60, async () => prisma.products.count({ where: { tenantId, ...nonInventoryFilter } })),
+      withCache(
+        `t=${tenantId}:metrics:lowStock:${LOW_STOCK_THRESHOLD}`,
+        60,
+        async () =>
+          prisma.products.count({
+            where: { tenantId, stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
+          })
+      ),
+      withCache(
+        `t=${tenantId}:metrics:pcs-and-combined:${LOW_STOCK_THRESHOLD}`,
+        60,
+        async () => {
+          const pcs = await readPcsInventory(tenantId);
+          const pcsInStock = pcs.filter((e: any) => Number(e.quantity || 0) > 0);
+          const pcsInventoryCountLocal = pcsInStock.length;
+          const lowPcsCountLocal = pcsInStock.filter((e: any) => Number(e.quantity || 0) <= LOW_STOCK_THRESHOLD).length;
+          // Build union of names: CTN in-stock + PCS in-stock
+          const ctnInStock = await prisma.products.findMany({
+            where: { tenantId, ...nonInventoryFilter },
+            select: { name: true, stockQuantity: true },
+          });
+          const nameSet = new Set<string>();
+          for (const p of ctnInStock) nameSet.add(String(p.name).toLowerCase());
+          for (const e of pcsInStock) nameSet.add(String(e.name || "").toLowerCase());
+          const combinedCountLocal = nameSet.size;
+          // Combined low-stock: union of names with CTN 1..T OR PCS 1..T
+          const ctnLow = await prisma.products.findMany({
+            where: { tenantId, stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
+            select: { name: true },
+          });
+          const lowNameSet = new Set<string>();
+          for (const p of ctnLow) lowNameSet.add(String(p.name).toLowerCase());
+          for (const e of pcsInStock) {
+            const q = Number(e.quantity || 0);
+            if (q > 0 && q <= LOW_STOCK_THRESHOLD) {
+              lowNameSet.add(String(e.name || "").toLowerCase());
+            }
           }
+          const combinedLowLocal = lowNameSet.size;
+          return {
+            pcsInventoryCount: pcsInventoryCountLocal,
+            lowStockPcsCount: lowPcsCountLocal,
+            combinedInventoryCount: combinedCountLocal,
+            combinedLowStockCount: combinedLowLocal,
+          };
         }
-        const combinedLowLocal = lowNameSet.size;
-        return {
-          pcsInventoryCount: pcsInventoryCountLocal,
-          lowStockPcsCount: lowPcsCountLocal,
-          combinedInventoryCount: combinedCountLocal,
-          combinedLowStockCount: combinedLowLocal,
+      ),
+      withCache(`t=${tenantId}:metrics:inventoryValue`, 60, async () => {
+        const productsBasic = await prisma.products.findMany({ where: { tenantId, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
+        return productsBasic.reduce((sum: number, p: { price: unknown; stockQuantity: number }) => sum + (Number(p.price) * p.stockQuantity), 0);
+      }),
+      withCache(`t=${tenantId}:metrics:inventoryValuePcs:${LOW_STOCK_THRESHOLD}`, 60, async () => {
+        const pcs = await readPcsInventory(tenantId);
+        const inStock = pcs.filter((e: any) => Number(e.quantity || 0) > 0);
+        if (!inStock.length) return 0;
+        const products = await prisma.products.findMany({
+          where: { tenantId },
+          select: { productId: true, name: true, price: true, packSize: true },
+        });
+        const byId = new Map<string, { price: number; packSize?: string | null; name: string }>();
+        const byName = new Map<string, { price: number; packSize?: string | null; name: string }>();
+        for (const p of products) {
+          const rec = { price: Number((p as any).price || 0), packSize: (p as any).packSize ?? null, name: String((p as any).name || "") };
+          byId.set(String((p as any).productId), rec);
+          byName.set(String(rec.name).toLowerCase(), rec);
+        }
+        const extractPackCount = (ps?: string | null): number | null => {
+          if (!ps) return null;
+          const m = String(ps).match(/(\d{1,4})/);
+          if (!m) return null;
+          const n = Number(m[1]);
+          return Number.isFinite(n) && n > 0 ? n : null;
         };
-      }
-    );
+        let total = 0;
+        for (const e of inStock) {
+          const match = (e.productId && byId.get(String(e.productId))) || byName.get(String(e.name || "").toLowerCase()) || null;
+          const price = match?.price || 0;
+          const pcsPack = extractPackCount(e.packSize ?? match?.packSize ?? null);
+          const perPiece = pcsPack ? (price / pcsPack) : 0;
+          total += (perPiece * Number(e.quantity || 0));
+        }
+        return total;
+      }),
+      withCache(`t=${tenantId}:metrics:sales7d`, 60, async () => {
+        const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+        const salesAgg = await prisma.customerPurchases.aggregate({ where: { tenantId, timestamp: { gte: since7 } }, _sum: { totalCost: true } });
+        return Number(salesAgg._sum.totalCost || 0);
+      }),
+      // Popular products logic (wrapped for parallelism)
+      (async () => {
+        const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        let popularGrouped: Array<{ productId: string; _count: { productId: number } }> = [];
+        try {
+          // @ts-ignore - Prisma groupBy typing can be verbose
+          popularGrouped = await prisma.customerPurchases.groupBy({
+            by: ['productId'],
+            where: { tenantId, timestamp: { gte: since30 } },
+            _count: { productId: true },
+            orderBy: { _count: { productId: 'desc' } },
+            take: 5,
+          });
+        } catch (e) {
+          popularGrouped = [];
+        }
 
-    const inventoryValue = await withCache(`t=${tenantId}:metrics:inventoryValue`, 60, async () => {
-      const productsBasic = await prisma.products.findMany({ where: { tenantId, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
-      return productsBasic.reduce((sum: number, p: { price: unknown; stockQuantity: number }) => sum + (Number(p.price) * p.stockQuantity), 0);
-    });
+        let popularProducts: Array<{ productId: string; name: string; price: number; stockQuantity: number; purchaseCount: number }> = [];
+        if (popularGrouped.length) {
+          const ids = popularGrouped.map((g) => g.productId);
+          const details = await prisma.products.findMany({ where: { tenantId, productId: { in: ids }, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
+          popularProducts = details.map((d: { productId: string; name: string; price: unknown; stockQuantity: number }) => ({
+            ...d,
+            price: Number(d.price),
+            purchaseCount: popularGrouped.find((g) => g.productId === d.productId)?._count.productId || 0,
+          }));
+        } else {
+          const fallback = await prisma.products.findMany({ where: { tenantId, ...nonInventoryFilter }, take: 5, orderBy: { stockQuantity: 'desc' }, select: { productId: true, name: true, price: true, stockQuantity: true } });
+          popularProducts = fallback.map((d: { productId: string; name: string; price: unknown; stockQuantity: number }) => ({ ...d, price: Number(d.price), purchaseCount: 0 }));
+        }
+        return popularProducts;
+      })()
+    ]);
 
-    // Derive PCS inventory value using per-piece price: price / packCount
-    const inventoryValuePcs = await withCache(`t=${tenantId}:metrics:inventoryValuePcs:${LOW_STOCK_THRESHOLD}`, 60, async () => {
-      const pcs = await readPcsInventory(tenantId);
-      const inStock = pcs.filter((e: any) => Number(e.quantity || 0) > 0);
-      if (!inStock.length) return 0;
-      const products = await prisma.products.findMany({
-        where: { tenantId },
-        select: { productId: true, name: true, price: true, packSize: true },
-      });
-      const byId = new Map<string, { price: number; packSize?: string | null; name: string }>();
-      const byName = new Map<string, { price: number; packSize?: string | null; name: string }>();
-      for (const p of products) {
-        const rec = { price: Number((p as any).price || 0), packSize: (p as any).packSize ?? null, name: String((p as any).name || "") };
-        byId.set(String((p as any).productId), rec);
-        byName.set(String(rec.name).toLowerCase(), rec);
-      }
-      const extractPackCount = (ps?: string | null): number | null => {
-        if (!ps) return null;
-        const m = String(ps).match(/(\d{1,4})/);
-        if (!m) return null;
-        const n = Number(m[1]);
-        return Number.isFinite(n) && n > 0 ? n : null;
-      };
-      let total = 0;
-      for (const e of inStock) {
-        const match = (e.productId && byId.get(String(e.productId))) || byName.get(String(e.name || "").toLowerCase()) || null;
-        const price = match?.price || 0;
-        const pcsPack = extractPackCount(e.packSize ?? match?.packSize ?? null);
-        const perPiece = pcsPack ? (price / pcsPack) : 0;
-        total += (perPiece * Number(e.quantity || 0));
-      }
-      return total;
-    });
+    const { pcsInventoryCount, lowStockPcsCount, combinedInventoryCount, combinedLowStockCount } = pcsData;
     const inventoryValueCombined = inventoryValue + inventoryValuePcs;
-
-    const since7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
-    const sales7dTotal = await withCache(`t=${tenantId}:metrics:sales7d`, 60, async () => {
-      const salesAgg = await prisma.customerPurchases.aggregate({ where: { tenantId, timestamp: { gte: since7 } }, _sum: { totalCost: true } });
-      return Number(salesAgg._sum.totalCost || 0);
-    });
-
-    const since30 = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    let popularGrouped: Array<{ productId: string; _count: { productId: number } }> = [];
-    try {
-      // Use groupBy to find most purchased products in last 30 days
-      // @ts-ignore - Prisma groupBy typing can be verbose
-      popularGrouped = await prisma.customerPurchases.groupBy({
-        by: ['productId'],
-        where: { tenantId, timestamp: { gte: since30 } },
-        _count: { productId: true },
-        orderBy: { _count: { productId: 'desc' } },
-        take: 5,
-      });
-    } catch (e) {
-      // Fallback: no purchases yet -> use top by stock quantity
-      popularGrouped = [];
-    }
-
-    let popularProducts: Array<{ productId: string; name: string; price: number; stockQuantity: number; purchaseCount: number }> = [];
-    if (popularGrouped.length) {
-      const ids = popularGrouped.map((g) => g.productId);
-      const details = await prisma.products.findMany({ where: { tenantId, productId: { in: ids }, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
-      popularProducts = details.map((d: { productId: string; name: string; price: unknown; stockQuantity: number }) => ({
-        ...d,
-        price: Number(d.price),
-        purchaseCount: popularGrouped.find((g) => g.productId === d.productId)?._count.productId || 0,
-      }));
-    } else {
-      const fallback = await prisma.products.findMany({ where: { tenantId, ...nonInventoryFilter }, take: 5, orderBy: { stockQuantity: 'desc' }, select: { productId: true, name: true, price: true, stockQuantity: true } });
-      popularProducts = fallback.map((d: { productId: string; name: string; price: unknown; stockQuantity: number }) => ({ ...d, price: Number(d.price), purchaseCount: 0 }));
-    }
 
     res.set("Cache-Control", "public, max-age=60");
     res.json({
