@@ -671,8 +671,8 @@ const deleteInvoice = async (req, res) => {
             });
         }
         // Remove dependent records first to satisfy FK constraints
-        await prisma_1.default.payments.deleteMany({ where: { invoiceId: id, tenantId } });
-        await prisma_1.default.invoiceItems.deleteMany({ where: { invoiceId: id, tenantId } });
+        await prisma_1.default.payments.deleteMany({ where: { invoiceId: id } });
+        await prisma_1.default.invoiceItems.deleteMany({ where: { invoiceId: id } });
         const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(id);
         const label = meta?.invoiceNumber ? `Invoice #${meta.invoiceNumber}` : "Invoice";
         await prisma_1.default.invoices.delete({ where: { invoiceId: id } });
