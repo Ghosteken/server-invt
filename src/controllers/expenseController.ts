@@ -156,7 +156,10 @@ export const deleteExpenseController = async (req: Request, res: Response): Prom
     const existing = await prisma.expenses.findFirst({ where: { expenseId: id, tenantId } });
     if (!existing) { res.status(404).json({ message: "Expense not found" }); return; }
     await prisma.expenses.delete({ where: { expenseId: id } });
-    appendNotification({ type: "expense", message: `Deleted expense ${id}`, tenantId, actorUserId: req.user?.userId });
+    
+    const desc = existing.category || "Uncategorized";
+    const amt = Number(existing.amount || 0).toLocaleString("en");
+    appendNotification({ type: "expense", message: `Deleted expense: ${desc} (₦${amt})`, tenantId, actorUserId: req.user?.userId });
 
     // Emit socket event
     const io = req.app.get("io");

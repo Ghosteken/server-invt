@@ -202,9 +202,10 @@ const deletePurchase = async (req, res) => {
             return;
         }
         // Reduce inventory based on stored unit meta (defaults to carton)
+        let metaRow = null;
         try {
             const tenantId = req.tenantId || req.user?.tenantId || "default";
-            const metaRow = await prisma_1.default.supplierPurchaseMeta.findFirst({ where: { purchaseId: id, tenantId } });
+            metaRow = await prisma_1.default.supplierPurchaseMeta.findFirst({ where: { purchaseId: id, tenantId } });
             const unit = (metaRow?.unit === "pcs" ? "pcs" : "ctn");
             const p = await prisma_1.default.products.findFirst({ where: { productId: existing.productId, tenantId } });
             if (p) {
@@ -227,7 +228,8 @@ const deletePurchase = async (req, res) => {
         await prisma_1.default.supplierPayments.deleteMany({ where: { purchaseId: id } });
         await prisma_1.default.purchases.delete({ where: { purchaseId: id } });
         // Notify: purchase deleted
-        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Deleted purchase ${id}`, tenantId, actorUserId: req.user?.userId });
+        const label = metaRow?.invoiceNumber ? `invoice #${metaRow.invoiceNumber}` : (metaRow?.supplierName ? `purchase from ${metaRow.supplierName}` : "purchase");
+        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Deleted ${label}`, tenantId, actorUserId: req.user?.userId });
         try {
             const io = req.app.get("io");
             io.emit("purchase:deleted", { purchaseId: id });
@@ -316,7 +318,8 @@ const createPurchase = async (req, res) => {
             });
             created.push({ purchaseId, productId, productName: p.name, quantity, unitCost, totalCost, timestamp: date, expiryDate: it.expiryDate ? new Date(it.expiryDate) : undefined });
             // Notify: purchase item created
-            (0, notificationService_1.appendNotification)({ type: "purchase", message: `Purchased ${quantity} ${it.unit} of '${p.name}' for ₦${totalCost.toLocaleString("en")}`, tenantId, actorUserId: req.user?.userId });
+            const label = invoiceNumber ? `invoice #${invoiceNumber}` : `purchase of ${p.name}`;
+            (0, notificationService_1.appendNotification)({ type: "purchase", message: `Created ${label} (${quantity} ${it.unit})`, tenantId, actorUserId: req.user?.userId });
         }
         try {
             const io = req.app.get("io");
@@ -397,7 +400,10 @@ const addPurchasePayment = async (req, res) => {
             notes,
         });
         // Notify: supplier payment added
-        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Added supplier payment ₦${amount.toLocaleString("en")} to purchase ${id} (${bankName})`, tenantId, actorUserId: req.user?.userId });
+        // Fetch meta for label
+        const meta = await prisma_1.default.supplierPurchaseMeta.findFirst({ where: { purchaseId: id, tenantId } });
+        const label = meta?.invoiceNumber ? `invoice #${meta.invoiceNumber}` : (meta?.supplierName ? `purchase from ${meta.supplierName}` : "purchase");
+        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Payment of ₦${amount.toLocaleString("en")} added to ${label}`, tenantId, actorUserId: req.user?.userId });
         try {
             const io = req.app.get("io");
             const updatedWithMeta = await prisma_1.default.purchases.findUnique({ where: { purchaseId: id }, include: { payments: true } });
@@ -532,7 +538,8 @@ const updatePurchase = async (req, res) => {
         // Update meta fields if provided (unit and date)
         await (0, supplierPurchasesService_1.upsertSupplierMeta)({ purchaseId: id, tenantId, unit: nextUnit ?? undefined, date: nextDate ? nextDate.toISOString() : undefined });
         // Notify
-        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Updated purchase ${id}: ${newQty} ${effectiveNewUnit} of '${newProduct.name}'`, tenantId, actorUserId: req.user?.userId });
+        const label = metaRow?.invoiceNumber ? `invoice #${metaRow.invoiceNumber}` : (metaRow?.supplierName ? `purchase from ${metaRow.supplierName}` : "purchase");
+        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Updated ${label}: ${newQty} ${effectiveNewUnit} of '${newProduct.name}'`, tenantId, actorUserId: req.user?.userId });
         await (0, cache_1.cacheDeletePattern)("purchases:invoices:*");
         res.json({ purchase: updated });
     }
