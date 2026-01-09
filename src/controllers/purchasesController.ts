@@ -187,9 +187,10 @@ export const deletePurchase = async (req: Request, res: Response): Promise<void>
       return;
     }
     // Reduce inventory based on stored unit meta (defaults to carton)
+    let metaRow: any = null;
     try {
       const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
-      const metaRow = await prisma.supplierPurchaseMeta.findFirst({ where: { purchaseId: id, tenantId } });
+      metaRow = await prisma.supplierPurchaseMeta.findFirst({ where: { purchaseId: id, tenantId } });
       const unit = ((metaRow?.unit === "pcs" ? "pcs" : "ctn") as "ctn" | "pcs");
       const p = await prisma.products.findFirst({ where: { productId: existing.productId, tenantId } });
       if (p) {
@@ -211,7 +212,8 @@ export const deletePurchase = async (req: Request, res: Response): Promise<void>
 
     await prisma.purchases.delete({ where: { purchaseId: id } });
     // Notify: purchase deleted
-    appendNotification({ type: "purchase", message: `Deleted purchase ${id}`, tenantId, actorUserId: req.user?.userId });
+    const label = metaRow?.invoiceNumber ? `invoice #${metaRow.invoiceNumber}` : (metaRow?.supplierName ? `purchase from ${metaRow.supplierName}` : "purchase");
+    appendNotification({ type: "purchase", message: `Deleted ${label}`, tenantId, actorUserId: req.user?.userId });
 
     try {
       const io = req.app.get("io");
@@ -304,7 +306,8 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
       });
       created.push({ purchaseId, productId, productName: p.name, quantity, unitCost, totalCost, timestamp: date, expiryDate: it.expiryDate ? new Date(it.expiryDate) : undefined });
       // Notify: purchase item created
-      appendNotification({ type: "purchase", message: `Purchased ${quantity} ${it.unit} of '${p.name}' for ₦${totalCost.toLocaleString("en")}`, tenantId, actorUserId: req.user?.userId });
+      const label = invoiceNumber ? `invoice #${invoiceNumber}` : `purchase of ${p.name}`;
+      appendNotification({ type: "purchase", message: `Created ${label} (${quantity} ${it.unit})`, tenantId, actorUserId: req.user?.userId });
     }
 
     try {
@@ -391,7 +394,10 @@ export const addPurchasePayment = async (req: Request, res: Response): Promise<v
       notes,
     });
     // Notify: supplier payment added
-    appendNotification({ type: "purchase", message: `Added supplier payment ₦${amount.toLocaleString("en")} to purchase ${id} (${bankName})`, tenantId, actorUserId: req.user?.userId });
+    // Fetch meta for label
+    const meta = await prisma.supplierPurchaseMeta.findFirst({ where: { purchaseId: id, tenantId } });
+    const label = meta?.invoiceNumber ? `invoice #${meta.invoiceNumber}` : (meta?.supplierName ? `purchase from ${meta.supplierName}` : "purchase");
+    appendNotification({ type: "purchase", message: `Payment of ₦${amount.toLocaleString("en")} added to ${label}`, tenantId, actorUserId: req.user?.userId });
 
     try {
       const io = req.app.get("io");
@@ -536,7 +542,8 @@ export const updatePurchase = async (req: Request, res: Response): Promise<void>
     await upsertSupplierMeta({ purchaseId: id, tenantId, unit: nextUnit ?? undefined, date: nextDate ? nextDate.toISOString() : undefined });
 
     // Notify
-    appendNotification({ type: "purchase", message: `Updated purchase ${id}: ${newQty} ${effectiveNewUnit} of '${newProduct.name}'`, tenantId, actorUserId: req.user?.userId });
+    const label = metaRow?.invoiceNumber ? `invoice #${metaRow.invoiceNumber}` : (metaRow?.supplierName ? `purchase from ${metaRow.supplierName}` : "purchase");
+    appendNotification({ type: "purchase", message: `Updated ${label}: ${newQty} ${effectiveNewUnit} of '${newProduct.name}'`, tenantId, actorUserId: req.user?.userId });
 
     await cacheDeletePattern("purchases:invoices:*");
 
