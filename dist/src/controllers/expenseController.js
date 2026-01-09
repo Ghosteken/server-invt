@@ -190,7 +190,9 @@ const deleteExpenseController = async (req, res) => {
             return;
         }
         await prisma_1.default.expenses.delete({ where: { expenseId: id } });
-        (0, notificationService_1.appendNotification)({ type: "expense", message: `Deleted expense ${id}`, tenantId, actorUserId: req.user?.userId });
+        const desc = existing.category || "Uncategorized";
+        const amt = Number(existing.amount || 0).toLocaleString("en");
+        (0, notificationService_1.appendNotification)({ type: "expense", message: `Deleted expense: ${desc} (₦${amt})`, tenantId, actorUserId: req.user?.userId });
         // Emit socket event
         const io = req.app.get("io");
         if (io) {

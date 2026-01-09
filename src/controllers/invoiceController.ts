@@ -82,9 +82,16 @@ async function maybeNotifyDueSoon(inv: { invoiceId: string; customerId: string; 
   if (inv.status === "paid") return;
   const days = daysUntil(inv.dueDate);
   if (days === 5 && !inv.dueSoonNotifiedAt) {
+    const meta = await getInvoiceMeta(inv.invoiceId);
+    const invoiceLabel = meta?.invoiceNumber ? `Invoice #${meta.invoiceNumber}` : "Invoice";
+    let customerName = "Customer";
+    if (inv.customerId) {
+       const c = await prisma.customers.findFirst({ where: { customerId: inv.customerId } });
+       if (c) customerName = c.name;
+    }
     appendNotification({
       type: "invoice",
-      message: `Invoice ${inv.invoiceId} for customer ${inv.customerId} has 5 days remaining to complete payment`,
+      message: `${invoiceLabel} for ${customerName} has 5 days remaining to complete payment`,
       actorUserId,
       tenantId: inv.tenantId || "default",
     });
@@ -241,7 +248,8 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
       await prisma.customerPurchases.createMany({ data: purchaseRows });
     }
 
-    appendNotification({ type: "invoice", message: `Invoice created: ${created.invoiceId} (${created.location})`, actorUserId: req.user?.userId, tenantId });
+    const label = createdWithMeta.invoiceNumber ? `Invoice #${createdWithMeta.invoiceNumber}` : "Invoice";
+    appendNotification({ type: "invoice", message: `Invoice created: ${label} (${createdWithMeta.customerName || created.location})`, actorUserId: req.user?.userId, tenantId });
     await maybeNotifyDueSoon(created as any, req.user?.userId);
     res.status(201).json(created);
   } catch (err) {
@@ -544,11 +552,12 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
         await adjustPcsQuantity({ name, delta: -delta, tenantId });
       }
     }
+    const meta = await getInvoiceMeta(id, req.tenantId || req.user?.tenantId || "default");
     if (changedCount > 0) {
-      appendNotification({ type: "inventory", message: `Reconciled inventory for invoice ${id}; ${changedCount} item group(s) adjusted.`, actorUserId: req.user?.userId, tenantId });
+      const label = meta?.invoiceNumber ? `Invoice #${meta.invoiceNumber}` : "Invoice";
+      appendNotification({ type: "inventory", message: `Reconciled inventory for ${label}; ${changedCount} item group(s) adjusted.`, actorUserId: req.user?.userId, tenantId });
     }
     await maybeNotifyDueSoon(updated as any, req.user?.userId);
-    const meta = await getInvoiceMeta(id, req.tenantId || req.user?.tenantId || "default");
     
     const updatedWithMeta = { ...updated, invoiceNumber: meta?.invoiceNumber || undefined };
     try {
@@ -590,14 +599,16 @@ export const addPayment = async (req: Request, res: Response): Promise<void> => 
     const paymentsSum = (inv.payments || []).reduce((acc: number, p: any) => acc + p.amount, 0) + payment.amount;
     const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
     const updatedInv = await prisma.invoices.update({ where: { invoiceId: id }, data: { status } });
-    appendNotification({ type: "invoice", message: `Payment added for invoice ${id}: ₦${payment.amount.toFixed(2)} (${payment.bankName})`, actorUserId: req.user?.userId, tenantId });
+    const meta = await getInvoiceMeta(id, tenantId);
+    const label = meta?.invoiceNumber ? `Invoice #${meta.invoiceNumber}` : "Invoice";
+    appendNotification({ type: "invoice", message: `Payment added for ${label}: ₦${payment.amount.toFixed(2)} (${payment.bankName})`, actorUserId: req.user?.userId, tenantId });
 
     const fullInvoice = await prisma.invoices.findUnique({
       where: { invoiceId: id },
       include: { items: true, payments: true },
     });
     if (fullInvoice) {
-      const meta = await getInvoiceMeta(id, tenantId);
+      // meta already fetched
       try {
         const io = req.app.get("io");
         io.emit("invoice:updated", { ...fullInvoice, invoiceNumber: meta?.invoiceNumber });
@@ -655,10 +666,13 @@ export const deleteInvoice = async (req: Request, res: Response): Promise<void> 
     await prisma.payments.deleteMany({ where: { invoiceId: id, tenantId } });
     await prisma.invoiceItems.deleteMany({ where: { invoiceId: id, tenantId } });
 
+    const meta = await getInvoiceMeta(id);
+    const label = meta?.invoiceNumber ? `Invoice #${meta.invoiceNumber}` : "Invoice";
+
     await prisma.invoices.delete({ where: { invoiceId: id } });
     // Remove meta on delete for cleanliness
     try { await removeInvoiceMeta(id); } catch {}
-    appendNotification({ type: "invoice", message: `Invoice deleted: ${id}`, actorUserId: req.user?.userId, tenantId });
+    appendNotification({ type: "invoice", message: `Deleted ${label}`, actorUserId: req.user?.userId, tenantId });
     
     try {
       const io = req.app.get("io");
