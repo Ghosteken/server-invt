@@ -663,8 +663,8 @@ export const deleteInvoice = async (req: Request, res: Response): Promise<void> 
     }
 
     // Remove dependent records first to satisfy FK constraints
-    await prisma.payments.deleteMany({ where: { invoiceId: id, tenantId } });
-    await prisma.invoiceItems.deleteMany({ where: { invoiceId: id, tenantId } });
+    await prisma.payments.deleteMany({ where: { invoiceId: id } });
+    await prisma.invoiceItems.deleteMany({ where: { invoiceId: id } });
 
     const meta = await getInvoiceMeta(id);
     const label = meta?.invoiceNumber ? `Invoice #${meta.invoiceNumber}` : "Invoice";
