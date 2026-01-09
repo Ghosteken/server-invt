@@ -13,40 +13,37 @@ const getSalesReport = async (req, res) => {
         const toRaw = req.query?.to;
         const from = fromRaw ? new Date(fromRaw) : undefined;
         const to = toRaw ? new Date(toRaw) : undefined;
-        let timestampFilter = undefined;
+        let dateFilter = undefined;
         if (from)
-            timestampFilter = { ...(timestampFilter || {}), gte: from };
+            dateFilter = { ...(dateFilter || {}), gte: from };
         if (to)
-            timestampFilter = { ...(timestampFilter || {}), lte: to };
-        const where = timestampFilter
-            ? { tenantId, timestamp: timestampFilter }
+            dateFilter = { ...(dateFilter || {}), lte: to };
+        const where = dateFilter
+            ? { tenantId, date: dateFilter }
             : { tenantId };
-        const purchases = await prisma_1.default.customerPurchases.findMany({
+        const invoices = await prisma_1.default.invoices.findMany({
             where,
-            orderBy: { timestamp: "desc" },
+            orderBy: { date: "desc" },
+            include: {
+                items: true,
+                customer: { select: { name: true } }
+            }
         });
-        // Preload product and customer names
-        const productIds = Array.from(new Set(purchases.map((p) => p.productId).filter(Boolean)));
-        const customerIds = Array.from(new Set(purchases.map((p) => p.customerId).filter(Boolean)));
-        const products = productIds.length
-            ? await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } })
-            : [];
-        const customers = customerIds.length
-            ? await prisma_1.default.customers.findMany({ where: { tenantId, customerId: { in: customerIds } }, select: { customerId: true, name: true } })
-            : [];
-        const productNameMap = new Map(products.map((p) => [p.productId, p.name]));
-        const customerNameMap = new Map(customers.map((c) => [c.customerId, c.name]));
-        const items = purchases.map((p) => ({
-            id: p.id,
-            productId: p.productId,
-            productName: productNameMap.get(p.productId) || undefined,
-            customerId: p.customerId,
-            customerName: customerNameMap.get(p.customerId) || undefined,
-            quantity: p.quantity,
-            unitPrice: Number(p.unitPrice || 0),
-            totalCost: Number(p.totalCost || 0),
-            timestamp: p.timestamp,
-        }));
+        const invoiceIds = invoices.map(i => i.invoiceId);
+        const metas = await prisma_1.default.invoiceMeta.findMany({ where: { invoiceId: { in: invoiceIds } } });
+        const metaMap = new Map(metas.map(m => [m.invoiceId, m.invoiceNumber]));
+        const items = invoices.flatMap(inv => inv.items.map(item => ({
+            id: item.id,
+            invoiceNumber: metaMap.get(inv.invoiceId) || inv.invoiceId,
+            productId: item.productId,
+            productName: item.name,
+            customerId: inv.customerId,
+            customerName: inv.customer?.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalCost: item.subtotal,
+            timestamp: inv.date
+        })));
         const total = items.reduce((sum, it) => sum + it.totalCost, 0);
         // Aggregate by day
         const dailyMap = new Map();
@@ -75,32 +72,30 @@ const getFinancialReport = async (req, res) => {
             timestampFilter = { ...(timestampFilter || {}), gte: from };
         if (to)
             timestampFilter = { ...(timestampFilter || {}), lte: to };
-        // Sales from customer purchases (total and detailed items)
+        // Sales from invoices (total and detailed items)
         const salesWhere = timestampFilter
-            ? { tenantId, timestamp: timestampFilter }
+            ? { tenantId, date: timestampFilter }
             : { tenantId };
-        const salesRowsFull = await prisma_1.default.customerPurchases.findMany({ where: salesWhere, orderBy: { timestamp: "desc" } });
-        const salesProductIds = Array.from(new Set(salesRowsFull.map((p) => p.productId).filter(Boolean)));
-        const salesCustomerIds = Array.from(new Set(salesRowsFull.map((p) => p.customerId).filter(Boolean)));
-        const salesProducts = salesProductIds.length
-            ? await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: salesProductIds } }, select: { productId: true, name: true } })
-            : [];
-        const salesCustomers = salesCustomerIds.length
-            ? await prisma_1.default.customers.findMany({ where: { tenantId, customerId: { in: salesCustomerIds } }, select: { customerId: true, name: true } })
-            : [];
-        const salesProductNameMap = new Map(salesProducts.map((p) => [p.productId, p.name]));
-        const salesCustomerNameMap = new Map(salesCustomers.map((c) => [c.customerId, c.name]));
-        const salesItems = salesRowsFull.map((p) => ({
-            id: p.id,
-            productId: p.productId,
-            productName: salesProductNameMap.get(p.productId) || undefined,
-            customerId: p.customerId,
-            customerName: salesCustomerNameMap.get(p.customerId) || undefined,
-            quantity: p.quantity,
-            unitPrice: Number(p.unitPrice || 0),
-            totalCost: Number(p.totalCost || 0),
-            timestamp: p.timestamp,
-        }));
+        const salesInvoices = await prisma_1.default.invoices.findMany({
+            where: salesWhere,
+            orderBy: { date: "desc" },
+            include: { items: true, customer: { select: { name: true } } }
+        });
+        const salesInvoiceIds = salesInvoices.map(i => i.invoiceId);
+        const salesMetas = await prisma_1.default.invoiceMeta.findMany({ where: { invoiceId: { in: salesInvoiceIds } } });
+        const salesMetaMap = new Map(salesMetas.map(m => [m.invoiceId, m.invoiceNumber]));
+        const salesItems = salesInvoices.flatMap(inv => inv.items.map(item => ({
+            id: item.id,
+            invoiceNumber: salesMetaMap.get(inv.invoiceId) || inv.invoiceId,
+            productId: item.productId,
+            productName: item.name,
+            customerId: inv.customerId,
+            customerName: inv.customer?.name,
+            quantity: item.quantity,
+            unitPrice: item.unitPrice,
+            totalCost: item.subtotal,
+            timestamp: inv.date
+        })));
         const salesTotal = salesItems.reduce((sum, r) => sum + Number(r.totalCost || 0), 0);
         // Purchases from procurement purchases (total and detailed items)
         const purchasesWhere = timestampFilter
@@ -123,6 +118,7 @@ const getFinancialReport = async (req, res) => {
             totalCost: Number(p.totalCost || 0),
             timestamp: p.timestamp,
             supplierName: metaMap.get(p.purchaseId)?.supplierName || undefined,
+            invoiceNumber: metaMap.get(p.purchaseId)?.invoiceNumber || undefined,
         }));
         const purchasesTotal = purchaseItems.reduce((sum, r) => sum + Number(r.totalCost || 0), 0);
         // Expenses total from JSON store
@@ -170,6 +166,7 @@ const getPurchasesReport = async (req, res) => {
             productId: p.productId,
             productName: productNameMap.get(p.productId) || undefined,
             supplierName: metaMap2.get(p.purchaseId)?.supplierName || undefined,
+            invoiceNumber: metaMap2.get(p.purchaseId)?.invoiceNumber || undefined,
             quantity: p.quantity,
             unitCost: Number(p.unitCost || 0),
             totalCost: Number(p.totalCost || 0),

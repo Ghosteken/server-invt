@@ -51,40 +51,138 @@ exports.upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage
 // GET /purchases - list all procurement purchases (supplier-side)
 const getPurchases = async (req, res) => {
     try {
-        // Optional date range filters: from/to (ISO date strings)
-        const { from, to } = (req.query || {});
-        // Pagination params: page (1-based) and limit (items per page)
+        const { from, to, invoiceNumber } = (req.query || {});
         const page = Math.max(1, Number(req.query?.page) || 1);
         const limit = Math.max(1, Math.min(200, Number(req.query?.limit) || 20));
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        const where = { tenantId };
-        if (from || to) {
-            where.timestamp = {
-                ...(from ? { gte: new Date(from) } : {}),
-                ...(to ? { lte: new Date(to) } : {}),
-            };
+        const metaWhere = { tenantId };
+        if (invoiceNumber) {
+            metaWhere.invoiceNumber = { contains: invoiceNumber };
         }
-        const cacheKey = `purchases:list:${from || "all"}:${to || "all"}:p=${page}:lim=${limit}`;
+        if (from || to) {
+            let toDateStr;
+            if (to) {
+                const d = new Date(to);
+                d.setHours(23, 59, 59, 999);
+                toDateStr = d.toISOString();
+            }
+            metaWhere.date = {
+                ...(from ? { gte: new Date(from).toISOString() } : {}),
+                ...(to ? { lte: toDateStr } : {}),
+            };
+            // Note: This assumes stored date is ISO string. If comparison fails, date filter might be inaccurate.
+        }
+        // Use cache with version v4 to force refresh
+        const cacheKey = `purchases:invoices:v4:${from || "all"}:${to || "all"}:${invoiceNumber || "all"}:p=${page}:lim=${limit}`;
         const { list, total } = await (0, cache_1.withCache)(cacheKey, 30, async () => {
-            const totalCount = await prisma_1.default.purchases.count({ where });
-            const purchases = await prisma_1.default.purchases.findMany({ where, orderBy: { timestamp: "desc" }, skip: (page - 1) * limit, take: limit });
-            const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
-            const products = await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
-            const productMap = new Map(products.map((p) => [p.productId, p.name]));
-            const metaRows = await prisma_1.default.supplierPurchaseMeta.findMany({ where: { purchaseId: { in: purchases.map((p) => p.purchaseId) }, tenantId } });
-            const metaMap = new Map(metaRows.map((m) => [m.purchaseId, m]));
-            const pageList = purchases.map((p) => ({
-                purchaseId: p.purchaseId,
-                productId: p.productId,
-                productName: productMap.get(p.productId) || undefined,
-                quantity: p.quantity,
-                unitCost: p.unitCost,
-                totalCost: p.totalCost,
-                timestamp: p.timestamp,
-                supplierName: metaMap.get(p.purchaseId)?.supplierName || undefined,
-                supplierMobile: metaMap.get(p.purchaseId)?.supplierMobile || undefined,
-            }));
-            return { list: pageList, total: totalCount };
+            // 1. Get Distinct Invoices (Paginated)
+            const distinctInvoices = await prisma_1.default.supplierPurchaseMeta.findMany({
+                where: metaWhere,
+                distinct: ['invoiceNumber'],
+                orderBy: { date: 'desc' },
+                skip: (page - 1) * limit,
+                take: limit,
+                select: { invoiceNumber: true, date: true, supplierName: true, supplierMobile: true, paymentTerm: true, dueDate: true }
+            });
+            const totalGrouped = await prisma_1.default.supplierPurchaseMeta.groupBy({
+                by: ['invoiceNumber'],
+                where: metaWhere,
+            });
+            const totalCount = totalGrouped.length;
+            const invoiceNumbers = distinctInvoices.map(d => d.invoiceNumber).filter(Boolean);
+            // 2. Fetch Details for Aggregation
+            const allInvoiceMetas = await prisma_1.default.supplierPurchaseMeta.findMany({
+                where: { invoiceNumber: { in: invoiceNumbers }, tenantId },
+                select: { invoiceNumber: true, purchaseId: true }
+            });
+            const allInvoicePurchaseIds = allInvoiceMetas.map((m) => m.purchaseId);
+            const allInvoicePurchases = await prisma_1.default.purchases.findMany({
+                where: { purchaseId: { in: allInvoicePurchaseIds }, tenantId },
+                select: { purchaseId: true, totalCost: true, unitCost: true, quantity: true, productId: true, timestamp: true, expiryDate: true }
+            });
+            const productIds = Array.from(new Set(allInvoicePurchases.map((p) => p.productId)));
+            const products = await prisma_1.default.products.findMany({
+                where: { productId: { in: productIds }, tenantId },
+                select: { productId: true, name: true }
+            });
+            const productMap = new Map(products.map(p => [p.productId, p.name]));
+            const allInvoicePayments = await prisma_1.default.supplierPayments.findMany({
+                where: { purchaseId: { in: allInvoicePurchaseIds }, tenantId },
+                select: { purchaseId: true, amount: true }
+            });
+            // 3. Aggregate
+            const invoiceStats = new Map();
+            for (const invNum of invoiceNumbers) {
+                const pIds = allInvoiceMetas.filter((m) => m.invoiceNumber === invNum).map((m) => m.purchaseId);
+                const relatedPurchases = allInvoicePurchases.filter((p) => pIds.includes(p.purchaseId));
+                relatedPurchases.sort((a, b) => a.purchaseId.localeCompare(b.purchaseId));
+                const items = relatedPurchases.map((p) => {
+                    const quantity = Number(p.quantity) || 1;
+                    // Robust calculation logic matching reportController
+                    let unitCost = Number(p.unitCost || 0);
+                    let totalCost = Number(p.totalCost || 0);
+                    if (totalCost === 0 && unitCost > 0) {
+                        totalCost = unitCost * quantity;
+                    }
+                    if (unitCost === 0 && totalCost > 0 && quantity > 0) {
+                        unitCost = totalCost / quantity;
+                    }
+                    return {
+                        purchaseId: p.purchaseId,
+                        productId: p.productId,
+                        productName: productMap.get(p.productId) || p.productId || "Unknown Product (Fixed)",
+                        quantity,
+                        unitCost,
+                        totalCost,
+                        expiryDate: p.expiryDate ? new Date(p.expiryDate).toISOString() : undefined
+                    };
+                });
+                const totalCost = items.reduce((sum, item) => sum + (item.totalCost || 0), 0);
+                const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
+                const totalPaid = allInvoicePayments.filter((p) => pIds.includes(p.purchaseId)).reduce((sum, p) => sum + Number(p.amount), 0);
+                const rep = relatedPurchases[0] || {};
+                invoiceStats.set(invNum, {
+                    items,
+                    totalCost,
+                    totalPaid,
+                    totalQuantity,
+                    purchaseId: rep.purchaseId,
+                    timestamp: rep.timestamp
+                });
+            }
+            const pageList = distinctInvoices.map(meta => {
+                const stats = meta.invoiceNumber ? invoiceStats.get(meta.invoiceNumber) : undefined;
+                return {
+                    purchaseId: stats?.purchaseId || "",
+                    items: stats?.items || [],
+                    quantity: stats?.totalQuantity || 0,
+                    totalCost: stats?.totalCost || 0,
+                    timestamp: stats?.timestamp || new Date(meta.date || Date.now()),
+                    supplierName: meta.supplierName,
+                    supplierMobile: meta.supplierMobile,
+                    invoiceNumber: meta.invoiceNumber,
+                    paymentTerm: meta.paymentTerm,
+                    dueDate: meta.dueDate,
+                    invoiceTotal: stats?.totalCost || 0,
+                    invoicePaid: stats?.totalPaid || 0
+                };
+            });
+            // Manual deduplication
+            const uniquePageList = [];
+            const seenInvoices = new Set();
+            for (const p of pageList) {
+                if (p.invoiceNumber) {
+                    const norm = p.invoiceNumber.trim().toLowerCase();
+                    if (!seenInvoices.has(norm)) {
+                        seenInvoices.add(norm);
+                        uniquePageList.push(p);
+                    }
+                }
+                else {
+                    uniquePageList.push(p);
+                }
+            }
+            return { list: uniquePageList, total: totalCount };
         });
         res.json({ purchases: list, total });
     }
@@ -124,9 +222,12 @@ const deletePurchase = async (req, res) => {
             // If adjustment fails, continue with delete; log for visibility
             console.warn("Inventory adjustment on deletePurchase failed", e);
         }
+        // NEW: Delete related records first
+        await prisma_1.default.supplierPurchaseMeta.deleteMany({ where: { purchaseId: id } });
+        await prisma_1.default.supplierPayments.deleteMany({ where: { purchaseId: id } });
         await prisma_1.default.purchases.delete({ where: { purchaseId: id } });
         // Notify: purchase deleted
-        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Deleted purchase ${id}` });
+        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Deleted purchase ${id}`, tenantId, actorUserId: req.user?.userId });
         try {
             const io = req.app.get("io");
             io.emit("purchase:deleted", { purchaseId: id });
@@ -135,6 +236,7 @@ const deletePurchase = async (req, res) => {
         catch (err) {
             console.warn("Socket emission failed for deletePurchase", err);
         }
+        await (0, cache_1.cacheDeletePattern)("purchases:invoices:*");
         res.json({ success: true });
     }
     catch (err) {
@@ -153,10 +255,16 @@ const createPurchase = async (req, res) => {
         const supplierMobile = body.supplierMobile ? String(body.supplierMobile) : undefined;
         const paymentTerm = body.paymentTerm ? String(body.paymentTerm) : undefined;
         const dueDate = body.dueDate ? String(body.dueDate) : undefined;
+        let invoiceNumber = body.invoiceNumber ? String(body.invoiceNumber) : undefined;
         const items = Array.isArray(body.items) ? body.items : [];
         if (!items.length) {
             res.status(400).json({ message: "No items provided" });
             return;
+        }
+        // Auto-generate invoice number if not provided
+        if (!invoiceNumber) {
+            const timestamp = Date.now().toString().slice(-6);
+            invoiceNumber = `PUR-${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${timestamp}`;
         }
         const created = [];
         for (const it of items) {
@@ -193,47 +301,54 @@ const createPurchase = async (req, res) => {
             }
             const purchaseId = (0, crypto_1.randomUUID)();
             const totalCost = unitCost * quantity;
-            await prisma_1.default.purchases.create({ data: { purchaseId, productId, timestamp: date, quantity, unitCost, totalCost, tenantId } });
+            await prisma_1.default.purchases.create({ data: { purchaseId, productId, timestamp: date, quantity, unitCost, totalCost, expiryDate: it.expiryDate ? new Date(it.expiryDate) : undefined, tenantId } });
             // Persist supplier-side metadata for UI enrichment
-            (0, supplierPurchasesService_1.upsertSupplierMeta)({
+            await (0, supplierPurchasesService_1.upsertSupplierMeta)({
                 purchaseId,
+                tenantId,
                 supplierName: supplierName ?? null,
                 supplierMobile: supplierMobile ?? null,
+                invoiceNumber: invoiceNumber ?? null,
                 paymentTerm: paymentTerm ?? null,
                 date: date.toISOString(),
                 dueDate: dueDate ?? null,
                 unit: it.unit,
             });
-            created.push({ purchaseId, productId, quantity, unitCost, totalCost, timestamp: date });
+            created.push({ purchaseId, productId, productName: p.name, quantity, unitCost, totalCost, timestamp: date, expiryDate: it.expiryDate ? new Date(it.expiryDate) : undefined });
             // Notify: purchase item created
-            (0, notificationService_1.appendNotification)({ type: "purchase", message: `Purchased ${quantity} ${it.unit} of '${p.name}' for ₦${totalCost.toLocaleString("en")}` });
+            (0, notificationService_1.appendNotification)({ type: "purchase", message: `Purchased ${quantity} ${it.unit} of '${p.name}' for ₦${totalCost.toLocaleString("en")}`, tenantId, actorUserId: req.user?.userId });
         }
         try {
             const io = req.app.get("io");
-            // We might be creating multiple purchases in one go, but the client list expects individual purchase items.
-            // We can emit each one or a bulk event. Since the UI is a list of purchases, emitting each one is safer for now.
-            for (const p of created) {
-                // Re-fetch full object with meta if possible, or construct it.
-                // Fetching is safer to ensure consistency with getPurchases
-                const full = await prisma_1.default.purchases.findUnique({ where: { purchaseId: p.purchaseId } });
-                if (full) {
-                    const meta = await prisma_1.default.supplierPurchaseMeta.findUnique({ where: { purchaseId: p.purchaseId } });
-                    // We need to attach product name which getPurchases returns
-                    const product = await prisma_1.default.products.findUnique({ where: { productId: p.productId } });
-                    const payload = {
-                        ...full,
-                        productName: product?.name,
-                        supplierName: meta?.supplierName,
-                        supplierMobile: meta?.supplierMobile
-                    };
-                    io.emit("purchase:created", payload);
-                }
+            if (created.length > 0) {
+                // Sort to ensure deterministic representative matching getPurchases
+                created.sort((a, b) => a.purchaseId.localeCompare(b.purchaseId));
+                const totalCost = created.reduce((sum, item) => sum + Number(item.totalCost), 0);
+                const totalQuantity = created.reduce((sum, item) => sum + Number(item.quantity), 0);
+                const first = created[0];
+                const payload = {
+                    purchaseId: first.purchaseId,
+                    items: created,
+                    supplierName: supplierName || undefined,
+                    supplierMobile: supplierMobile || undefined,
+                    invoiceNumber: invoiceNumber,
+                    paymentTerm: paymentTerm || undefined,
+                    dueDate: dueDate || undefined,
+                    quantity: totalQuantity,
+                    totalCost: totalCost,
+                    invoiceTotal: totalCost,
+                    invoicePaid: 0,
+                    timestamp: first.timestamp,
+                    tenantId
+                };
+                io.emit("purchase:created", payload);
             }
             io.emit("dashboard:refresh", { tenantId });
         }
         catch (err) {
             console.warn("Socket emission failed for createPurchase", err);
         }
+        await (0, cache_1.cacheDeletePattern)("purchases:invoices:*");
         res.json({ success: true, purchases: created });
     }
     catch (err) {
@@ -282,7 +397,7 @@ const addPurchasePayment = async (req, res) => {
             notes,
         });
         // Notify: supplier payment added
-        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Added supplier payment ₦${amount.toLocaleString("en")} to purchase ${id} (${bankName})` });
+        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Added supplier payment ₦${amount.toLocaleString("en")} to purchase ${id} (${bankName})`, tenantId, actorUserId: req.user?.userId });
         try {
             const io = req.app.get("io");
             const updatedWithMeta = await prisma_1.default.purchases.findUnique({ where: { purchaseId: id }, include: { payments: true } });
@@ -295,6 +410,7 @@ const addPurchasePayment = async (req, res) => {
         catch (err) {
             console.warn("Socket emission failed for addPurchasePayment", err);
         }
+        await (0, cache_1.cacheDeletePattern)("purchases:invoices:*");
         res.status(201).json({ payment });
     }
     catch (err) {
@@ -319,9 +435,14 @@ const updatePurchaseMeta = async (req, res) => {
         const supplierMobile = body.supplierMobile !== undefined ? (body.supplierMobile ? String(body.supplierMobile) : null) : undefined;
         const paymentTerm = body.paymentTerm !== undefined ? (body.paymentTerm ? String(body.paymentTerm) : null) : undefined;
         const dueDate = body.dueDate !== undefined ? (body.dueDate ? String(body.dueDate) : null) : undefined;
-        (0, supplierPurchasesService_1.upsertSupplierMeta)({ purchaseId: id, supplierName, supplierMobile, paymentTerm, dueDate });
+        // Sync timestamp if date is provided
+        if (body.date) {
+            await prisma_1.default.purchases.update({ where: { purchaseId: id }, data: { timestamp: new Date(body.date) } });
+        }
+        await (0, supplierPurchasesService_1.upsertSupplierMeta)({ purchaseId: id, tenantId, supplierName, supplierMobile, paymentTerm, dueDate, date: body.date });
         const meta = { purchaseId: id, supplierName: supplierName ?? null, supplierMobile: supplierMobile ?? null, paymentTerm: paymentTerm ?? null, dueDate: dueDate ?? null };
-        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Updated purchase ${id} meta: supplier=${meta.supplierName || "-"}, term=${meta.paymentTerm || "-"}` });
+        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Updated purchase ${id} meta: supplier=${meta.supplierName || "-"}, term=${meta.paymentTerm || "-"}`, tenantId, actorUserId: req.user?.userId });
+        await (0, cache_1.cacheDeletePattern)("purchases:invoices:*");
         res.json({ meta });
     }
     catch (err) {
@@ -405,12 +526,14 @@ const updatePurchase = async (req, res) => {
                 quantity: newQty,
                 unitCost: nextUnitCost !== undefined ? nextUnitCost : existing.unitCost,
                 totalCost: (nextUnitCost !== undefined ? nextUnitCost : existing.unitCost) * newQty,
+                expiryDate: nextExpiryDate ? new Date(nextExpiryDate) : undefined,
             },
         });
         // Update meta fields if provided (unit and date)
-        (0, supplierPurchasesService_1.upsertSupplierMeta)({ purchaseId: id, unit: nextUnit ?? undefined, date: nextDate ? nextDate.toISOString() : undefined });
+        await (0, supplierPurchasesService_1.upsertSupplierMeta)({ purchaseId: id, tenantId, unit: nextUnit ?? undefined, date: nextDate ? nextDate.toISOString() : undefined });
         // Notify
-        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Updated purchase ${id}: ${newQty} ${effectiveNewUnit} of '${newProduct.name}'` });
+        (0, notificationService_1.appendNotification)({ type: "purchase", message: `Updated purchase ${id}: ${newQty} ${effectiveNewUnit} of '${newProduct.name}'`, tenantId, actorUserId: req.user?.userId });
+        await (0, cache_1.cacheDeletePattern)("purchases:invoices:*");
         res.json({ purchase: updated });
     }
     catch (err) {

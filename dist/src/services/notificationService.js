@@ -6,53 +6,60 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.appendNotification = appendNotification;
 exports.getLatestNotifications = getLatestNotifications;
 exports.appendAuditLog = appendAuditLog;
-const fs_1 = __importDefault(require("fs"));
-const path_1 = __importDefault(require("path"));
 const prisma_1 = __importDefault(require("../db/prisma"));
-const logDir = path_1.default.join(__dirname, "../../prisma/seedData");
-const logFile = path_1.default.join(logDir, "notifications.json");
-function ensureFile() {
-    if (!fs_1.default.existsSync(logDir)) {
-        fs_1.default.mkdirSync(logDir, { recursive: true });
-    }
-    if (!fs_1.default.existsSync(logFile)) {
-        fs_1.default.writeFileSync(logFile, JSON.stringify([], null, 2));
-    }
-}
-function appendNotification(n) {
+async function appendNotification(n) {
     try {
-        ensureFile();
-        const raw = fs_1.default.readFileSync(logFile, "utf-8");
-        const arr = raw.trim() ? JSON.parse(raw) : [];
-        const item = {
-            id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-            type: n.type,
-            message: n.message,
-            timestamp: n.timestamp || new Date().toISOString(),
-            actorUserId: n.actorUserId,
-        };
-        arr.push(item);
-        // Keep only latest 200
-        const trimmed = arr.slice(Math.max(0, arr.length - 200));
-        fs_1.default.writeFileSync(logFile, JSON.stringify(trimmed, null, 2));
+        const tenantId = n.tenantId || "default";
+        await prisma_1.default.notifications.create({
+            data: {
+                id: cryptoRandom(),
+                tenantId,
+                type: n.type,
+                message: n.message,
+                actorUserId: n.actorUserId || null,
+                timestamp: n.timestamp ? new Date(n.timestamp) : new Date(),
+            },
+        });
+        // Auto-cleanup: keep only latest 500 notifications per tenant
+        const count = await prisma_1.default.notifications.count({ where: { tenantId } });
+        if (count > 500) {
+            const toDelete = await prisma_1.default.notifications.findMany({
+                where: { tenantId },
+                orderBy: { timestamp: "asc" },
+                take: count - 500,
+                select: { id: true },
+            });
+            await prisma_1.default.notifications.deleteMany({
+                where: { id: { in: toDelete.map((n) => n.id) } },
+            });
+        }
     }
     catch (e) {
         console.warn("appendNotification failed", e);
     }
 }
-function getLatestNotifications(limit = 20) {
+async function getLatestNotifications(tenantId, limit = 20) {
     try {
-        ensureFile();
-        const raw = fs_1.default.readFileSync(logFile, "utf-8");
-        const arr = raw.trim() ? JSON.parse(raw) : [];
-        return arr.sort((a, b) => (a.timestamp < b.timestamp ? 1 : -1)).slice(0, limit);
+        const notifications = await prisma_1.default.notifications.findMany({
+            where: { tenantId },
+            orderBy: { timestamp: "desc" },
+            take: Math.min(limit, 100),
+        });
+        return notifications.map((n) => ({
+            id: n.id,
+            type: n.type,
+            message: n.message,
+            timestamp: n.timestamp.toISOString(),
+            actorUserId: n.actorUserId || undefined,
+            tenantId: n.tenantId,
+        }));
     }
     catch (e) {
         console.warn("getLatestNotifications failed", e);
         return [];
     }
 }
-async function appendAuditLog({ tenantId = "default", actorUserId, action, resourceType, resourceId, payload }) {
+async function appendAuditLog({ tenantId = "default", actorUserId, action, resourceType, resourceId, payload, }) {
     try {
         await prisma_1.default.auditLogs.create({
             data: {
@@ -67,8 +74,14 @@ async function appendAuditLog({ tenantId = "default", actorUserId, action, resou
         });
     }
     catch (e) {
-        // fallback: also write a notification entry for visibility
-        appendNotification({ type: "audit", message: `${action} ${resourceType} ${resourceId || ""}`.trim(), actorUserId });
+        console.warn("appendAuditLog failed", e);
+        // fallback: write notification
+        await appendNotification({
+            type: "audit",
+            message: `${action} ${resourceType} ${resourceId || ""}`.trim(),
+            actorUserId,
+            tenantId,
+        });
     }
 }
 function cryptoRandom() {
@@ -77,6 +90,6 @@ function cryptoRandom() {
         return randomUUID();
     }
     catch {
-        return Math.random().toString(36).slice(2);
+        return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
     }
 }

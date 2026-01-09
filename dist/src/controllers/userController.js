@@ -35,7 +35,7 @@ const getUsers = async (req, res) => {
 exports.getUsers = getUsers;
 const createUser = async (req, res) => {
     try {
-        const { name, email, password, role } = req.body;
+        const { name, email, password, role, phone } = req.body;
         if (!name || !email || !password) {
             res.status(400).json({ message: "Name, email and password are required" });
             return;
@@ -57,6 +57,7 @@ const createUser = async (req, res) => {
                 password: hashedPassword,
                 role: (role || "user").toLowerCase(),
                 tenantId,
+                phone: phone || null,
             },
         });
         // Append to a simple JSON audit log (no plaintext passwords)
@@ -112,6 +113,7 @@ const createUser = async (req, res) => {
             type: "user",
             message: `User created: ${newUser.name} (${newUser.email}) as ${newUser.role}`,
             actorUserId: req.user?.userId,
+            tenantId,
         });
     }
     catch (err) {
@@ -130,6 +132,7 @@ const purgeNonAdminUsers = async (req, res) => {
             type: "user",
             message: `Purged ${result.count} non-admin user(s)`,
             actorUserId: req.user?.userId,
+            tenantId,
         });
     }
     catch (err) {
@@ -175,6 +178,7 @@ const deleteUser = async (req, res) => {
                 type: "user",
                 message: `Admin user deleted: ${target.name} (${target.email})`,
                 actorUserId: req.user?.userId,
+                tenantId,
             });
             return;
         }
@@ -189,6 +193,7 @@ const deleteUser = async (req, res) => {
             type: "user",
             message: `User deleted: ${target.name} (${target.email})`,
             actorUserId: req.user?.userId,
+            tenantId,
         });
     }
     catch (err) {
@@ -223,6 +228,7 @@ const blockUser = async (req, res) => {
             type: "user",
             message: `User blocked: ${updated.name} (${updated.email})`,
             actorUserId: req.user?.userId,
+            tenantId,
         });
     }
     catch (err) {
@@ -249,6 +255,7 @@ const unblockUser = async (req, res) => {
             type: "user",
             message: `User unblocked: ${updated.name} (${updated.email})`,
             actorUserId: req.user?.userId,
+            tenantId,
         });
     }
     catch (err) {

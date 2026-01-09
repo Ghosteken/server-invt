@@ -80,6 +80,7 @@ const getCustomers = async (req, res) => {
             city: c.city,
             state: c.state,
             country: c.country,
+            tenantId: c.tenantId,
             createdAt: c.createdAt,
             purchases: byCustomer.get(c.customerId) || [],
         }));
@@ -522,14 +523,12 @@ const exportCustomersExcel = async (req, res) => {
         const products = await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
         const nameById = new Map(products.map((p) => [p.productId, p.name]));
         const customersSheetRows = customers.map((c) => ({
-            CustomerId: c.customerId,
             Name: c.name,
             Mobile: c.mobile ?? "",
             Address: c.address ?? "",
             City: c.city ?? "",
             State: c.state ?? "",
             Country: c.country ?? "",
-            CreatedAt: c.createdAt.toISOString(),
         }));
         const purchasesSheetRows = purchases.map((p) => ({
             CustomerId: p.customerId,
@@ -543,7 +542,7 @@ const exportCustomersExcel = async (req, res) => {
         }));
         const wb = XLSX.utils.book_new();
         const wsCustomers = XLSX.utils.json_to_sheet(customersSheetRows, {
-            header: ["CustomerId", "Name", "Mobile", "Address", "City", "State", "Country", "CreatedAt"],
+            header: ["Name", "Mobile", "Address", "City", "State", "Country"],
         });
         const wsPurchases = XLSX.utils.json_to_sheet(purchasesSheetRows, {
             header: ["CustomerId", "CustomerName", "ProductId", "ProductName", "Quantity", "UnitPrice", "TotalCost", "Timestamp"],

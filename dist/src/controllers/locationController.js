@@ -36,7 +36,7 @@ const createLocation = async (req, res) => {
         }
         const created = await prisma_1.default.locations.create({ data: { id: (0, crypto_1.randomUUID)(), name, tenantId } });
         try {
-            (0, notificationService_1.appendNotification)({ type: "location", message: `Location created: ${created.name}`, actorUserId: req.user?.userId });
+            (0, notificationService_1.appendNotification)({ type: "location", message: `Location created: ${created.name}`, actorUserId: req.user?.userId, tenantId });
         }
         catch { }
         res.status(201).json(created);
@@ -64,7 +64,7 @@ const updateLocation = async (req, res) => {
         }
         const updated = await prisma_1.default.locations.update({ where: { id }, data: { name } });
         try {
-            (0, notificationService_1.appendNotification)({ type: "location", message: `Location updated: ${existing.name} → ${updated.name}`, actorUserId: req.user?.userId });
+            (0, notificationService_1.appendNotification)({ type: "location", message: `Location updated: ${existing.name} → ${updated.name}`, actorUserId: req.user?.userId, tenantId });
         }
         catch { }
         res.json({ id: updated.id, name: updated.name });
@@ -91,7 +91,7 @@ const deleteLocation = async (req, res) => {
         }
         await prisma_1.default.locations.delete({ where: { id } });
         try {
-            (0, notificationService_1.appendNotification)({ type: "location", message: `Location deleted: ${existing.name}`, actorUserId: req.user?.userId });
+            (0, notificationService_1.appendNotification)({ type: "location", message: `Location deleted: ${existing.name}`, actorUserId: req.user?.userId, tenantId });
         }
         catch { }
         res.json({ success: true });

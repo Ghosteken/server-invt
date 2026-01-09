@@ -226,7 +226,7 @@ router.post("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.requi
         const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const list = await (0, banksService_1.addBank)(tenantId, { name, account });
         try {
-            (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account created: ${name} - ${account}`, actorUserId: req.user?.userId });
+            (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account created: ${name} - ${account}`, actorUserId: req.user?.userId, tenantId });
         }
         catch { }
         res.status(201).json({ banks: list });
@@ -252,7 +252,7 @@ router.put("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.requir
         const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const list = await (0, banksService_1.updateBank)(tenantId, { name: oldName, account: oldAccount }, { name, account });
         try {
-            (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account updated: ${oldName} - ${oldAccount} → ${name} - ${account}`, actorUserId: req.user?.userId });
+            (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account updated: ${oldName} - ${oldAccount} → ${name} - ${account}`, actorUserId: req.user?.userId, tenantId });
         }
         catch { }
         res.json({ banks: list });
@@ -273,7 +273,7 @@ router.delete("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.req
         const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const list = await (0, banksService_1.removeBank)(tenantId, { name, account });
         try {
-            (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account removed: ${name} - ${account}`, actorUserId: req.user?.userId });
+            (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account removed: ${name} - ${account}`, actorUserId: req.user?.userId, tenantId });
         }
         catch { }
         res.json({ banks: list });

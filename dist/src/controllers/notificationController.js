@@ -5,9 +5,10 @@ const notificationService_1 = require("../services/notificationService");
 const errorHandler_1 = require("../utils/errorHandler");
 const getNotifications = async (req, res) => {
     try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
         const limitParam = req.query.limit?.toString();
         const limit = limitParam ? Math.max(1, Math.min(100, Number(limitParam))) : 20;
-        const notifications = (0, notificationService_1.getLatestNotifications)(limit);
+        const notifications = await (0, notificationService_1.getLatestNotifications)(tenantId, limit);
         res.json(notifications);
     }
     catch (err) {
