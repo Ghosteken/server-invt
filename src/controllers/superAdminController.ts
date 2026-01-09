@@ -203,19 +203,59 @@ export const deleteOrg = async (req: Request, res: Response): Promise<void> => {
 
     // Cascade delete tenant data
     await prisma.$transaction(async (tx) => {
-      // Robust cleanup: find invoices first to ensure related items are deleted regardless of tenantId on items
-      const invoices = await tx.invoices.findMany({ where: { tenantId: id }, select: { invoiceId: true } });
+      // Robust cleanup: find customers and invoices first to ensure related items are deleted regardless of tenantId on items
+
+      // 1. Identify all Customers belonging to this tenant
+      const customers = await tx.customers.findMany({ where: { tenantId: id }, select: { customerId: true } });
+      const customerIds = customers.map(c => c.customerId);
+
+      // 2. Identify all Invoices belonging to this tenant OR linked to these customers
+      // Note: We use findMany instead of deleteMany directly to get IDs for child cleanup
+      const invoices = await tx.invoices.findMany({ 
+        where: { 
+          OR: [
+            { tenantId: id },
+            { customerId: { in: customerIds.length > 0 ? customerIds : undefined } }
+          ]
+        }, 
+        select: { invoiceId: true } 
+      });
       const invoiceIds = invoices.map(i => i.invoiceId);
+
+      // 3. Delete InvoiceItems (depend on Invoices)
       if (invoiceIds.length > 0) {
         await tx.invoiceItems.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+      }
+      await tx.invoiceItems.deleteMany({ where: { tenantId: id } }); // Catch any orphans
+
+      // 4. Delete Payments (depend on Invoices and Customers)
+      if (invoiceIds.length > 0) {
         await tx.payments.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
       }
-
-      await tx.invoiceItems.deleteMany({ where: { tenantId: id } });
+      if (customerIds.length > 0) {
+        await tx.payments.deleteMany({ where: { customerId: { in: customerIds } } });
+      }
       await tx.payments.deleteMany({ where: { tenantId: id } });
+
+      // 5. Delete Invoices
+      if (invoiceIds.length > 0) {
+        await tx.invoices.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+      }
       await tx.invoices.deleteMany({ where: { tenantId: id } });
+
+      // 6. Delete CustomerPurchases (depend on Customers)
+      if (customerIds.length > 0) {
+        await tx.customerPurchases.deleteMany({ where: { customerId: { in: customerIds } } });
+      }
       await tx.customerPurchases.deleteMany({ where: { tenantId: id } });
+
+      // 7. Delete Customers
+      if (customerIds.length > 0) {
+         await tx.customers.deleteMany({ where: { customerId: { in: customerIds } } });
+      }
       await tx.customers.deleteMany({ where: { tenantId: id } });
+
+      // Continue with other tables...
       await tx.supplierPurchaseMeta.deleteMany({ where: { tenantId: id } });
       await tx.supplierPayments.deleteMany({ where: { tenantId: id } });
       await tx.purchases.deleteMany({ where: { tenantId: id } });
