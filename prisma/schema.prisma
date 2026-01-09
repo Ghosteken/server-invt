@@ -75,6 +75,7 @@ model Purchases {
   quantity   Int
   unitCost   Float
   totalCost  Float
+  expiryDate DateTime?
   tenantId   String   @default("default")
   product    Products @relation(fields: [productId], references: [productId])
   supplierMeta SupplierPurchaseMeta? @relation("PurchaseMeta")

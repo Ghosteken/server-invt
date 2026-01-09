@@ -10,7 +10,15 @@ const node_path_1 = __importDefault(require("node:path"));
 const readPcsInventory = async (tenantId = "default") => {
     try {
         const rows = await prisma_1.default.pcsInventory.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
-        return rows.map((r) => ({ name: r.name, quantity: r.quantity, productId: r.productId ?? null, packSize: r.packSize ?? null, tenantId: r.tenantId }));
+        return rows.map((r) => ({
+            name: r.name,
+            quantity: r.quantity,
+            productId: r.productId ?? null,
+            packSize: r.packSize ?? null,
+            salesPrice: r.salesPrice ?? null,
+            purchasePrice: r.purchasePrice ?? null,
+            tenantId: r.tenantId
+        }));
     }
     catch {
         try {
@@ -26,6 +34,8 @@ const readPcsInventory = async (tenantId = "default") => {
                 quantity: Math.max(0, Number(e?.quantity) || 0),
                 productId: e?.productId ?? null,
                 packSize: e?.packSize ?? null,
+                salesPrice: e?.salesPrice ?? null,
+                purchasePrice: e?.purchasePrice ?? null,
                 tenantId,
             }));
         }
@@ -44,12 +54,53 @@ const upsertPcsEntries = async (incoming, tenantId = "default") => {
         const key = inc.name.toLowerCase();
         const prev = map.get(key);
         const nextQty = Math.max(0, Number(inc.quantity) || 0);
-        const next = { name: inc.name, quantity: nextQty, productId: prev?.productId ?? null, packSize: inc.packSize ?? prev?.packSize ?? null, tenantId };
+        // Try to resolve productId if not provided
+        let resolvedProductId = inc.productId ?? prev?.productId ?? null;
+        if (!resolvedProductId) {
+            const product = await prisma_1.default.products.findFirst({
+                where: { tenantId, name: { equals: inc.name } } // Exact match first
+            });
+            if (product) {
+                resolvedProductId = product.productId;
+            }
+            else {
+                // Fallback to case insensitive match if needed, but exact is safer for linking
+                const productLoose = await prisma_1.default.products.findFirst({
+                    where: { tenantId, name: inc.name }
+                });
+                if (productLoose)
+                    resolvedProductId = productLoose.productId;
+            }
+        }
+        const next = {
+            name: inc.name,
+            quantity: nextQty,
+            productId: resolvedProductId,
+            packSize: inc.packSize ?? prev?.packSize ?? null,
+            salesPrice: inc.salesPrice !== undefined ? inc.salesPrice : (prev?.salesPrice ?? null),
+            purchasePrice: inc.purchasePrice !== undefined ? inc.purchasePrice : (prev?.purchasePrice ?? null),
+            tenantId
+        };
         map.set(key, next);
         await prisma_1.default.pcsInventory.upsert({
             where: { tenantId_name: { tenantId, name: inc.name } },
-            create: { id: cryptoRandom(), tenantId, name: inc.name, quantity: nextQty, productId: next.productId ?? null, packSize: next.packSize ?? null },
-            update: { quantity: nextQty, packSize: next.packSize ?? null },
+            create: {
+                id: cryptoRandom(),
+                tenantId,
+                name: inc.name,
+                quantity: nextQty,
+                productId: next.productId ?? null,
+                packSize: next.packSize ?? null,
+                salesPrice: next.salesPrice ?? null,
+                purchasePrice: next.purchasePrice ?? null
+            },
+            update: {
+                quantity: nextQty,
+                productId: next.productId ?? null,
+                packSize: next.packSize ?? null,
+                salesPrice: next.salesPrice ?? null,
+                purchasePrice: next.purchasePrice ?? null
+            },
         });
     }
     return Array.from(map.values());

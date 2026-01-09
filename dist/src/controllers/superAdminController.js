@@ -217,42 +217,51 @@ const deleteOrg = async (req, res) => {
             return;
         }
         // Cascade delete tenant data
-        await prisma_1.default.$transaction([
-            prisma_1.default.invoiceItems.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.payments.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.invoices.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.customerPurchases.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.customers.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.supplierPurchaseMeta.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.supplierPayments.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.purchases.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.sales.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.expenseByCategory.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.expenseSummary.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.expenses.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.purchaseSummary.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.salesSummary.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.invoiceMeta.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.featureFlags.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.pcsInventory.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.auditLogs.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.supportMessages.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.products.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.customerGroups.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.salesAgents.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.locations.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.branches.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.stores.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.expenseCategories.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.banks.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.suppliers.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.users.deleteMany({ where: { tenantId: id } }),
-            prisma_1.default.orgAdmins.deleteMany({ where: { orgId: id } }),
-            prisma_1.default.organizations.delete({ where: { id } })
-        ]);
+        await prisma_1.default.$transaction(async (tx) => {
+            // Robust cleanup: find invoices first to ensure related items are deleted regardless of tenantId on items
+            const invoices = await tx.invoices.findMany({ where: { tenantId: id }, select: { invoiceId: true } });
+            const invoiceIds = invoices.map(i => i.invoiceId);
+            if (invoiceIds.length > 0) {
+                await tx.invoiceItems.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+                await tx.payments.deleteMany({ where: { invoiceId: { in: invoiceIds } } });
+            }
+            await tx.invoiceItems.deleteMany({ where: { tenantId: id } });
+            await tx.payments.deleteMany({ where: { tenantId: id } });
+            await tx.invoices.deleteMany({ where: { tenantId: id } });
+            await tx.customerPurchases.deleteMany({ where: { tenantId: id } });
+            await tx.customers.deleteMany({ where: { tenantId: id } });
+            await tx.supplierPurchaseMeta.deleteMany({ where: { tenantId: id } });
+            await tx.supplierPayments.deleteMany({ where: { tenantId: id } });
+            await tx.purchases.deleteMany({ where: { tenantId: id } });
+            await tx.sales.deleteMany({ where: { tenantId: id } });
+            await tx.expenseByCategory.deleteMany({ where: { tenantId: id } });
+            await tx.expenseSummary.deleteMany({ where: { tenantId: id } });
+            await tx.expenses.deleteMany({ where: { tenantId: id } });
+            await tx.purchaseSummary.deleteMany({ where: { tenantId: id } });
+            await tx.salesSummary.deleteMany({ where: { tenantId: id } });
+            await tx.invoiceMeta.deleteMany({ where: { tenantId: id } });
+            await tx.featureFlags.deleteMany({ where: { tenantId: id } });
+            await tx.pcsInventory.deleteMany({ where: { tenantId: id } });
+            await tx.auditLogs.deleteMany({ where: { tenantId: id } });
+            await tx.supportMessages.deleteMany({ where: { tenantId: id } });
+            await tx.notifications.deleteMany({ where: { tenantId: id } });
+            await tx.products.deleteMany({ where: { tenantId: id } });
+            await tx.customerGroups.deleteMany({ where: { tenantId: id } });
+            await tx.salesAgents.deleteMany({ where: { tenantId: id } });
+            await tx.locations.deleteMany({ where: { tenantId: id } });
+            await tx.branches.deleteMany({ where: { tenantId: id } });
+            await tx.stores.deleteMany({ where: { tenantId: id } });
+            await tx.expenseCategories.deleteMany({ where: { tenantId: id } });
+            await tx.banks.deleteMany({ where: { tenantId: id } });
+            await tx.suppliers.deleteMany({ where: { tenantId: id } });
+            await tx.users.deleteMany({ where: { tenantId: id } });
+            await tx.orgAdmins.deleteMany({ where: { orgId: id } });
+            await tx.organizations.delete({ where: { id } });
+        }, { timeout: 60000 });
         res.json({ success: true });
     }
     catch (err) {
+        console.error("Error deleting organization:", err);
         res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "Failed to delete organization"));
     }
 };

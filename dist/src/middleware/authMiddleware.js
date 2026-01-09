@@ -5,10 +5,14 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.requireAdmin = exports.authenticateToken = void 0;
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
-// Load JWT secret from environment (server/index.ts calls dotenv.config()).
-const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-    throw new Error("JWT_SECRET environment variable is not defined");
+// Load JWT secret from environment dynamically (not at module load time)
+// This allows tests to set JWT_SECRET before importing the middleware
+function getJwtSecret() {
+    const JWT_SECRET = process.env.JWT_SECRET;
+    if (!JWT_SECRET) {
+        throw new Error("JWT_SECRET environment variable is not defined");
+    }
+    return JWT_SECRET;
 }
 const authenticateToken = (req, res, next) => {
     const authHeader = req.headers.authorization;
@@ -17,6 +21,7 @@ const authenticateToken = (req, res, next) => {
         return res.status(401).json({ message: "No token provided" });
     }
     try {
+        const JWT_SECRET = getJwtSecret();
         const decoded = jsonwebtoken_1.default.verify(token, JWT_SECRET);
         const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
         const tenantId = decoded.tenantId || (headerTenant || "default");

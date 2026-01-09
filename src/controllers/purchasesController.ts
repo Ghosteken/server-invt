@@ -38,10 +38,10 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
       // Note: This assumes stored date is ISO string. If comparison fails, date filter might be inaccurate.
     }
 
-    const cacheKey = `purchases:invoices:${from || "all"}:${to || "all"}:${invoiceNumber || "all"}:p=${page}:lim=${limit}`;
+    // Use cache with version v4 to force refresh
+    const cacheKey = `purchases:invoices:v4:${from || "all"}:${to || "all"}:${invoiceNumber || "all"}:p=${page}:lim=${limit}`;
     const { list, total } = await withCache(cacheKey, 30, async () => {
       // 1. Get Distinct Invoices (Paginated)
-      // Note: distinct count is not directly supported by count(), so we estimate or use groupBy for count
       const distinctInvoices = await prisma.supplierPurchaseMeta.findMany({
         where: metaWhere,
         distinct: ['invoiceNumber'],
@@ -64,14 +64,14 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
           where: { invoiceNumber: { in: invoiceNumbers }, tenantId },
           select: { invoiceNumber: true, purchaseId: true }
       });
+
       const allInvoicePurchaseIds = allInvoiceMetas.map((m: any) => m.purchaseId);
       
       const allInvoicePurchases = await prisma.purchases.findMany({
           where: { purchaseId: { in: allInvoicePurchaseIds }, tenantId },
-          select: { purchaseId: true, totalCost: true, unitCost: true, quantity: true, productId: true, timestamp: true }
+          select: { purchaseId: true, totalCost: true, unitCost: true, quantity: true, productId: true, timestamp: true, expiryDate: true }
       });
 
-      // Fetch product details efficiently
       const productIds = Array.from(new Set(allInvoicePurchases.map((p: any) => p.productId)));
       const products = await prisma.products.findMany({
         where: { productId: { in: productIds }, tenantId },
@@ -91,23 +91,36 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
           const pIds = allInvoiceMetas.filter((m: any) => m.invoiceNumber === invNum).map((m: any) => m.purchaseId);
           const relatedPurchases = allInvoicePurchases.filter((p: any) => pIds.includes(p.purchaseId));
           
-          // Sort to ensure deterministic representative
           relatedPurchases.sort((a: any, b: any) => a.purchaseId.localeCompare(b.purchaseId));
 
-          const items = relatedPurchases.map((p: any) => ({
-            purchaseId: p.purchaseId,
-            productId: p.productId,
-            productName: productMap.get(p.productId) || "Unknown Product",
-            quantity: Number(p.quantity),
-            unitCost: Number(p.unitCost),
-            totalCost: Number(p.totalCost)
-          }));
+          const items = relatedPurchases.map((p: any) => {
+            const quantity = Number(p.quantity) || 1;
+            // Robust calculation logic matching reportController
+            let unitCost = Number(p.unitCost || 0);
+            let totalCost = Number(p.totalCost || 0);
 
-          const totalCost = relatedPurchases.reduce((sum: number, p: any) => sum + Number(p.totalCost), 0);
-          const totalQuantity = relatedPurchases.reduce((sum: number, p: any) => sum + Number(p.quantity), 0);
+            if (totalCost === 0 && unitCost > 0) {
+              totalCost = unitCost * quantity;
+            }
+            if (unitCost === 0 && totalCost > 0 && quantity > 0) {
+              unitCost = totalCost / quantity;
+            }
+
+            return {
+              purchaseId: p.purchaseId,
+              productId: p.productId,
+              productName: productMap.get(p.productId) || p.productId || "Unknown Product (Fixed)",
+              quantity,
+              unitCost,
+              totalCost,
+              expiryDate: p.expiryDate ? new Date(p.expiryDate).toISOString() : undefined
+            };
+          });
+
+          const totalCost = items.reduce((sum, item) => sum + (item.totalCost || 0), 0);
+          const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
           const totalPaid = allInvoicePayments.filter((p: any) => pIds.includes(p.purchaseId)).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
           
-          // Use the first purchase as representative for ID and timestamp
           const rep = relatedPurchases[0] || {};
           
           invoiceStats.set(invNum, { 
@@ -123,7 +136,7 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
       const pageList = distinctInvoices.map(meta => {
         const stats = meta.invoiceNumber ? invoiceStats.get(meta.invoiceNumber) : undefined;
         return {
-          purchaseId: stats?.purchaseId || "", // Representative ID
+          purchaseId: stats?.purchaseId || "", 
           items: stats?.items || [],
           quantity: stats?.totalQuantity || 0,
           totalCost: stats?.totalCost || 0,
@@ -138,7 +151,7 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
         };
       });
 
-      // Manual deduplication to ensure no duplicate invoice numbers appear
+      // Manual deduplication
       const uniquePageList: typeof pageList = [];
       const seenInvoices = new Set<string>();
       
@@ -240,7 +253,7 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
       invoiceNumber = `PUR-${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${timestamp}`;
     }
 
-    const created: Array<{ purchaseId: string; productId: string; productName: string; quantity: number; unitCost: number; totalCost: number; timestamp: Date }> = [];
+    const created: Array<{ purchaseId: string; productId: string; productName: string; quantity: number; unitCost: number; totalCost: number; timestamp: Date; expiryDate?: Date }> = [];
     for (const it of items) {
       const quantity = Math.max(1, Number(it.quantity) || 1);
       const unitCost = Math.max(0, Number(it.unitCost) || 0);
@@ -276,7 +289,7 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
 
       const purchaseId = randomUUID();
       const totalCost = unitCost * quantity;
-      await prisma.purchases.create({ data: { purchaseId, productId, timestamp: date, quantity, unitCost, totalCost, tenantId } });
+      await prisma.purchases.create({ data: { purchaseId, productId, timestamp: date, quantity, unitCost, totalCost, expiryDate: it.expiryDate ? new Date(it.expiryDate) : undefined, tenantId } });
       // Persist supplier-side metadata for UI enrichment
       await upsertSupplierMeta({
         purchaseId,
@@ -289,7 +302,7 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
         dueDate: dueDate ?? null,
         unit: it.unit,
       });
-      created.push({ purchaseId, productId, productName: p.name, quantity, unitCost, totalCost, timestamp: date });
+      created.push({ purchaseId, productId, productName: p.name, quantity, unitCost, totalCost, timestamp: date, expiryDate: it.expiryDate ? new Date(it.expiryDate) : undefined });
       // Notify: purchase item created
       appendNotification({ type: "purchase", message: `Purchased ${quantity} ${it.unit} of '${p.name}' for ₦${totalCost.toLocaleString("en")}`, tenantId, actorUserId: req.user?.userId });
     }
@@ -515,6 +528,7 @@ export const updatePurchase = async (req: Request, res: Response): Promise<void>
         quantity: newQty,
         unitCost: nextUnitCost !== undefined ? nextUnitCost : existing.unitCost,
         totalCost: (nextUnitCost !== undefined ? nextUnitCost : existing.unitCost) * newQty,
+        expiryDate: nextExpiryDate ? new Date(nextExpiryDate) : undefined,
       },
     });
 
