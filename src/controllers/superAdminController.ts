@@ -237,6 +237,7 @@ export const deleteOrg = async (req: Request, res: Response): Promise<void> => {
     ]);
     res.json({ success: true });
   } catch (err) {
+    console.error("Error deleting organization:", err);
     res.status(500).json(createErrorResponse(err, "Failed to delete organization"));
   }
 };
