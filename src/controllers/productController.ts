@@ -83,6 +83,7 @@ export const getProducts = async (
     PRODUCT_SEARCH_CACHE.set(cacheKey, { ts: now, data: products });
     res.json(products);
   } catch (err) {
+    console.error("Error retrieving products:", err);
     res.status(500).json(createErrorResponse(err, "product", "Error retrieving products"));
   }
 };
