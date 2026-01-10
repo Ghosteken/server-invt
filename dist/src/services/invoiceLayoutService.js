@@ -7,7 +7,9 @@ exports.readInvoiceLayout = readInvoiceLayout;
 exports.writeInvoiceLayout = writeInvoiceLayout;
 const node_fs_1 = __importDefault(require("node:fs"));
 const node_path_1 = __importDefault(require("node:path"));
-const LAYOUT_PATH = node_path_1.default.join(__dirname, "../../prisma/seedData/invoiceLayout.json");
+const prisma_1 = __importDefault(require("../db/prisma"));
+// Base path for all layout files
+const DATA_DIR = node_path_1.default.join(__dirname, "../../prisma/seedData");
 const DEFAULT_LAYOUT = {
     template: "standard",
     header: {
@@ -23,44 +25,86 @@ const DEFAULT_LAYOUT = {
     logo: { url: null, position: "left" },
     showTotals: true,
 };
-let cache = null;
-let flushTimer = null;
+// In-memory cache: tenantId -> InvoiceLayout
+const cache = new Map();
+// Flush timers: tenantId -> Timeout
+const flushTimers = new Map();
 const FLUSH_DELAY_MS = 500;
 function ensureDir() {
-    const dir = node_path_1.default.dirname(LAYOUT_PATH);
-    if (!node_fs_1.default.existsSync(dir))
-        node_fs_1.default.mkdirSync(dir, { recursive: true });
+    if (!node_fs_1.default.existsSync(DATA_DIR))
+        node_fs_1.default.mkdirSync(DATA_DIR, { recursive: true });
 }
-function readInvoiceLayout() {
+function getFilePath(tenantId) {
+    // Sanitize tenantId to avoid path traversal
+    const safeId = tenantId.replace(/[^a-zA-Z0-9-]/g, "");
+    // Fallback for legacy global file if tenant is "default" or missing
+    if (!safeId || safeId === "default")
+        return node_path_1.default.join(DATA_DIR, "invoiceLayout.json");
+    return node_path_1.default.join(DATA_DIR, `invoiceLayout_${safeId}.json`);
+}
+async function readInvoiceLayout(tenantId) {
     try {
-        if (cache)
-            return cache;
+        if (cache.has(tenantId))
+            return cache.get(tenantId);
         ensureDir();
-        if (!node_fs_1.default.existsSync(LAYOUT_PATH)) {
-            cache = DEFAULT_LAYOUT;
-            return cache;
+        const filePath = getFilePath(tenantId);
+        if (!node_fs_1.default.existsSync(filePath)) {
+            // Dynamic Default: Fetch Organization Name
+            let businessName = DEFAULT_LAYOUT.header?.businessName;
+            if (tenantId && tenantId !== "default") {
+                try {
+                    const org = await prisma_1.default.organizations.findUnique({ where: { id: tenantId } });
+                    if (org)
+                        businessName = org.name;
+                }
+                catch { }
+            }
+            const defaults = {
+                ...DEFAULT_LAYOUT,
+                header: { ...DEFAULT_LAYOUT.header, businessName }
+            };
+            cache.set(tenantId, defaults);
+            return defaults;
         }
-        const raw = node_fs_1.default.readFileSync(LAYOUT_PATH, "utf-8");
+        const raw = node_fs_1.default.readFileSync(filePath, "utf-8");
         const data = JSON.parse(raw || "{}");
-        cache = { ...DEFAULT_LAYOUT, ...(data || {}) };
-        return cache;
+        const merged = { ...DEFAULT_LAYOUT, ...(data || {}) };
+        // Deep merge header/footer to preserve defaults for missing fields
+        if (data.header)
+            merged.header = { ...DEFAULT_LAYOUT.header, ...data.header };
+        if (data.footer)
+            merged.footer = { ...DEFAULT_LAYOUT.footer, ...data.footer };
+        cache.set(tenantId, merged);
+        return merged;
     }
     catch {
-        cache = DEFAULT_LAYOUT;
-        return cache;
+        return DEFAULT_LAYOUT;
     }
 }
-function writeInvoiceLayout(next) {
-    cache = { ...DEFAULT_LAYOUT, ...(next || {}) };
+function writeInvoiceLayout(tenantId, next) {
+    // Merge with existing to ensure partial updates don't wipe data
+    const current = cache.get(tenantId) || DEFAULT_LAYOUT;
+    const merged = { ...current, ...next };
+    if (next.header)
+        merged.header = { ...current.header, ...next.header };
+    if (next.footer)
+        merged.footer = { ...current.footer, ...next.footer };
+    if (next.logo)
+        merged.logo = { ...current.logo, ...next.logo };
+    cache.set(tenantId, merged);
     ensureDir();
-    if (flushTimer)
-        clearTimeout(flushTimer);
-    flushTimer = setTimeout(() => {
+    const timer = flushTimers.get(tenantId);
+    if (timer)
+        clearTimeout(timer);
+    const newTimer = setTimeout(() => {
         try {
-            node_fs_1.default.writeFileSync(LAYOUT_PATH, JSON.stringify(cache, null, 2), "utf-8");
+            const filePath = getFilePath(tenantId);
+            node_fs_1.default.writeFileSync(filePath, JSON.stringify(merged, null, 2), "utf-8");
+            flushTimers.delete(tenantId);
         }
         catch {
             // ignore write errors
         }
     }, FLUSH_DELAY_MS);
+    flushTimers.set(tenantId, newTimer);
 }
