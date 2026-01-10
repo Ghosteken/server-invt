@@ -155,10 +155,12 @@ router.put("/features/:userId", async (req, res) => {
         res.status(500).json({ message: "Failed to write features" });
     }
 });
-// Invoice layout settings (global)
-router.get("/invoice-layout", async (_req, res) => {
+// Invoice layout settings (tenant-aware)
+router.get("/invoice-layout", async (req, res) => {
     try {
-        const layout = (0, invoiceLayoutService_1.readInvoiceLayout)();
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
+        const layout = await (0, invoiceLayoutService_1.readInvoiceLayout)(tenantId);
         res.json(layout);
     }
     catch (err) {
@@ -167,10 +169,12 @@ router.get("/invoice-layout", async (_req, res) => {
 });
 router.put("/invoice-layout", async (req, res) => {
     try {
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const Body = zod_1.z.object({}).passthrough();
         const layout = Body.parse(req.body);
-        (0, invoiceLayoutService_1.writeInvoiceLayout)(layout);
-        res.json((0, invoiceLayoutService_1.readInvoiceLayout)());
+        (0, invoiceLayoutService_1.writeInvoiceLayout)(tenantId, layout);
+        res.json(await (0, invoiceLayoutService_1.readInvoiceLayout)(tenantId));
     }
     catch (err) {
         if (err instanceof zod_1.ZodError) {
@@ -180,10 +184,12 @@ router.put("/invoice-layout", async (req, res) => {
         res.status(500).json({ message: "Failed to save invoice layout" });
     }
 });
-// Financial report layout settings (global)
-router.get("/financial-layout", async (_req, res) => {
+// Financial report layout settings (tenant-aware)
+router.get("/financial-layout", async (req, res) => {
     try {
-        const layout = (0, financialLayoutService_1.readFinancialLayout)();
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
+        const layout = (0, financialLayoutService_1.readFinancialLayout)(tenantId);
         res.json(layout);
     }
     catch (err) {
@@ -192,10 +198,12 @@ router.get("/financial-layout", async (_req, res) => {
 });
 router.put("/financial-layout", async (req, res) => {
     try {
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
         const Body = zod_1.z.object({}).passthrough();
         const layout = Body.parse(req.body);
-        (0, financialLayoutService_1.writeFinancialLayout)(layout);
-        res.json((0, financialLayoutService_1.readFinancialLayout)());
+        (0, financialLayoutService_1.writeFinancialLayout)(tenantId, layout);
+        res.json((0, financialLayoutService_1.readFinancialLayout)(tenantId));
     }
     catch (err) {
         if (err instanceof zod_1.ZodError) {
