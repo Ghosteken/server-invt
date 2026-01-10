@@ -397,7 +397,7 @@ export const getInvoiceById = async (req: Request, res: Response): Promise<void>
   try {
     const { id } = req.params;
     const tenantId = req.tenantId || req.user?.tenantId || "default";
-    const inv = await prisma.invoices.findFirst({ where: { invoiceId: id, tenantId }, include: { items: true, payments: true } });
+    const inv = await prisma.invoices.findFirst({ where: { invoiceId: id, tenantId }, include: { items: { include: { product: true } }, payments: true, customer: true } });
     if (!inv) {
       res.status(404).json({ message: "Invoice not found" });
       return;
@@ -405,7 +405,7 @@ export const getInvoiceById = async (req: Request, res: Response): Promise<void>
     const paymentsSum = inv.payments.reduce((acc: number, p: any) => acc + p.amount, 0);
     const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
     const meta = await getInvoiceMeta(inv.invoiceId);
-    res.json({ ...inv, status, invoiceNumber: meta?.invoiceNumber || undefined });
+    res.json({ ...inv, status, invoiceNumber: meta?.invoiceNumber || undefined, customerName: inv.customer?.name });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "invoice", "Failed to load invoice"));
   }

@@ -154,10 +154,12 @@ router.put("/features/:userId", async (req, res) => {
   }
 });
 
-// Invoice layout settings (global)
-router.get("/invoice-layout", async (_req, res) => {
+// Invoice layout settings (tenant-aware)
+router.get("/invoice-layout", async (req, res) => {
   try {
-    const layout = readInvoiceLayout();
+    const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+    const tenantId = headerTenant || (req as any).tenantId || (req as any).user?.tenantId || "default";
+    const layout = await readInvoiceLayout(tenantId);
     res.json(layout);
   } catch (err) {
     res.status(500).json({ message: "Failed to read invoice layout" });
@@ -166,10 +168,12 @@ router.get("/invoice-layout", async (_req, res) => {
 
 router.put("/invoice-layout", async (req, res) => {
   try {
+    const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+    const tenantId = headerTenant || (req as any).tenantId || (req as any).user?.tenantId || "default";
     const Body = z.object({}).passthrough();
     const layout = Body.parse(req.body);
-    writeInvoiceLayout(layout);
-    res.json(readInvoiceLayout());
+    writeInvoiceLayout(tenantId, layout);
+    res.json(await readInvoiceLayout(tenantId));
   } catch (err) {
     if (err instanceof ZodError) {
       res.status(400).json({ message: "Invalid input", errors: err.issues });
@@ -179,10 +183,12 @@ router.put("/invoice-layout", async (req, res) => {
   }
 });
 
-// Financial report layout settings (global)
-router.get("/financial-layout", async (_req, res) => {
+// Financial report layout settings (tenant-aware)
+router.get("/financial-layout", async (req, res) => {
   try {
-    const layout = readFinancialLayout();
+    const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+    const tenantId = headerTenant || (req as any).tenantId || (req as any).user?.tenantId || "default";
+    const layout = readFinancialLayout(tenantId);
     res.json(layout);
   } catch (err) {
     res.status(500).json({ message: "Failed to read financial layout" });
@@ -191,10 +197,12 @@ router.get("/financial-layout", async (_req, res) => {
 
 router.put("/financial-layout", async (req, res) => {
   try {
+    const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+    const tenantId = headerTenant || (req as any).tenantId || (req as any).user?.tenantId || "default";
     const Body = z.object({}).passthrough();
     const layout = Body.parse(req.body);
-    writeFinancialLayout(layout);
-    res.json(readFinancialLayout());
+    writeFinancialLayout(tenantId, layout);
+    res.json(readFinancialLayout(tenantId));
   } catch (err) {
     if (err instanceof ZodError) {
       res.status(400).json({ message: "Invalid input", errors: err.issues });
