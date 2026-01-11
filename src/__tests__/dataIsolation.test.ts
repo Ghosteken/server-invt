@@ -64,6 +64,12 @@ const prismaMock = {
     delete: jest.fn(),
     count: jest.fn(),
   },
+  featureFlags: {
+    findUnique: jest.fn(),
+  },
+  userPermissions: {
+    findUnique: jest.fn(),
+  },
 } as any;
 
 // Mock Prisma module
@@ -108,6 +114,10 @@ describe("Data Isolation Security Tests", () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // Mock Feature Flags to be enabled for all tests
+    prismaMock.featureFlags.findUnique.mockResolvedValue({
+      features: ["inventory", "customers", "invoices", "purchases", "expenses", "products", "reports", "customerGroups"],
+    });
   });
 
   describe("Product Controller Data Isolation", () => {
