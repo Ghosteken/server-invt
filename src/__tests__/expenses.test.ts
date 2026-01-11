@@ -41,6 +41,11 @@ jest.mock("../middleware/authMiddleware", () => ({
   requireAdmin: (req: any, res: any, next: any) => next(),
 }));
 
+// Mock permission middleware
+jest.mock("../middleware/permissionMiddleware", () => ({
+  requirePermission: (module: string, action: string) => (req: any, res: any, next: any) => next(),
+}));
+
 import createApp from "../app";
 
 describe("Expense Status Logic", () => {

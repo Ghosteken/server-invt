@@ -330,6 +330,17 @@ model FeatureFlags {
   @@map("tenant_features")
 }
 
+model UserPermissions {
+  id        String   @id
+  tenantId  String   @default("default")
+  userId    String
+  permissions Json
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, userId])
+  @@map("user_permissions")
+}
+
 model InvoiceMeta {
   id            String   @id
   tenantId      String   @default("default")
