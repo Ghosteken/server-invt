@@ -34,6 +34,7 @@ import locationRoutes from "./routes/locationRoutes";
 import contactRoutes from "./routes/contactRoutes";
 import superAdminRoutes from "./routes/superAdminRoutes";
 import aiRoutes from "./routes/aiRoutes";
+import permissionRoutes from "./routes/permissionRoutes";
 import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
 
@@ -159,6 +160,7 @@ apiRouter.use("/locations", locationRoutes);
 apiRouter.use("/contact", contactRoutes);
 apiRouter.use("/super-admin", superAdminRoutes);
 apiRouter.use("/ai", aiRoutes);
+apiRouter.use("/permissions", permissionRoutes);
 
 // Mount API v1
 app.use("/api/v1", apiRouter);
