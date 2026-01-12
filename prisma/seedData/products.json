@@ -1,36 +1,18 @@
 [
   {
-    "productId": "aa05cf46-47ed-4121-88a9-fd7404ce99bc",
-    "name": "Ben",
-    "price": 10,
-    "stockQuantity": 15,
-    "category": "clothes",
-    "packSize": null,
-    "barcode": null
-  },
-  {
     "productId": "3aee90de-53de-45bf-b293-06a65fc4fe98",
     "name": "didi",
     "price": 50,
-    "stockQuantity": 0,
+    "stockQuantity": 1,
     "category": "oilford",
     "packSize": "12",
     "barcode": "8724021"
   },
   {
-    "productId": "251203a2-8717-4651-b18e-e05f7e212d10",
-    "name": "duu",
-    "price": 220,
-    "stockQuantity": 12,
-    "category": null,
-    "packSize": null,
-    "barcode": null
-  },
-  {
     "productId": "3022e673-9b84-4f9b-8f70-431c6fbfe6bc",
     "name": "Product 1",
     "price": 1574.95,
-    "stockQuantity": 175,
+    "stockQuantity": 325,
     "category": "Dairy",
     "packSize": "Pack",
     "barcode": "890000000001"
@@ -57,7 +39,7 @@
     "productId": "729a64ed-414a-4944-afb9-627f1c42e803",
     "name": "Product 101",
     "price": 5131.98,
-    "stockQuantity": 174,
+    "stockQuantity": 164,
     "category": "Personal Care",
     "packSize": "250g",
     "barcode": "890000000101"
@@ -102,7 +84,7 @@
     "productId": "e3c351cc-66f9-4e73-a292-24132145f778",
     "name": "Product 106",
     "price": 2064.18,
-    "stockQuantity": 304,
+    "stockQuantity": 298,
     "category": "Personal Care",
     "packSize": "100g",
     "barcode": "890000000106"
@@ -225,15 +207,6 @@
     "barcode": "890000000118"
   },
   {
-    "productId": "b0a03c79-da05-4303-b1bf-c4fef67724a9",
-    "name": "Product 119",
-    "price": 1791.78,
-    "stockQuantity": 77,
-    "category": "Personal Care",
-    "packSize": "1kg",
-    "barcode": "890000000119"
-  },
-  {
     "productId": "eca2ab02-c87e-4ff2-ba98-0110609f5f63",
     "name": "Product 12",
     "price": 1379.71,
@@ -273,7 +246,7 @@
     "productId": "237822c8-8045-4412-b93b-a58f971e4d45",
     "name": "Product 123",
     "price": 822.32,
-    "stockQuantity": 297,
+    "stockQuantity": 293,
     "category": "Groceries",
     "packSize": "1L",
     "barcode": "890000000123"
@@ -2741,15 +2714,6 @@
     "price": 1000,
     "stockQuantity": 10,
     "category": "Groceries",
-    "packSize": null,
-    "barcode": null
-  },
-  {
-    "productId": "c9a7674c-a9db-4212-bcd2-6bb010dbb9b4",
-    "name": "soms",
-    "price": 1000,
-    "stockQuantity": 9,
-    "category": null,
     "packSize": null,
     "barcode": null
   }
