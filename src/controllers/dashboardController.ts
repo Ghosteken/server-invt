@@ -84,17 +84,52 @@ export const getDashboardMetrics = async (
         }
       ),
       withCache(`t=${tenantId}:metrics:inventoryValue`, 60, async () => {
-        const productsBasic = await prisma.products.findMany({ where: { tenantId, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
-        return productsBasic.reduce((sum: number, p: { price: unknown; stockQuantity: number }) => sum + (Number(p.price) * p.stockQuantity), 0);
+        // Optimization: Use DB aggregation instead of loading all rows into memory
+        // This moves the O(N) calculation from Node.js (RAM heavy) to Postgres (Optimized)
+        const result = await prisma.$queryRaw<Array<{ total: number }>>`
+          SELECT SUM("price" * "stockQuantity") as total
+          FROM "Products"
+          WHERE "tenantId" = ${tenantId} AND "stockQuantity" > 0
+        `;
+        return Number(result?.[0]?.total || 0);
       }),
       withCache(`t=${tenantId}:metrics:inventoryValuePcs:${LOW_STOCK_THRESHOLD}`, 60, async () => {
         const pcs = await readPcsInventory(tenantId);
         const inStock = pcs.filter((e: any) => Number(e.quantity || 0) > 0);
         if (!inStock.length) return 0;
-        const products = await prisma.products.findMany({
-          where: { tenantId },
-          select: { productId: true, name: true, price: true, packSize: true },
-        });
+
+        // Optimization: Fetch only relevant products if the list is small enough
+        // If we have too many PCS items, fetching all products is more efficient than a massive OR query
+        const THRESHOLD_FOR_FULL_FETCH = 500;
+        
+        let products: Array<{ productId: string; name: string; price: unknown; packSize?: string | null }> = [];
+
+        if (inStock.length > THRESHOLD_FOR_FULL_FETCH) {
+           products = await prisma.products.findMany({
+            where: { tenantId },
+            select: { productId: true, name: true, price: true, packSize: true },
+          });
+        } else {
+           const productIds = inStock.map(e => e.productId).filter(id => id && typeof id === 'string') as string[];
+           const names = inStock.map(e => e.name).filter(n => n && typeof n === 'string') as string[];
+           const uniqueIds = Array.from(new Set(productIds));
+           const uniqueNames = Array.from(new Set(names));
+           
+           if (uniqueIds.length > 0 || uniqueNames.length > 0) {
+             products = await prisma.products.findMany({
+               where: { 
+                 tenantId,
+                 OR: [
+                   ...(uniqueIds.length ? [{ productId: { in: uniqueIds } }] : []),
+                   // Use multiple OR conditions for case-insensitive name matching
+                   ...uniqueNames.map(n => ({ name: { equals: n, mode: 'insensitive' as const } }))
+                 ]
+               },
+               select: { productId: true, name: true, price: true, packSize: true },
+             });
+           }
+        }
+
         const byId = new Map<string, { price: number; packSize?: string | null; name: string }>();
         const byName = new Map<string, { price: number; packSize?: string | null; name: string }>();
         for (const p of products) {
