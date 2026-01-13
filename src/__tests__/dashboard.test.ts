@@ -35,7 +35,11 @@ jest.mock('@prisma/client', () => {
     },
     customers: {
       findMany: jest.fn().mockResolvedValue([]),
-    }
+    },
+    pcsInventory: {
+      count: jest.fn().mockResolvedValue(3),
+    },
+    $queryRaw: jest.fn().mockResolvedValue([{ total: 90, count: 5 }]),
   };
   return { PrismaClient: jest.fn().mockImplementation(() => m) };
 });
