@@ -261,15 +261,6 @@
     "barcode": "890000000124"
   },
   {
-    "productId": "2e6a25a4-b22f-48ae-8642-da8879d02a64",
-    "name": "Product 125",
-    "price": 1094.73,
-    "stockQuantity": 409,
-    "category": "Dairy",
-    "packSize": "100g",
-    "barcode": "890000000125"
-  },
-  {
     "productId": "e9ec558a-9615-4866-abf1-09458534826b",
     "name": "Product 126",
     "price": 3902.58,

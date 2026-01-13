@@ -48,38 +48,38 @@ export const getDashboardMetrics = async (
         `t=${tenantId}:metrics:pcs-and-combined:${LOW_STOCK_THRESHOLD}`,
         60,
         async () => {
-          const pcs = await readPcsInventory(tenantId);
-          const pcsInStock = pcs.filter((e: any) => Number(e.quantity || 0) > 0);
-          const pcsInventoryCountLocal = pcsInStock.length;
-          const lowPcsCountLocal = pcsInStock.filter((e: any) => Number(e.quantity || 0) <= LOW_STOCK_THRESHOLD).length;
-          // Build union of names: CTN in-stock + PCS in-stock
-          const ctnInStock = await prisma.products.findMany({
-            where: { tenantId, ...nonInventoryFilter },
-            select: { name: true, stockQuantity: true },
-          });
-          const nameSet = new Set<string>();
-          for (const p of ctnInStock) nameSet.add(String(p.name).toLowerCase());
-          for (const e of pcsInStock) nameSet.add(String(e.name || "").toLowerCase());
-          const combinedCountLocal = nameSet.size;
-          // Combined low-stock: union of names with CTN 1..T OR PCS 1..T
-          const ctnLow = await prisma.products.findMany({
-            where: { tenantId, stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
-            select: { name: true },
-          });
-          const lowNameSet = new Set<string>();
-          for (const p of ctnLow) lowNameSet.add(String(p.name).toLowerCase());
-          for (const e of pcsInStock) {
-            const q = Number(e.quantity || 0);
-            if (q > 0 && q <= LOW_STOCK_THRESHOLD) {
-              lowNameSet.add(String(e.name || "").toLowerCase());
-            }
-          }
-          const combinedLowLocal = lowNameSet.size;
+          // Optimization: Use SQL for counts to avoid loading thousands of rows
+          const [pcsInventoryCount, lowStockPcsCount] = await Promise.all([
+            prisma.pcsInventory.count({ where: { tenantId, quantity: { gt: 0 } } }),
+            prisma.pcsInventory.count({ where: { tenantId, quantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } } })
+          ]);
+
+          // Optimization: Use SQL UNION for unique name counting
+          const combinedCountResult = await prisma.$queryRaw<Array<{ count: bigint }>>`
+             SELECT COUNT(DISTINCT LOWER(name)) as count
+             FROM (
+                 SELECT name FROM "Products" WHERE "tenantId" = ${tenantId} AND "stockQuantity" > 0
+                 UNION ALL
+                 SELECT name FROM "pcs_inventory" WHERE "tenantId" = ${tenantId} AND "quantity" > 0
+             ) as combined
+          `;
+          const combinedInventoryCount = Number(combinedCountResult?.[0]?.count || 0);
+
+          const combinedLowResult = await prisma.$queryRaw<Array<{ count: bigint }>>`
+             SELECT COUNT(DISTINCT LOWER(name)) as count
+             FROM (
+                 SELECT name FROM "Products" WHERE "tenantId" = ${tenantId} AND "stockQuantity" > 0 AND "stockQuantity" <= ${LOW_STOCK_THRESHOLD}
+                 UNION ALL
+                 SELECT name FROM "pcs_inventory" WHERE "tenantId" = ${tenantId} AND "quantity" > 0 AND "quantity" <= ${LOW_STOCK_THRESHOLD}
+             ) as combined
+          `;
+          const combinedLowStockCount = Number(combinedLowResult?.[0]?.count || 0);
+
           return {
-            pcsInventoryCount: pcsInventoryCountLocal,
-            lowStockPcsCount: lowPcsCountLocal,
-            combinedInventoryCount: combinedCountLocal,
-            combinedLowStockCount: combinedLowLocal,
+            pcsInventoryCount,
+            lowStockPcsCount,
+            combinedInventoryCount,
+            combinedLowStockCount,
           };
         }
       ),
