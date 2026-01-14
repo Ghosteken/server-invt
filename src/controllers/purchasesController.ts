@@ -10,6 +10,34 @@ import multer from "multer";
 import { createErrorResponse } from "../utils/errorHandler";
 export const upload = multer({ storage: multer.memoryStorage() });
 
+const CTNX_UNITS = [
+  "ctnx24",
+  "ctnx30",
+  "ctnx20",
+  "ctnx26",
+  "ctnx48",
+  "ctnx9",
+  "ctnx96",
+  "ctnx14",
+  "ctnx12",
+  "ctnx16",
+  "ctnx50",
+  "ctnx4",
+  "ctnx8",
+  "ctnx10",
+  "ctnx18",
+  "ctnx28",
+] as const;
+
+const ALLOWED_UNITS = new Set<string>(["ctn", "pcs", ...CTNX_UNITS]);
+
+function parseCtnxMultiplier(unit: string): number | null {
+  const m = /^ctnx(\d+)$/i.exec(String(unit || "").trim());
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
 // GET /purchases - list all customer purchases with joined names
 // GET /purchases - list all procurement purchases (supplier-side)
 export const getPurchases = async (req: Request, res: Response): Promise<void> => {
@@ -243,7 +271,7 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
       const paymentTerm: string | undefined = body.paymentTerm ? String(body.paymentTerm) : undefined;
       const dueDate: string | undefined = body.dueDate ? String(body.dueDate) : undefined;
       let invoiceNumber: string | undefined = body.invoiceNumber ? String(body.invoiceNumber) : undefined;
-    const items: Array<{ productId?: string; name?: string; unit: "ctn"|"pcs"; quantity: number; unitCost: number; expiryDate?: string }> = Array.isArray(body.items) ? body.items : [];
+    const items: Array<{ productId?: string; name?: string; unit?: string; quantity: number; unitCost?: number; expiryDate?: string; pcsPurchasePrice?: number }> = Array.isArray(body.items) ? body.items : [];
     if (!items.length) {
       res.status(400).json({ message: "No items provided" });
       return;
@@ -256,9 +284,17 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
     }
 
     const created: Array<{ purchaseId: string; productId: string; productName: string; quantity: number; unitCost: number; totalCost: number; timestamp: Date; expiryDate?: Date }> = [];
+    const pcsPriceUpserts = new Map<string, { productId: string; name: string; pcsPurchasePrice: number; packSize?: string | null }>();
     for (const it of items) {
       const quantity = Math.max(1, Number(it.quantity) || 1);
-      const unitCost = Math.max(0, Number(it.unitCost) || 0);
+      const unitCostProvided = it.unitCost !== undefined && it.unitCost !== null && !isNaN(Number(it.unitCost));
+      let unitCost = unitCostProvided ? Math.max(0, Number(it.unitCost) || 0) : 0;
+      const unit = String(it.unit || "").trim().toLowerCase();
+      if (!ALLOWED_UNITS.has(unit)) {
+        res.status(400).json({ message: `Invalid unit: ${String(it.unit)}` });
+        return;
+      }
+      const multiplier = parseCtnxMultiplier(unit);
       let productId = it.productId || "";
       let name = it.name || "";
       if (!productId && name) {
@@ -276,17 +312,49 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
         return;
       }
 
+      const explicitPcsPurchasePrice = it.pcsPurchasePrice !== undefined && it.pcsPurchasePrice !== null && !isNaN(Number(it.pcsPurchasePrice))
+        ? Math.max(0, Number(it.pcsPurchasePrice) || 0)
+        : undefined;
+      if (explicitPcsPurchasePrice !== undefined) {
+        pcsPriceUpserts.set(String(p.name || "").toLowerCase(), {
+          productId: p.productId,
+          name: p.name,
+          pcsPurchasePrice: explicitPcsPurchasePrice,
+          packSize: p.packSize ?? null,
+        });
+      }
+      const pcsRow = await prisma.pcsInventory.findUnique({ where: { tenantId_name: { tenantId, name: p.name } }, select: { purchasePrice: true } });
+      const pack = Number(String(p.packSize || "").replace(/\D+/g, "")) || 0;
+      const derivedPcsCost = p.purchasePrice != null && pack > 0 ? Number(p.purchasePrice) / Math.max(pack, 1) : undefined;
+      const basePcsCost = explicitPcsPurchasePrice ?? (pcsRow?.purchasePrice ?? undefined) ?? derivedPcsCost;
+
+      if (!unitCostProvided) {
+        if (unit === "pcs") {
+          if (basePcsCost === undefined) {
+            res.status(400).json({ message: `Missing PCS purchase price for: ${p.name}` });
+            return;
+          }
+          unitCost = basePcsCost;
+        } else if (multiplier !== null) {
+          if (basePcsCost === undefined) {
+            res.status(400).json({ message: `Missing PCS purchase price for: ${p.name}` });
+            return;
+          }
+          unitCost = basePcsCost * multiplier;
+        }
+      }
+
       // Adjust stock: purchases add to stock; handle cartons and pcs
-      if (it.unit === "ctn") {
-        const newQty = Math.max(0, Number(p.stockQuantity) + quantity);
-        await prisma.products.update({ where: { productId }, data: { stockQuantity: newQty, expiryDate: it.expiryDate ? new Date(it.expiryDate) : p.expiryDate } });
-      } else {
+      if (unit === "pcs") {
         // pcs: adjust pcs inventory positively
         await adjustPcsQuantity({ name: p.name, delta: quantity });
         // Optionally update expiryDate on product for reference
         if (it.expiryDate) {
           await prisma.products.update({ where: { productId }, data: { expiryDate: new Date(it.expiryDate) } });
         }
+      } else {
+        const newQty = Math.max(0, Number(p.stockQuantity) + quantity);
+        await prisma.products.update({ where: { productId }, data: { stockQuantity: newQty, expiryDate: it.expiryDate ? new Date(it.expiryDate) : p.expiryDate } });
       }
 
       const purchaseId = randomUUID();
@@ -302,12 +370,36 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
         paymentTerm: paymentTerm ?? null,
         date: date.toISOString(),
         dueDate: dueDate ?? null,
-        unit: it.unit,
+        unit,
       });
       created.push({ purchaseId, productId, productName: p.name, quantity, unitCost, totalCost, timestamp: date, expiryDate: it.expiryDate ? new Date(it.expiryDate) : undefined });
       // Notify: purchase item created
       const label = invoiceNumber ? `invoice #${invoiceNumber}` : `purchase of ${p.name}`;
-      appendNotification({ type: "purchase", message: `Created ${label} (${quantity} ${it.unit})`, tenantId, actorUserId: req.user?.userId });
+      appendNotification({ type: "purchase", message: `Created ${label} (${quantity} ${unit})`, tenantId, actorUserId: req.user?.userId });
+    }
+
+    if (pcsPriceUpserts.size) {
+      for (const up of pcsPriceUpserts.values()) {
+        const prev = await prisma.pcsInventory.findUnique({ where: { tenantId_name: { tenantId, name: up.name } } });
+        const qty = prev?.quantity ?? 0;
+        await prisma.pcsInventory.upsert({
+          where: { tenantId_name: { tenantId, name: up.name } },
+          create: {
+            id: randomUUID(),
+            tenantId,
+            name: up.name,
+            quantity: qty,
+            productId: up.productId,
+            packSize: up.packSize ?? null,
+            purchasePrice: up.pcsPurchasePrice,
+          },
+          update: {
+            productId: up.productId,
+            packSize: up.packSize ?? null,
+            purchasePrice: up.pcsPurchasePrice,
+          },
+        });
+      }
     }
 
     try {

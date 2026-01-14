@@ -7,6 +7,29 @@ import { getInvoiceMeta, upsertInvoiceMeta, removeInvoiceMeta } from "../service
 import { adjustPcsQuantity } from "../services/pcsInventoryService";
 import { createErrorResponse } from "../utils/errorHandler";
 
+const CTNX_UNITS = [
+  "ctnx24",
+  "ctnx30",
+  "ctnx20",
+  "ctnx26",
+  "ctnx48",
+  "ctnx9",
+  "ctnx96",
+  "ctnx14",
+  "ctnx12",
+  "ctnx16",
+  "ctnx50",
+  "ctnx4",
+  "ctnx8",
+  "ctnx10",
+  "ctnx18",
+  "ctnx28",
+] as const;
+
+const ALLOWED_UNITS = ["ctn", "pcs", ...CTNX_UNITS] as const;
+const UnitSchema = z.enum(ALLOWED_UNITS);
+type AllowedUnit = (typeof ALLOWED_UNITS)[number];
+
 const CreateInvoiceBodySchema = z.object({
   customerId: z.string().optional(),
   customerName: z.string().optional(),
@@ -24,9 +47,10 @@ const CreateInvoiceBodySchema = z.object({
   items: z.array(z.object({
     productId: z.string().optional(),
     name: z.string().min(1),
-    unit: z.enum(["ctn", "pcs"]),
+    unit: UnitSchema,
     quantity: z.coerce.number().int().min(1),
     unitPrice: z.coerce.number().nonnegative().optional(),
+    pcsPrice: z.coerce.number().nonnegative().optional(),
   })),
 });
 
@@ -48,9 +72,10 @@ const UpdateInvoiceBodySchema = z.object({
         id: z.string().optional(),
         productId: z.string().optional(),
         name: z.string().optional(),
-        unit: z.enum(["ctn", "pcs"]),
+        unit: UnitSchema,
         quantity: z.coerce.number().int().min(1),
         unitPrice: z.coerce.number().nonnegative().optional(),
+        pcsPrice: z.coerce.number().nonnegative().optional(),
       })
     )
     .optional(),
@@ -81,6 +106,13 @@ function diffInCalendarDays(from: Date, to: Date): number {
   const a = startOfLocalDay(from).getTime();
   const b = startOfLocalDay(to).getTime();
   return Math.round((b - a) / MS_PER_DAY);
+}
+
+function parseCtnxMultiplier(unit: string): number | null {
+  const m = /^ctnx(\d+)$/i.exec(String(unit || "").trim());
+  if (!m) return null;
+  const n = Number(m[1]);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 async function maybeNotifyDueSoon(
@@ -162,26 +194,74 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
     const productIds = Array.from(new Set(items.map((it) => it.productId).filter(Boolean))) as string[];
     const products = productIds.length ? await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } } }) : [];
     const byId = new Map<string, any>(products.map((p: any) => [p.productId, p]));
+    const productNames = Array.from(new Set(products.map((p: any) => String(p.name || "").trim()).filter(Boolean))) as string[];
+    const pcsRows = (productIds.length || productNames.length)
+      ? await prisma.pcsInventory.findMany({
+          where: {
+            tenantId,
+            OR: [
+              ...(productIds.length ? [{ productId: { in: productIds } }] : []),
+              ...(productNames.length ? [{ name: { in: productNames } }] : []),
+            ],
+          },
+          select: { name: true, productId: true, salesPrice: true },
+        })
+      : [];
+    const pcsByProductId = new Map<string, number>();
+    const pcsByName = new Map<string, number>();
+    for (const r of pcsRows) {
+      if (r.productId && r.salesPrice !== null && r.salesPrice !== undefined) pcsByProductId.set(r.productId, Number(r.salesPrice));
+      if (r.name && r.salesPrice !== null && r.salesPrice !== undefined) pcsByName.set(String(r.name).toLowerCase(), Number(r.salesPrice));
+    }
+    const pcsPriceUpserts = new Map<string, { productId: string; name: string; pcsPrice: number; packSize?: string | null }>();
+    const missingPcsPriceForUnit: string[] = [];
     const hydrated = items.map((it) => {
       let unitPrice = typeof it.unitPrice === "number" ? it.unitPrice : undefined;
       const p = it.productId ? byId.get(it.productId) : undefined;
       let displayName = it.name || (p ? p.name : undefined);
+      const multiplier = parseCtnxMultiplier(it.unit);
+      const explicitPcsPrice = typeof (it as any).pcsPrice === "number" ? Number((it as any).pcsPrice) : undefined;
+      const pcsPriceFromDb =
+        p?.productId && pcsByProductId.has(p.productId)
+          ? pcsByProductId.get(p.productId)
+          : pcsByName.get(String(displayName || "").toLowerCase());
+      const pack = p ? Number(String(p.packSize || "").replace(/\D+/g, "")) || 0 : 0;
+      const derivedPcsPrice = p && pack > 0 ? Number(p.price) / Math.max(pack, 1) : undefined;
+      const basePcsPrice = explicitPcsPrice ?? pcsPriceFromDb ?? derivedPcsPrice;
+
+      if (explicitPcsPrice !== undefined && p?.productId && displayName) {
+        pcsPriceUpserts.set(String(displayName).toLowerCase(), {
+          productId: p.productId,
+          name: String(displayName),
+          pcsPrice: explicitPcsPrice,
+          packSize: p.packSize ?? null,
+        });
+      }
+
+      if ((it.unit === "pcs" || multiplier !== null) && unitPrice === undefined && basePcsPrice === undefined) {
+        missingPcsPriceForUnit.push(String(displayName || "").trim() || String(it.productId || "").trim() || "Unknown item");
+      }
+
       if (unitPrice === undefined) {
-        if (p) {
-          if (it.unit === "pcs") {
-            const pack = Number(String(p.packSize || "").replace(/\D+/g, "")) || 1;
-            unitPrice = Number(p.price) / Math.max(pack, 1);
-          } else {
-            unitPrice = Number(p.price);
-          }
+        if (it.unit === "ctn") {
+          unitPrice = p ? Number(p.price) : 0;
+        } else if (it.unit === "pcs") {
+          unitPrice = basePcsPrice ?? 0;
+        } else if (multiplier !== null) {
+          unitPrice = (basePcsPrice ?? 0) * multiplier;
         } else {
-          unitPrice = 0;
+          unitPrice = p ? Number(p.price) : 0;
         }
       }
       unitPrice = unitPrice ?? 0;
       const quantity = Math.max(1, Number(it.quantity) || 1);
       return { productId: it.productId, name: displayName, unit: it.unit, quantity, unitPrice, subtotal: quantity * unitPrice };
     });
+
+    if (missingPcsPriceForUnit.length) {
+      res.status(400).json({ message: `Missing PCS price for: ${Array.from(new Set(missingPcsPriceForUnit)).join(", ")}` });
+      return;
+    }
 
     const totals = computeTotals(hydrated, vatPercent, discountPercent);
     const invoiceId = randomUUID();
@@ -219,6 +299,30 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
       },
       include: { items: true, payments: true },
     });
+
+    if (pcsPriceUpserts.size) {
+      for (const up of pcsPriceUpserts.values()) {
+        const prev = await prisma.pcsInventory.findUnique({ where: { tenantId_name: { tenantId, name: up.name } } });
+        const qty = prev?.quantity ?? 0;
+        await prisma.pcsInventory.upsert({
+          where: { tenantId_name: { tenantId, name: up.name } },
+          create: {
+            id: randomUUID(),
+            tenantId,
+            name: up.name,
+            quantity: qty,
+            productId: up.productId,
+            packSize: up.packSize ?? null,
+            salesPrice: up.pcsPrice,
+          },
+          update: {
+            productId: up.productId,
+            packSize: up.packSize ?? null,
+            salesPrice: up.pcsPrice,
+          },
+        });
+      }
+    }
 
     // Persist optional invoice number in meta store
     if (invoiceNumber && invoiceNumber.trim()) {
@@ -458,7 +562,8 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
     }
     const vatPercent = typeof body.vatPercent === "number" ? body.vatPercent : existing.vatPercent;
     const discountPercent = typeof body.discountPercent === "number" ? body.discountPercent : existing.discountPercent;
-    const updatedItems = body.items ? await Promise.all(body.items.map(async (it: { id?: string; productId?: string; name?: string; unit: "ctn" | "pcs"; quantity: number; unitPrice?: number }) => {
+    const pcsPriceUpserts = new Map<string, { productId: string; name: string; pcsPrice: number; packSize?: string | null }>();
+    const updatedItems = body.items ? await Promise.all(body.items.map(async (it: { id?: string; productId?: string; name?: string; unit: AllowedUnit; quantity: number; unitPrice?: number; pcsPrice?: number }) => {
       let unitPrice = typeof it.unitPrice === "number" ? it.unitPrice : undefined;
       let displayName = it.name;
       if (it.productId) {
@@ -466,11 +571,25 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
         if (p) {
           displayName = displayName || p.name;
           if (unitPrice === undefined) {
-            if (it.unit === "pcs") {
-              const pack = Number((p.packSize || "").replace(/\D+/g, "")) || 1;
-              unitPrice = p.price / Math.max(pack, 1);
+            const multiplier = parseCtnxMultiplier(it.unit);
+            const explicitPcsPrice = typeof it.pcsPrice === "number" ? Number(it.pcsPrice) : undefined;
+            const pcsRow = await prisma.pcsInventory.findUnique({ where: { tenantId_name: { tenantId, name: p.name } }, select: { salesPrice: true } });
+            const pack = Number(String(p.packSize || "").replace(/\D+/g, "")) || 0;
+            const derivedPcsPrice = pack > 0 ? Number(p.price) / Math.max(pack, 1) : undefined;
+            const basePcsPrice = explicitPcsPrice ?? (pcsRow?.salesPrice ?? undefined) ?? derivedPcsPrice;
+
+            if (explicitPcsPrice !== undefined) {
+              pcsPriceUpserts.set(String(p.name || "").toLowerCase(), { productId: p.productId, name: p.name, pcsPrice: explicitPcsPrice, packSize: p.packSize ?? null });
+            }
+
+            if (it.unit === "ctn") {
+              unitPrice = Number(p.price);
+            } else if (it.unit === "pcs") {
+              unitPrice = basePcsPrice ?? 0;
+            } else if (multiplier !== null) {
+              unitPrice = (basePcsPrice ?? 0) * multiplier;
             } else {
-              unitPrice = p.price;
+              unitPrice = Number(p.price);
             }
           }
         }
@@ -528,6 +647,30 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
       },
       include: { items: true, payments: true },
     });
+
+    if (pcsPriceUpserts.size) {
+      for (const up of pcsPriceUpserts.values()) {
+        const prev = await prisma.pcsInventory.findUnique({ where: { tenantId_name: { tenantId, name: up.name } } });
+        const qty = prev?.quantity ?? 0;
+        await prisma.pcsInventory.upsert({
+          where: { tenantId_name: { tenantId, name: up.name } },
+          create: {
+            id: randomUUID(),
+            tenantId,
+            name: up.name,
+            quantity: qty,
+            productId: up.productId,
+            packSize: up.packSize ?? null,
+            salesPrice: up.pcsPrice,
+          },
+          update: {
+            productId: up.productId,
+            packSize: up.packSize ?? null,
+            salesPrice: up.pcsPrice,
+          },
+        });
+      }
+    }
 
     // Update invoice number in meta store if provided
     if (typeof body.invoiceNumber === "string") {
