@@ -19,7 +19,12 @@ export const getPermissions = async (req: Request, res: Response): Promise<void>
     }
     
     // If requesting for another user, must be admin
-    if (requestingUser.userId !== userId && requestingUser.role !== "admin" && requestingUser.role !== "org_admin") {
+    if (
+      requestingUser.userId !== userId &&
+      requestingUser.role !== "admin" &&
+      requestingUser.role !== "org_admin" &&
+      requestingUser.role !== "super_admin"
+    ) {
        res.status(403).json({ message: "Forbidden" });
        return;
     }
@@ -51,7 +56,12 @@ export const updatePermissions = async (req: Request, res: Response): Promise<vo
 
     // Only admins can update permissions
     const requestingUser = req.user;
-    if (!requestingUser || (requestingUser.role !== "admin" && requestingUser.role !== "org_admin")) {
+    if (
+      !requestingUser ||
+      (requestingUser.role !== "admin" &&
+        requestingUser.role !== "org_admin" &&
+        requestingUser.role !== "super_admin")
+    ) {
        res.status(403).json({ message: "Admin access required" });
        return;
     }
