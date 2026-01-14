@@ -196,6 +196,7 @@ model Invoices {
   totalWithVAT      Float           @default(0)
   notes             String?
   dueSoonNotifiedAt DateTime?
+  dueDateNotifiedAt DateTime?
   tenantId          String          @default("default")
 
   customer Customers      @relation(fields: [customerId], references: [customerId])
