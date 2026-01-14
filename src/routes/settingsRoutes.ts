@@ -19,6 +19,7 @@ const ALL_FEATURES = [
   "productTracker",
   "products",
   "customers",
+  "locations",
   "invoices",
   "expenses",
   "expenseApproval",

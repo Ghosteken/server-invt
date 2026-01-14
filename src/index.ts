@@ -37,6 +37,7 @@ import aiRoutes from "./routes/aiRoutes";
 import permissionRoutes from "./routes/permissionRoutes";
 import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
+import { startInvoiceReminderJob } from "./jobs/invoiceReminderJob";
 
 /* CONFIGURATIONS */
 dotenv.config();
@@ -282,6 +283,7 @@ try {
     purgeDefaultAdminEmail().catch((err) => console.warn("Bootstrap purgeDefaultAdminEmail failed:", err));
     // Sync org admins to Users so admin appears in tenant-scoped views
     syncOrgAdminsToUsers().catch((err) => console.warn("Bootstrap syncOrgAdminsToUsers failed:", err));
+    startInvoiceReminderJob();
   });
 
   // On unexpected errors, log and exit

@@ -71,31 +71,65 @@ function statusFromPayments(totalWithVAT: number, paymentsSum: number): "unpaid"
   return "partial";
 }
 
-function daysUntil(date: Date): number {
-  const now = new Date();
-  const ms = date.getTime() - now.getTime();
-  return Math.ceil(ms / (1000 * 60 * 60 * 24));
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+
+function startOfLocalDay(d: Date): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate());
 }
 
-async function maybeNotifyDueSoon(inv: { invoiceId: string; customerId: string; status: string; dueDate: Date | null; dueSoonNotifiedAt: Date | null; tenantId?: string }, actorUserId?: string) {
+function diffInCalendarDays(from: Date, to: Date): number {
+  const a = startOfLocalDay(from).getTime();
+  const b = startOfLocalDay(to).getTime();
+  return Math.round((b - a) / MS_PER_DAY);
+}
+
+async function maybeNotifyDueSoon(
+  inv: {
+    invoiceId: string;
+    customerId: string;
+    status: string;
+    dueDate: Date | null;
+    dueSoonNotifiedAt: Date | null;
+    dueDateNotifiedAt: Date | null;
+    tenantId?: string;
+  },
+  actorUserId?: string
+) {
   if (!inv.dueDate) return;
   if (inv.status === "paid") return;
-  const days = daysUntil(inv.dueDate);
-  if (days === 5 && !inv.dueSoonNotifiedAt) {
+  const days = diffInCalendarDays(new Date(), inv.dueDate);
+  if (days === 3 && !inv.dueSoonNotifiedAt) {
     const meta = await getInvoiceMeta(inv.invoiceId);
     const invoiceLabel = meta?.invoiceNumber ? `Invoice #${meta.invoiceNumber}` : "Invoice";
     let customerName = "Customer";
     if (inv.customerId) {
-       const c = await prisma.customers.findFirst({ where: { customerId: inv.customerId } });
+       const c = await prisma.customers.findFirst({ where: { customerId: inv.customerId, tenantId: inv.tenantId || "default" } });
        if (c) customerName = c.name;
     }
     appendNotification({
       type: "invoice",
-      message: `${invoiceLabel} for ${customerName} has 5 days remaining to complete payment`,
+      message: `${invoiceLabel} for ${customerName} has 3 days remaining to complete payment`,
       actorUserId,
       tenantId: inv.tenantId || "default",
     });
     await prisma.invoices.update({ where: { invoiceId: inv.invoiceId }, data: { dueSoonNotifiedAt: new Date() } });
+  }
+
+  if (days === 0 && !inv.dueDateNotifiedAt) {
+    const meta = await getInvoiceMeta(inv.invoiceId);
+    const invoiceLabel = meta?.invoiceNumber ? `Invoice #${meta.invoiceNumber}` : "Invoice";
+    let customerName = "Customer";
+    if (inv.customerId) {
+       const c = await prisma.customers.findFirst({ where: { customerId: inv.customerId, tenantId: inv.tenantId || "default" } });
+       if (c) customerName = c.name;
+    }
+    appendNotification({
+      type: "invoice",
+      message: `${invoiceLabel} for ${customerName} is due today and is still unpaid`,
+      actorUserId,
+      tenantId: inv.tenantId || "default",
+    });
+    await prisma.invoices.update({ where: { invoiceId: inv.invoiceId }, data: { dueDateNotifiedAt: new Date() } });
   }
 }
 
@@ -329,6 +363,7 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
         totalWithVAT: true,
         dueDate: true,
         dueSoonNotifiedAt: true,
+        dueDateNotifiedAt: true,
         createdAt: true,
         updatedAt: true,
         items: true,
@@ -462,6 +497,11 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
       nextSalesAgentId = body.salesAgentId;
     }
 
+    const nextDueDate = body.dueDate ? new Date(body.dueDate) : existing.dueDate;
+    const dueDateChanged =
+      typeof body.dueDate === "string" &&
+      (existing.dueDate?.getTime() || null) !== (nextDueDate?.getTime() || null);
+
     const updated = await prisma.invoices.update({
       where: { invoiceId: id },
       data: {
@@ -474,7 +514,9 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
         vatPercent,
         discountPercent,
         paymentTermType: body.paymentTermType ? (body.paymentTermType === "due_date" ? "due_date" : "immediate") : existing.paymentTermType,
-        dueDate: body.dueDate ? new Date(body.dueDate) : existing.dueDate,
+        dueDate: nextDueDate,
+        dueSoonNotifiedAt: dueDateChanged ? null : existing.dueSoonNotifiedAt,
+        dueDateNotifiedAt: dueDateChanged ? null : (existing as any).dueDateNotifiedAt,
         notes: body.notes ?? existing.notes,
         totalWithoutVAT: totals.totalWithoutVAT,
         vatAmount: totals.vatAmount,
