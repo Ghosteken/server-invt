@@ -91,10 +91,17 @@ model Purchases {
 model Expenses {
   expenseId String   @id
   category  String
+  name      String   @default("")
   amount    Float
   timestamp DateTime
   tenantId  String   @default("default")
   status    String   @default("pending") // pending, approved, rejected
+
+  expenseBankId String?
+  expenseBank   ExpenseBanks? @relation(fields: [expenseBankId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, expenseBankId])
 }
 
 model SalesSummary {
@@ -458,6 +465,23 @@ model Banks {
   @@index([tenantId])
   @@unique([tenantId, name, account])
   @@map("banks")
+}
+
+// Tenant-scoped bank accounts for expenses (separate from invoice banks)
+model ExpenseBanks {
+  id        String   @id
+  tenantId  String   @default("default")
+  name      String
+  account   String
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  expenses Expenses[]
+
+  @@index([tenantId])
+  @@unique([tenantId, name, account])
+  @@map("expense_banks")
 }
 
 model SupplierPurchaseMeta {
