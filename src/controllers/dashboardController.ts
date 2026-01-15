@@ -28,6 +28,7 @@ export const getDashboardMetrics = async (
     // Parallelize independent queries
     const [
       totalProducts,
+      totalProductsInStock,
       lowStockCount,
       pcsData,
       inventoryValue,
@@ -35,7 +36,8 @@ export const getDashboardMetrics = async (
       sales7dTotal,
       popularProducts
     ] = await Promise.all([
-      withCache(`t=${tenantId}:metrics:totalProducts:inventory`, 60, async () => prisma.products.count({ where: { tenantId, ...nonInventoryFilter } })),
+      withCache(`t=${tenantId}:metrics:totalProducts:all`, 60, async () => prisma.products.count({ where: { tenantId } })),
+      withCache(`t=${tenantId}:metrics:totalProducts:inStock`, 60, async () => prisma.products.count({ where: { tenantId, ...nonInventoryFilter } })),
       withCache(
         `t=${tenantId}:metrics:lowStock:${LOW_STOCK_THRESHOLD}`,
         60,
@@ -199,10 +201,11 @@ export const getDashboardMetrics = async (
     res.set("Cache-Control", "public, max-age=60");
     res.json({
       totalProducts,
+      totalProductsInStock,
       lowStockCount,
       lowStockThreshold: LOW_STOCK_THRESHOLD,
       // New fields (non-breaking): separate CTN/PCS and combined counts
-      totalProductsCtn: totalProducts,
+      totalProductsCtn: totalProductsInStock,
       totalProductsPcs: pcsInventoryCount,
       totalProductsCombined: combinedInventoryCount,
       lowStockPcsCount,
