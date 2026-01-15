@@ -24,21 +24,12 @@ export const getCustomers = async (req: Request, res: Response): Promise<void> =
         { country: { contains: search, mode: "insensitive" } },
       ];
     }
-    const customers = await prisma.customers.findMany({ where, orderBy: { createdAt: "desc" } });
+    const customers = await prisma.customers.findMany({
+      where,
+      orderBy: { createdAt: "desc" },
+    });
 
-    // Fetch purchases grouped by customer
-    const purchases = await prisma.customerPurchases.findMany({ where: { tenantId } });
-    const productIds = Array.from(new Set(purchases.map((p: any) => p.productId)));
-    const products = await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
-    const nameById = new Map<string, string>(products.map((p: { productId: string; name: string }) => [p.productId, p.name]));
-    const byCustomer = new Map<string, Array<{ id: string; productId: string; productName: string; quantity: number; totalCost: number }>>();
-    for (const p of purchases) {
-      const list = byCustomer.get(p.customerId) || [];
-      list.push({ id: p.id, productId: p.productId, productName: nameById.get(p.productId) || p.productId, quantity: p.quantity, totalCost: p.totalCost });
-      byCustomer.set(p.customerId, list);
-    }
-
-    const result = customers.map((c: any) => ({
+    res.json(customers.map((c: any) => ({
       customerId: c.customerId,
       name: c.name,
       mobile: c.mobile,
@@ -46,12 +37,59 @@ export const getCustomers = async (req: Request, res: Response): Promise<void> =
       city: c.city,
       state: c.state,
       country: c.country,
-      tenantId: c.tenantId,
       createdAt: c.createdAt,
-      purchases: byCustomer.get(c.customerId) || [],
-    }));
+      tenantId: c.tenantId,
+      purchases: [],
+    })));
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "customer", "Error retrieving customers"));
+  }
+};
 
-    res.json(result);
+export const getCustomersPaged = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const search = String(req.query.search || "").trim();
+    const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+    const offset = Math.max(Number(req.query.offset) || 0, 0);
+    const where: any = { tenantId };
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { mobile: { contains: search, mode: "insensitive" } },
+        { address: { contains: search, mode: "insensitive" } },
+        { city: { contains: search, mode: "insensitive" } },
+        { state: { contains: search, mode: "insensitive" } },
+        { country: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    const [total, customers] = await Promise.all([
+      prisma.customers.count({ where }),
+      prisma.customers.findMany({
+        where,
+        orderBy: { createdAt: "desc" },
+        skip: offset,
+        take: limit,
+        select: { customerId: true, name: true, mobile: true, address: true, city: true, state: true, country: true, createdAt: true, tenantId: true },
+      }),
+    ]);
+
+    res.json({
+      total,
+      customers: customers.map((c: any) => ({
+        customerId: c.customerId,
+        name: c.name,
+        mobile: c.mobile || undefined,
+        address: c.address || undefined,
+        city: c.city || undefined,
+        state: c.state || undefined,
+        country: c.country || undefined,
+        createdAt: c.createdAt,
+        tenantId: c.tenantId,
+        purchases: [],
+      })),
+    });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "customer", "Error retrieving customers"));
   }
