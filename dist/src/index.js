@@ -39,8 +39,10 @@ const locationRoutes_1 = __importDefault(require("./routes/locationRoutes"));
 const contactRoutes_1 = __importDefault(require("./routes/contactRoutes"));
 const superAdminRoutes_1 = __importDefault(require("./routes/superAdminRoutes"));
 const aiRoutes_1 = __importDefault(require("./routes/aiRoutes"));
+const permissionRoutes_1 = __importDefault(require("./routes/permissionRoutes"));
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const yamljs_1 = __importDefault(require("yamljs"));
+const invoiceReminderJob_1 = require("./jobs/invoiceReminderJob");
 /* CONFIGURATIONS */
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -158,6 +160,7 @@ apiRouter.use("/locations", locationRoutes_1.default);
 apiRouter.use("/contact", contactRoutes_1.default);
 apiRouter.use("/super-admin", superAdminRoutes_1.default);
 apiRouter.use("/ai", aiRoutes_1.default);
+apiRouter.use("/permissions", permissionRoutes_1.default);
 // Mount API v1
 app.use("/api/v1", apiRouter);
 // Fallback for /api prefix (common default)
@@ -270,6 +273,7 @@ try {
         (0, legacyCleanup_1.purgeDefaultAdminEmail)().catch((err) => console.warn("Bootstrap purgeDefaultAdminEmail failed:", err));
         // Sync org admins to Users so admin appears in tenant-scoped views
         (0, adminBootstrap_1.syncOrgAdminsToUsers)().catch((err) => console.warn("Bootstrap syncOrgAdminsToUsers failed:", err));
+        (0, invoiceReminderJob_1.startInvoiceReminderJob)();
     });
     // On unexpected errors, log and exit
     server.on("error", (err) => {

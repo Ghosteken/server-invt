@@ -43,6 +43,7 @@ async function ensureAdminUser() {
                 "productTracker",
                 "products",
                 "customers",
+                "locations",
                 "invoices",
                 "expenses",
                 "expenseApproval",

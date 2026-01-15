@@ -24,6 +24,9 @@ const prismaMock = {
     delete: jest.fn(),
     count: jest.fn(),
   },
+  pcsInventory: {
+    findMany: jest.fn().mockResolvedValue([]),
+  },
   customers: {
     findFirst: jest.fn(),
     findMany: jest.fn(),

@@ -2,12 +2,17 @@ import request from "supertest";
 
 // Minimal Prisma mock
 const prismaMock = {
+  $transaction: jest.fn(async (fn: any) => fn(prismaMock)),
   expenses: {
     findMany: jest.fn(),
     create: jest.fn(),
     findFirst: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+  },
+  expenseBanks: {
+    findFirst: jest.fn(),
+    update: jest.fn(),
   },
   auditLogs: {
     create: jest.fn(),

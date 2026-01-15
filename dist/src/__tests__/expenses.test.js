@@ -40,6 +40,10 @@ jest.mock("../middleware/authMiddleware", () => ({
     authenticateToken: (req, res, next) => next(),
     requireAdmin: (req, res, next) => next(),
 }));
+// Mock permission middleware
+jest.mock("../middleware/permissionMiddleware", () => ({
+    requirePermission: (module, action) => (req, res, next) => next(),
+}));
 const app_1 = __importDefault(require("../app"));
 describe("Expense Status Logic", () => {
     let app;
