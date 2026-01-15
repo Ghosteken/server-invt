@@ -78,8 +78,42 @@ const getProducts = async (req, res) => {
                 name: "asc",
             },
         });
-        PRODUCT_SEARCH_CACHE.set(cacheKey, { ts: now, data: products });
-        res.json(products);
+        if (typeahead) {
+            PRODUCT_SEARCH_CACHE.set(cacheKey, { ts: now, data: products });
+            res.json(products);
+            return;
+        }
+        const productIds = products.map((p) => p.productId).filter(Boolean);
+        const productNames = products.map((p) => p.name).filter(Boolean);
+        const pcsRows = await prisma_1.default.pcsInventory.findMany({
+            where: {
+                tenantId,
+                OR: [
+                    ...(productIds.length ? [{ productId: { in: productIds } }] : []),
+                    ...(productNames.length ? [{ name: { in: productNames } }] : []),
+                ],
+            },
+            select: { name: true, productId: true, salesPrice: true, purchasePrice: true },
+        });
+        const pcsByProductId = new Map();
+        const pcsByName = new Map();
+        for (const r of pcsRows) {
+            if (r.productId)
+                pcsByProductId.set(r.productId, { salesPrice: r.salesPrice ?? null, purchasePrice: r.purchasePrice ?? null });
+            pcsByName.set(String(r.name || "").toLowerCase(), { salesPrice: r.salesPrice ?? null, purchasePrice: r.purchasePrice ?? null });
+        }
+        const enriched = products.map((p) => {
+            const byId = p.productId ? pcsByProductId.get(p.productId) : undefined;
+            const byName = pcsByName.get(String(p.name || "").toLowerCase());
+            const pcs = byId ?? byName;
+            return {
+                ...p,
+                pcsSalesPrice: pcs?.salesPrice ?? undefined,
+                pcsPurchasePrice: pcs?.purchasePrice ?? undefined,
+            };
+        });
+        PRODUCT_SEARCH_CACHE.set(cacheKey, { ts: now, data: enriched });
+        res.json(enriched);
     }
     catch (err) {
         console.error("Error retrieving products:", err);

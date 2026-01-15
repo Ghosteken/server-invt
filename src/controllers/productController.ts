@@ -80,8 +80,43 @@ export const getProducts = async (
         name: "asc",
       },
     });
-    PRODUCT_SEARCH_CACHE.set(cacheKey, { ts: now, data: products });
-    res.json(products);
+    if (typeahead) {
+      PRODUCT_SEARCH_CACHE.set(cacheKey, { ts: now, data: products as any[] });
+      res.json(products);
+      return;
+    }
+
+    const productIds = (products as any[]).map((p) => p.productId).filter(Boolean) as string[];
+    const productNames = (products as any[]).map((p) => p.name).filter(Boolean) as string[];
+    const pcsRows = await prisma.pcsInventory.findMany({
+      where: {
+        tenantId,
+        OR: [
+          ...(productIds.length ? [{ productId: { in: productIds } }] : []),
+          ...(productNames.length ? [{ name: { in: productNames } }] : []),
+        ],
+      },
+      select: { name: true, productId: true, salesPrice: true, purchasePrice: true },
+    });
+    const pcsByProductId = new Map<string, { salesPrice: number | null; purchasePrice: number | null }>();
+    const pcsByName = new Map<string, { salesPrice: number | null; purchasePrice: number | null }>();
+    for (const r of pcsRows) {
+      if (r.productId) pcsByProductId.set(r.productId, { salesPrice: r.salesPrice ?? null, purchasePrice: r.purchasePrice ?? null });
+      pcsByName.set(String(r.name || "").toLowerCase(), { salesPrice: r.salesPrice ?? null, purchasePrice: r.purchasePrice ?? null });
+    }
+    const enriched = (products as any[]).map((p) => {
+      const byId = p.productId ? pcsByProductId.get(p.productId) : undefined;
+      const byName = pcsByName.get(String(p.name || "").toLowerCase());
+      const pcs = byId ?? byName;
+      return {
+        ...p,
+        pcsSalesPrice: pcs?.salesPrice ?? undefined,
+        pcsPurchasePrice: pcs?.purchasePrice ?? undefined,
+      };
+    });
+
+    PRODUCT_SEARCH_CACHE.set(cacheKey, { ts: now, data: enriched });
+    res.json(enriched);
   } catch (err) {
     console.error("Error retrieving products:", err);
     res.status(500).json(createErrorResponse(err, "product", "Error retrieving products"));

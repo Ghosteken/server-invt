@@ -11,6 +11,26 @@ const notificationService_1 = require("../services/notificationService");
 const invoiceMetaService_1 = require("../services/invoiceMetaService");
 const pcsInventoryService_1 = require("../services/pcsInventoryService");
 const errorHandler_1 = require("../utils/errorHandler");
+const CTNX_UNITS = [
+    "ctnx24",
+    "ctnx30",
+    "ctnx20",
+    "ctnx26",
+    "ctnx48",
+    "ctnx9",
+    "ctnx96",
+    "ctnx14",
+    "ctnx12",
+    "ctnx16",
+    "ctnx50",
+    "ctnx4",
+    "ctnx8",
+    "ctnx10",
+    "ctnx18",
+    "ctnx28",
+];
+const ALLOWED_UNITS = ["ctn", "pcs", ...CTNX_UNITS];
+const UnitSchema = zod_1.z.enum(ALLOWED_UNITS);
 const CreateInvoiceBodySchema = zod_1.z.object({
     customerId: zod_1.z.string().optional(),
     customerName: zod_1.z.string().optional(),
@@ -28,9 +48,10 @@ const CreateInvoiceBodySchema = zod_1.z.object({
     items: zod_1.z.array(zod_1.z.object({
         productId: zod_1.z.string().optional(),
         name: zod_1.z.string().min(1),
-        unit: zod_1.z.enum(["ctn", "pcs"]),
+        unit: UnitSchema,
         quantity: zod_1.z.coerce.number().int().min(1),
         unitPrice: zod_1.z.coerce.number().nonnegative().optional(),
+        pcsPrice: zod_1.z.coerce.number().nonnegative().optional(),
     })),
 });
 const UpdateInvoiceBodySchema = zod_1.z.object({
@@ -50,9 +71,10 @@ const UpdateInvoiceBodySchema = zod_1.z.object({
         id: zod_1.z.string().optional(),
         productId: zod_1.z.string().optional(),
         name: zod_1.z.string().optional(),
-        unit: zod_1.z.enum(["ctn", "pcs"]),
+        unit: UnitSchema,
         quantity: zod_1.z.coerce.number().int().min(1),
         unitPrice: zod_1.z.coerce.number().nonnegative().optional(),
+        pcsPrice: zod_1.z.coerce.number().nonnegative().optional(),
     }))
         .optional(),
 });
@@ -71,33 +93,61 @@ function statusFromPayments(totalWithVAT, paymentsSum) {
         return "paid";
     return "partial";
 }
-function daysUntil(date) {
-    const now = new Date();
-    const ms = date.getTime() - now.getTime();
-    return Math.ceil(ms / (1000 * 60 * 60 * 24));
+const MS_PER_DAY = 24 * 60 * 60 * 1000;
+function startOfLocalDay(d) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate());
+}
+function diffInCalendarDays(from, to) {
+    const a = startOfLocalDay(from).getTime();
+    const b = startOfLocalDay(to).getTime();
+    return Math.round((b - a) / MS_PER_DAY);
+}
+function parseCtnxMultiplier(unit) {
+    const m = /^ctnx(\d+)$/i.exec(String(unit || "").trim());
+    if (!m)
+        return null;
+    const n = Number(m[1]);
+    return Number.isFinite(n) && n > 0 ? n : null;
 }
 async function maybeNotifyDueSoon(inv, actorUserId) {
     if (!inv.dueDate)
         return;
     if (inv.status === "paid")
         return;
-    const days = daysUntil(inv.dueDate);
-    if (days === 5 && !inv.dueSoonNotifiedAt) {
+    const days = diffInCalendarDays(new Date(), inv.dueDate);
+    if (days === 3 && !inv.dueSoonNotifiedAt) {
         const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
         const invoiceLabel = meta?.invoiceNumber ? `Invoice #${meta.invoiceNumber}` : "Invoice";
         let customerName = "Customer";
         if (inv.customerId) {
-            const c = await prisma_1.default.customers.findFirst({ where: { customerId: inv.customerId } });
+            const c = await prisma_1.default.customers.findFirst({ where: { customerId: inv.customerId, tenantId: inv.tenantId || "default" } });
             if (c)
                 customerName = c.name;
         }
         (0, notificationService_1.appendNotification)({
             type: "invoice",
-            message: `${invoiceLabel} for ${customerName} has 5 days remaining to complete payment`,
+            message: `${invoiceLabel} for ${customerName} has 3 days remaining to complete payment`,
             actorUserId,
             tenantId: inv.tenantId || "default",
         });
         await prisma_1.default.invoices.update({ where: { invoiceId: inv.invoiceId }, data: { dueSoonNotifiedAt: new Date() } });
+    }
+    if (days === 0 && !inv.dueDateNotifiedAt) {
+        const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
+        const invoiceLabel = meta?.invoiceNumber ? `Invoice #${meta.invoiceNumber}` : "Invoice";
+        let customerName = "Customer";
+        if (inv.customerId) {
+            const c = await prisma_1.default.customers.findFirst({ where: { customerId: inv.customerId, tenantId: inv.tenantId || "default" } });
+            if (c)
+                customerName = c.name;
+        }
+        (0, notificationService_1.appendNotification)({
+            type: "invoice",
+            message: `${invoiceLabel} for ${customerName} is due today and is still unpaid`,
+            actorUserId,
+            tenantId: inv.tenantId || "default",
+        });
+        await prisma_1.default.invoices.update({ where: { invoiceId: inv.invoiceId }, data: { dueDateNotifiedAt: new Date() } });
     }
 }
 const createInvoice = async (req, res) => {
@@ -129,28 +179,74 @@ const createInvoice = async (req, res) => {
         const productIds = Array.from(new Set(items.map((it) => it.productId).filter(Boolean)));
         const products = productIds.length ? await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } } }) : [];
         const byId = new Map(products.map((p) => [p.productId, p]));
+        const productNames = Array.from(new Set(products.map((p) => String(p.name || "").trim()).filter(Boolean)));
+        const pcsRows = (productIds.length || productNames.length)
+            ? await prisma_1.default.pcsInventory.findMany({
+                where: {
+                    tenantId,
+                    OR: [
+                        ...(productIds.length ? [{ productId: { in: productIds } }] : []),
+                        ...(productNames.length ? [{ name: { in: productNames } }] : []),
+                    ],
+                },
+                select: { name: true, productId: true, salesPrice: true },
+            })
+            : [];
+        const pcsByProductId = new Map();
+        const pcsByName = new Map();
+        for (const r of pcsRows) {
+            if (r.productId && r.salesPrice !== null && r.salesPrice !== undefined)
+                pcsByProductId.set(r.productId, Number(r.salesPrice));
+            if (r.name && r.salesPrice !== null && r.salesPrice !== undefined)
+                pcsByName.set(String(r.name).toLowerCase(), Number(r.salesPrice));
+        }
+        const pcsPriceUpserts = new Map();
+        const missingPcsPriceForUnit = [];
         const hydrated = items.map((it) => {
             let unitPrice = typeof it.unitPrice === "number" ? it.unitPrice : undefined;
             const p = it.productId ? byId.get(it.productId) : undefined;
             let displayName = it.name || (p ? p.name : undefined);
+            const multiplier = parseCtnxMultiplier(it.unit);
+            const explicitPcsPrice = typeof it.pcsPrice === "number" ? Number(it.pcsPrice) : undefined;
+            const pcsPriceFromDb = p?.productId && pcsByProductId.has(p.productId)
+                ? pcsByProductId.get(p.productId)
+                : pcsByName.get(String(displayName || "").toLowerCase());
+            const pack = p ? Number(String(p.packSize || "").replace(/\D+/g, "")) || 0 : 0;
+            const derivedPcsPrice = p && pack > 0 ? Number(p.price) / Math.max(pack, 1) : undefined;
+            const basePcsPrice = explicitPcsPrice ?? pcsPriceFromDb ?? derivedPcsPrice;
+            if (explicitPcsPrice !== undefined && p?.productId && displayName) {
+                pcsPriceUpserts.set(String(displayName).toLowerCase(), {
+                    productId: p.productId,
+                    name: String(displayName),
+                    pcsPrice: explicitPcsPrice,
+                    packSize: p.packSize ?? null,
+                });
+            }
+            if ((it.unit === "pcs" || multiplier !== null) && unitPrice === undefined && basePcsPrice === undefined) {
+                missingPcsPriceForUnit.push(String(displayName || "").trim() || String(it.productId || "").trim() || "Unknown item");
+            }
             if (unitPrice === undefined) {
-                if (p) {
-                    if (it.unit === "pcs") {
-                        const pack = Number(String(p.packSize || "").replace(/\D+/g, "")) || 1;
-                        unitPrice = Number(p.price) / Math.max(pack, 1);
-                    }
-                    else {
-                        unitPrice = Number(p.price);
-                    }
+                if (it.unit === "ctn") {
+                    unitPrice = p ? Number(p.price) : 0;
+                }
+                else if (it.unit === "pcs") {
+                    unitPrice = basePcsPrice ?? 0;
+                }
+                else if (multiplier !== null) {
+                    unitPrice = (basePcsPrice ?? 0) * multiplier;
                 }
                 else {
-                    unitPrice = 0;
+                    unitPrice = p ? Number(p.price) : 0;
                 }
             }
             unitPrice = unitPrice ?? 0;
             const quantity = Math.max(1, Number(it.quantity) || 1);
             return { productId: it.productId, name: displayName, unit: it.unit, quantity, unitPrice, subtotal: quantity * unitPrice };
         });
+        if (missingPcsPriceForUnit.length) {
+            res.status(400).json({ message: `Missing PCS price for: ${Array.from(new Set(missingPcsPriceForUnit)).join(", ")}` });
+            return;
+        }
         const totals = computeTotals(hydrated, vatPercent, discountPercent);
         const invoiceId = (0, crypto_1.randomUUID)();
         // Resolve normalized names if IDs provided
@@ -187,6 +283,29 @@ const createInvoice = async (req, res) => {
             },
             include: { items: true, payments: true },
         });
+        if (pcsPriceUpserts.size) {
+            for (const up of pcsPriceUpserts.values()) {
+                const prev = await prisma_1.default.pcsInventory.findUnique({ where: { tenantId_name: { tenantId, name: up.name } } });
+                const qty = prev?.quantity ?? 0;
+                await prisma_1.default.pcsInventory.upsert({
+                    where: { tenantId_name: { tenantId, name: up.name } },
+                    create: {
+                        id: (0, crypto_1.randomUUID)(),
+                        tenantId,
+                        name: up.name,
+                        quantity: qty,
+                        productId: up.productId,
+                        packSize: up.packSize ?? null,
+                        salesPrice: up.pcsPrice,
+                    },
+                    update: {
+                        productId: up.productId,
+                        packSize: up.packSize ?? null,
+                        salesPrice: up.pcsPrice,
+                    },
+                });
+            }
+        }
         // Persist optional invoice number in meta store
         if (invoiceNumber && invoiceNumber.trim()) {
             await (0, invoiceMetaService_1.upsertInvoiceMeta)({ invoiceId, invoiceNumber: invoiceNumber.trim(), tenantId });
@@ -336,6 +455,7 @@ const getInvoices = async (req, res) => {
                 totalWithVAT: true,
                 dueDate: true,
                 dueSoonNotifiedAt: true,
+                dueDateNotifiedAt: true,
                 createdAt: true,
                 updatedAt: true,
                 items: true,
@@ -405,7 +525,7 @@ const getInvoiceById = async (req, res) => {
     try {
         const { id } = req.params;
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        const inv = await prisma_1.default.invoices.findFirst({ where: { invoiceId: id, tenantId }, include: { items: true, payments: true } });
+        const inv = await prisma_1.default.invoices.findFirst({ where: { invoiceId: id, tenantId }, include: { items: { include: { product: true } }, payments: true, customer: true } });
         if (!inv) {
             res.status(404).json({ message: "Invoice not found" });
             return;
@@ -413,7 +533,7 @@ const getInvoiceById = async (req, res) => {
         const paymentsSum = inv.payments.reduce((acc, p) => acc + p.amount, 0);
         const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
         const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
-        res.json({ ...inv, status, invoiceNumber: meta?.invoiceNumber || undefined });
+        res.json({ ...inv, status, invoiceNumber: meta?.invoiceNumber || undefined, customerName: inv.customer?.name });
     }
     catch (err) {
         res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "invoice", "Failed to load invoice"));
@@ -432,6 +552,7 @@ const updateInvoice = async (req, res) => {
         }
         const vatPercent = typeof body.vatPercent === "number" ? body.vatPercent : existing.vatPercent;
         const discountPercent = typeof body.discountPercent === "number" ? body.discountPercent : existing.discountPercent;
+        const pcsPriceUpserts = new Map();
         const updatedItems = body.items ? await Promise.all(body.items.map(async (it) => {
             let unitPrice = typeof it.unitPrice === "number" ? it.unitPrice : undefined;
             let displayName = it.name;
@@ -440,12 +561,26 @@ const updateInvoice = async (req, res) => {
                 if (p) {
                     displayName = displayName || p.name;
                     if (unitPrice === undefined) {
-                        if (it.unit === "pcs") {
-                            const pack = Number((p.packSize || "").replace(/\D+/g, "")) || 1;
-                            unitPrice = p.price / Math.max(pack, 1);
+                        const multiplier = parseCtnxMultiplier(it.unit);
+                        const explicitPcsPrice = typeof it.pcsPrice === "number" ? Number(it.pcsPrice) : undefined;
+                        const pcsRow = await prisma_1.default.pcsInventory.findUnique({ where: { tenantId_name: { tenantId, name: p.name } }, select: { salesPrice: true } });
+                        const pack = Number(String(p.packSize || "").replace(/\D+/g, "")) || 0;
+                        const derivedPcsPrice = pack > 0 ? Number(p.price) / Math.max(pack, 1) : undefined;
+                        const basePcsPrice = explicitPcsPrice ?? (pcsRow?.salesPrice ?? undefined) ?? derivedPcsPrice;
+                        if (explicitPcsPrice !== undefined) {
+                            pcsPriceUpserts.set(String(p.name || "").toLowerCase(), { productId: p.productId, name: p.name, pcsPrice: explicitPcsPrice, packSize: p.packSize ?? null });
+                        }
+                        if (it.unit === "ctn") {
+                            unitPrice = Number(p.price);
+                        }
+                        else if (it.unit === "pcs") {
+                            unitPrice = basePcsPrice ?? 0;
+                        }
+                        else if (multiplier !== null) {
+                            unitPrice = (basePcsPrice ?? 0) * multiplier;
                         }
                         else {
-                            unitPrice = p.price;
+                            unitPrice = Number(p.price);
                         }
                     }
                 }
@@ -470,6 +605,9 @@ const updateInvoice = async (req, res) => {
             nextSalesAgent = agent?.name || nextSalesAgent;
             nextSalesAgentId = body.salesAgentId;
         }
+        const nextDueDate = body.dueDate ? new Date(body.dueDate) : existing.dueDate;
+        const dueDateChanged = typeof body.dueDate === "string" &&
+            (existing.dueDate?.getTime() || null) !== (nextDueDate?.getTime() || null);
         const updated = await prisma_1.default.invoices.update({
             where: { invoiceId: id },
             data: {
@@ -482,7 +620,9 @@ const updateInvoice = async (req, res) => {
                 vatPercent,
                 discountPercent,
                 paymentTermType: body.paymentTermType ? (body.paymentTermType === "due_date" ? "due_date" : "immediate") : existing.paymentTermType,
-                dueDate: body.dueDate ? new Date(body.dueDate) : existing.dueDate,
+                dueDate: nextDueDate,
+                dueSoonNotifiedAt: dueDateChanged ? null : existing.dueSoonNotifiedAt,
+                dueDateNotifiedAt: dueDateChanged ? null : existing.dueDateNotifiedAt,
                 notes: body.notes ?? existing.notes,
                 totalWithoutVAT: totals.totalWithoutVAT,
                 vatAmount: totals.vatAmount,
@@ -494,6 +634,29 @@ const updateInvoice = async (req, res) => {
             },
             include: { items: true, payments: true },
         });
+        if (pcsPriceUpserts.size) {
+            for (const up of pcsPriceUpserts.values()) {
+                const prev = await prisma_1.default.pcsInventory.findUnique({ where: { tenantId_name: { tenantId, name: up.name } } });
+                const qty = prev?.quantity ?? 0;
+                await prisma_1.default.pcsInventory.upsert({
+                    where: { tenantId_name: { tenantId, name: up.name } },
+                    create: {
+                        id: (0, crypto_1.randomUUID)(),
+                        tenantId,
+                        name: up.name,
+                        quantity: qty,
+                        productId: up.productId,
+                        packSize: up.packSize ?? null,
+                        salesPrice: up.pcsPrice,
+                    },
+                    update: {
+                        productId: up.productId,
+                        packSize: up.packSize ?? null,
+                        salesPrice: up.pcsPrice,
+                    },
+                });
+            }
+        }
         // Update invoice number in meta store if provided
         if (typeof body.invoiceNumber === "string") {
             const normalized = body.invoiceNumber.trim();

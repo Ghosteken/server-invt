@@ -31,56 +31,81 @@ const getDashboardMetrics = async (req, res) => {
                 where: { tenantId, stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
             })),
             (0, cache_1.withCache)(`t=${tenantId}:metrics:pcs-and-combined:${LOW_STOCK_THRESHOLD}`, 60, async () => {
-                const pcs = await (0, pcsInventoryService_1.readPcsInventory)(tenantId);
-                const pcsInStock = pcs.filter((e) => Number(e.quantity || 0) > 0);
-                const pcsInventoryCountLocal = pcsInStock.length;
-                const lowPcsCountLocal = pcsInStock.filter((e) => Number(e.quantity || 0) <= LOW_STOCK_THRESHOLD).length;
-                // Build union of names: CTN in-stock + PCS in-stock
-                const ctnInStock = await prisma_1.default.products.findMany({
-                    where: { tenantId, ...nonInventoryFilter },
-                    select: { name: true, stockQuantity: true },
-                });
-                const nameSet = new Set();
-                for (const p of ctnInStock)
-                    nameSet.add(String(p.name).toLowerCase());
-                for (const e of pcsInStock)
-                    nameSet.add(String(e.name || "").toLowerCase());
-                const combinedCountLocal = nameSet.size;
-                // Combined low-stock: union of names with CTN 1..T OR PCS 1..T
-                const ctnLow = await prisma_1.default.products.findMany({
-                    where: { tenantId, stockQuantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } },
-                    select: { name: true },
-                });
-                const lowNameSet = new Set();
-                for (const p of ctnLow)
-                    lowNameSet.add(String(p.name).toLowerCase());
-                for (const e of pcsInStock) {
-                    const q = Number(e.quantity || 0);
-                    if (q > 0 && q <= LOW_STOCK_THRESHOLD) {
-                        lowNameSet.add(String(e.name || "").toLowerCase());
-                    }
-                }
-                const combinedLowLocal = lowNameSet.size;
+                // Optimization: Use SQL for counts to avoid loading thousands of rows
+                const [pcsInventoryCount, lowStockPcsCount] = await Promise.all([
+                    prisma_1.default.pcsInventory.count({ where: { tenantId, quantity: { gt: 0 } } }),
+                    prisma_1.default.pcsInventory.count({ where: { tenantId, quantity: { gt: 0, lte: LOW_STOCK_THRESHOLD } } })
+                ]);
+                // Optimization: Use SQL UNION for unique name counting
+                const combinedCountResult = await prisma_1.default.$queryRaw `
+             SELECT COUNT(DISTINCT LOWER(name)) as count
+             FROM (
+                 SELECT name FROM "Products" WHERE "tenantId" = ${tenantId} AND "stockQuantity" > 0
+                 UNION ALL
+                 SELECT name FROM "pcs_inventory" WHERE "tenantId" = ${tenantId} AND "quantity" > 0
+             ) as combined
+          `;
+                const combinedInventoryCount = Number(combinedCountResult?.[0]?.count || 0);
+                const combinedLowResult = await prisma_1.default.$queryRaw `
+             SELECT COUNT(DISTINCT LOWER(name)) as count
+             FROM (
+                 SELECT name FROM "Products" WHERE "tenantId" = ${tenantId} AND "stockQuantity" > 0 AND "stockQuantity" <= ${LOW_STOCK_THRESHOLD}
+                 UNION ALL
+                 SELECT name FROM "pcs_inventory" WHERE "tenantId" = ${tenantId} AND "quantity" > 0 AND "quantity" <= ${LOW_STOCK_THRESHOLD}
+             ) as combined
+          `;
+                const combinedLowStockCount = Number(combinedLowResult?.[0]?.count || 0);
                 return {
-                    pcsInventoryCount: pcsInventoryCountLocal,
-                    lowStockPcsCount: lowPcsCountLocal,
-                    combinedInventoryCount: combinedCountLocal,
-                    combinedLowStockCount: combinedLowLocal,
+                    pcsInventoryCount,
+                    lowStockPcsCount,
+                    combinedInventoryCount,
+                    combinedLowStockCount,
                 };
             }),
             (0, cache_1.withCache)(`t=${tenantId}:metrics:inventoryValue`, 60, async () => {
-                const productsBasic = await prisma_1.default.products.findMany({ where: { tenantId, ...nonInventoryFilter }, select: { productId: true, name: true, price: true, stockQuantity: true } });
-                return productsBasic.reduce((sum, p) => sum + (Number(p.price) * p.stockQuantity), 0);
+                // Optimization: Use DB aggregation instead of loading all rows into memory
+                // This moves the O(N) calculation from Node.js (RAM heavy) to Postgres (Optimized)
+                const result = await prisma_1.default.$queryRaw `
+          SELECT SUM("price" * "stockQuantity") as total
+          FROM "Products"
+          WHERE "tenantId" = ${tenantId} AND "stockQuantity" > 0
+        `;
+                return Number(result?.[0]?.total || 0);
             }),
             (0, cache_1.withCache)(`t=${tenantId}:metrics:inventoryValuePcs:${LOW_STOCK_THRESHOLD}`, 60, async () => {
                 const pcs = await (0, pcsInventoryService_1.readPcsInventory)(tenantId);
                 const inStock = pcs.filter((e) => Number(e.quantity || 0) > 0);
                 if (!inStock.length)
                     return 0;
-                const products = await prisma_1.default.products.findMany({
-                    where: { tenantId },
-                    select: { productId: true, name: true, price: true, packSize: true },
-                });
+                // Optimization: Fetch only relevant products if the list is small enough
+                // If we have too many PCS items, fetching all products is more efficient than a massive OR query
+                const THRESHOLD_FOR_FULL_FETCH = 500;
+                let products = [];
+                if (inStock.length > THRESHOLD_FOR_FULL_FETCH) {
+                    products = await prisma_1.default.products.findMany({
+                        where: { tenantId },
+                        select: { productId: true, name: true, price: true, packSize: true },
+                    });
+                }
+                else {
+                    const productIds = inStock.map(e => e.productId).filter(id => id && typeof id === 'string');
+                    const names = inStock.map(e => e.name).filter(n => n && typeof n === 'string');
+                    const uniqueIds = Array.from(new Set(productIds));
+                    const uniqueNames = Array.from(new Set(names));
+                    if (uniqueIds.length > 0 || uniqueNames.length > 0) {
+                        products = await prisma_1.default.products.findMany({
+                            where: {
+                                tenantId,
+                                OR: [
+                                    ...(uniqueIds.length ? [{ productId: { in: uniqueIds } }] : []),
+                                    // Use multiple OR conditions for case-insensitive name matching
+                                    ...uniqueNames.map(n => ({ name: { equals: n, mode: 'insensitive' } }))
+                                ]
+                            },
+                            select: { productId: true, name: true, price: true, packSize: true },
+                        });
+                    }
+                }
                 const byId = new Map();
                 const byName = new Map();
                 for (const p of products) {

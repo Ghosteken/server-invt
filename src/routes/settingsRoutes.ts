@@ -285,4 +285,100 @@ router.delete("/banks", authenticateToken, requireAdmin, async (req: Request, re
   }
 });
 
+function cryptoRandom(): string {
+  try {
+    const { randomUUID } = require("crypto");
+    return randomUUID();
+  } catch {
+    return Math.random().toString(36).slice(2);
+  }
+}
+
+router.get("/expense-banks", authenticateToken, async (req: Request, res: Response) => {
+  try {
+    const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+    const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
+    const db = prisma as any;
+    const rows: any[] = await db.expenseBanks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+    res.json({ expenseBanks: rows.map((r) => ({ id: r.id, name: r.name, account: r.account, balance: Number(r.balance || 0) })) });
+  } catch {
+    res.status(500).json({ expenseBanks: [] });
+  }
+});
+
+router.post("/expense-banks", authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const Body = z.object({ name: z.string().min(1), account: z.string().min(1), balance: z.coerce.number().optional() });
+    const { name, account, balance } = Body.parse(req.body || {});
+    const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+    const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
+    const db = prisma as any;
+    const existing = await db.expenseBanks.findFirst({ where: { tenantId, name: String(name).trim(), account: String(account).trim() } });
+    if (!existing) {
+      await db.expenseBanks.create({
+        data: { id: cryptoRandom(), tenantId, name: String(name).trim(), account: String(account).trim(), balance: balance !== undefined ? Number(balance) : 0 },
+      });
+      try { appendNotification({ type: "expenseBank", message: `Expense bank created: ${name} - ${account}`, actorUserId: req.user?.userId, tenantId }); } catch {}
+    }
+    const rows: any[] = await db.expenseBanks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+    res.status(201).json({ expenseBanks: rows.map((r) => ({ id: r.id, name: r.name, account: r.account, balance: Number(r.balance || 0) })) });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(400).json({ message: "Invalid input", errors: err.issues });
+      return;
+    }
+    res.status(500).json({ message: "Failed to create expense bank account" });
+  }
+});
+
+router.put("/expense-banks", authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const Body = z.object({ id: z.string().min(1), name: z.string().min(1), account: z.string().min(1), balance: z.coerce.number() });
+    const { id, name, account, balance } = Body.parse(req.body || {});
+    const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+    const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
+    const db = prisma as any;
+    const existing = await db.expenseBanks.findFirst({ where: { id, tenantId } });
+    if (!existing) {
+      res.status(404).json({ message: "Expense bank account not found" });
+      return;
+    }
+    await db.expenseBanks.update({ where: { id }, data: { name: String(name).trim(), account: String(account).trim(), balance: Number(balance) } });
+    try { appendNotification({ type: "expenseBank", message: `Expense bank updated: ${existing.name} - ${existing.account} → ${name} - ${account}`, actorUserId: req.user?.userId, tenantId }); } catch {}
+    const rows: any[] = await db.expenseBanks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+    res.json({ expenseBanks: rows.map((r) => ({ id: r.id, name: r.name, account: r.account, balance: Number(r.balance || 0) })) });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(400).json({ message: "Invalid input", errors: err.issues });
+      return;
+    }
+    res.status(500).json({ message: "Failed to update expense bank account" });
+  }
+});
+
+router.delete("/expense-banks", authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+  try {
+    const Body = z.object({ id: z.string().min(1) });
+    const { id } = Body.parse(req.body || {});
+    const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+    const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
+    const db = prisma as any;
+    const existing = await db.expenseBanks.findFirst({ where: { id, tenantId } });
+    if (!existing) {
+      res.status(404).json({ message: "Expense bank account not found" });
+      return;
+    }
+    await db.expenseBanks.delete({ where: { id } });
+    try { appendNotification({ type: "expenseBank", message: `Expense bank removed: ${existing.name} - ${existing.account}`, actorUserId: req.user?.userId, tenantId }); } catch {}
+    const rows: any[] = await db.expenseBanks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+    res.json({ expenseBanks: rows.map((r) => ({ id: r.id, name: r.name, account: r.account, balance: Number(r.balance || 0) })) });
+  } catch (err) {
+    if (err instanceof ZodError) {
+      res.status(400).json({ message: "Invalid input", errors: err.issues });
+      return;
+    }
+    res.status(500).json({ message: "Failed to delete expense bank account" });
+  }
+});
+
 export default router;
