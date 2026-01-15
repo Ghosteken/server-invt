@@ -114,12 +114,32 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
 
       // 3. Aggregate
       const invoiceStats = new Map<string, { items: any[]; totalCost: number; totalPaid: number; totalQuantity: number; purchaseId: string; timestamp: Date }>();
+
+      const purchaseIdsByInvoice = new Map<string, string[]>();
+      for (const m of allInvoiceMetas as any[]) {
+        const inv = String(m.invoiceNumber || "").trim();
+        if (!inv) continue;
+        const list = purchaseIdsByInvoice.get(inv) || [];
+        list.push(String(m.purchaseId));
+        purchaseIdsByInvoice.set(inv, list);
+      }
+
+      const purchaseById = new Map<string, any>();
+      for (const p of allInvoicePurchases as any[]) {
+        purchaseById.set(String(p.purchaseId), p);
+      }
+
+      const paidByPurchaseId = new Map<string, number>();
+      for (const pay of allInvoicePayments as any[]) {
+        const pid = String(pay.purchaseId);
+        const prev = paidByPurchaseId.get(pid) || 0;
+        paidByPurchaseId.set(pid, prev + Number(pay.amount || 0));
+      }
       
       for (const invNum of invoiceNumbers) {
-          const pIds = allInvoiceMetas.filter((m: any) => m.invoiceNumber === invNum).map((m: any) => m.purchaseId);
-          const relatedPurchases = allInvoicePurchases.filter((p: any) => pIds.includes(p.purchaseId));
-          
-          relatedPurchases.sort((a: any, b: any) => a.purchaseId.localeCompare(b.purchaseId));
+          const pIds = purchaseIdsByInvoice.get(invNum) || [];
+          const relatedPurchases = pIds.map((pid) => purchaseById.get(pid)).filter(Boolean);
+          relatedPurchases.sort((a: any, b: any) => String(a.purchaseId).localeCompare(String(b.purchaseId)));
 
           const items = relatedPurchases.map((p: any) => {
             const quantity = Number(p.quantity) || 1;
@@ -147,7 +167,7 @@ export const getPurchases = async (req: Request, res: Response): Promise<void> =
 
           const totalCost = items.reduce((sum, item) => sum + (item.totalCost || 0), 0);
           const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-          const totalPaid = allInvoicePayments.filter((p: any) => pIds.includes(p.purchaseId)).reduce((sum: number, p: any) => sum + Number(p.amount), 0);
+          const totalPaid = pIds.reduce((sum, pid) => sum + (paidByPurchaseId.get(pid) || 0), 0);
           
           const rep = relatedPurchases[0] || {};
           

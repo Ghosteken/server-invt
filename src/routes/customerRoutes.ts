@@ -1,12 +1,13 @@
 import { Router } from "express";
 import multer from "multer";
-import { getCustomers, importCustomers, exportCustomersExcel, importCustomersSample, deleteCustomerPurchase, createCustomer, updateCustomer, deleteCustomer, getCustomerGroups, createCustomerGroup, updateCustomerGroup, deleteCustomerGroup, addCustomerToGroup, removeCustomerFromGroup } from "../controllers/customerController";
+import { getCustomers, getCustomersPaged, importCustomers, exportCustomersExcel, importCustomersSample, deleteCustomerPurchase, createCustomer, updateCustomer, deleteCustomer, getCustomerGroups, createCustomerGroup, updateCustomerGroup, deleteCustomerGroup, addCustomerToGroup, removeCustomerFromGroup } from "../controllers/customerController";
 import { authenticateToken } from "../middleware/authMiddleware";
 import { requirePermission } from "../middleware/permissionMiddleware";
 
 const router = Router();
 
 router.get("/", authenticateToken, getCustomers);
+router.get("/paged", authenticateToken, getCustomersPaged);
 router.post("/", authenticateToken, requirePermission("customers", "create"), createCustomer);
 router.put("/:id", authenticateToken, requirePermission("customers", "edit"), updateCustomer);
 router.delete("/:id", authenticateToken, requirePermission("customers", "delete"), deleteCustomer);

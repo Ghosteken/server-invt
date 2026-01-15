@@ -154,6 +154,8 @@ model Customers {
   payments   Payments[]
   groups     CustomerGroups[]    @relation("CustomerGroupMembership")
   @@index([tenantId])
+  @@index([tenantId, name])
+  @@index([tenantId, mobile])
 }
 
 model CustomerPurchases {
