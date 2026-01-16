@@ -144,6 +144,7 @@ export const createProduct = async (
         name,
         price,
         stockQuantity,
+        openingStock: stockQuantity,
         category,
         description,
         packSize,
@@ -414,6 +415,7 @@ export const getProductMovements = async (
         productId: product.productId,
         name: product.name,
         stockQuantity: Number(product.stockQuantity || 0),
+        openingStock: Number(product.openingStock || 0),
       },
       items,
     });
@@ -772,6 +774,7 @@ export const importPcsProducts = async (req: Request, res: Response): Promise<vo
               price: item.salesPrice != null ? Number(item.salesPrice) : 0,
               purchasePrice: item.purchasePrice != null ? Number(item.purchasePrice) : null,
               stockQuantity: 0, // Ensure stock is 0 for PCS-only imports
+              openingStock: 0,
               expiryDate: (item.expiryDate instanceof Date) ? item.expiryDate : (item.expiryDate ? new Date(item.expiryDate) : null),
               category: item.category ?? null,
               description: item.description ?? null,
@@ -1405,7 +1408,7 @@ export const importProducts = async (
           } else {
             newItemData.category = bestCategoryForName(item.name);
           }
-          batchedCreates.push({ ...newItemData, tenantId });
+          batchedCreates.push({ ...newItemData, openingStock: newItemData.stockQuantity || 0, tenantId });
           // Log create (batch to memory)
           pendingAuditUpdates.push({ productId: item.productId, fields: ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize", "barcode"].filter((f) => (item as any)[f] !== undefined), source: "import" });
           mergedItemsForJson.push(item);

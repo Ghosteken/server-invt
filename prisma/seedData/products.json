@@ -1,5 +1,14 @@
 [
   {
+    "productId": "b5c3a539-e31a-4223-b4c6-f3f9de0063c7",
+    "name": "Bendow",
+    "price": 11101,
+    "stockQuantity": 100,
+    "category": "Dairy",
+    "packSize": null,
+    "barcode": null
+  },
+  {
     "productId": "3aee90de-53de-45bf-b293-06a65fc4fe98",
     "name": "didi",
     "price": 50,
@@ -12,7 +21,7 @@
     "productId": "3022e673-9b84-4f9b-8f70-431c6fbfe6bc",
     "name": "Product 1",
     "price": 1574.95,
-    "stockQuantity": 325,
+    "stockQuantity": 313,
     "category": "Dairy",
     "packSize": "Pack",
     "barcode": "890000000001"
@@ -30,7 +39,7 @@
     "productId": "e5a99897-3321-47fe-b84c-4987080cf1ee",
     "name": "Product 100",
     "price": 1620.58,
-    "stockQuantity": 431,
+    "stockQuantity": 430,
     "category": "Frozen",
     "packSize": "100g",
     "barcode": "890000000100"
@@ -57,7 +66,7 @@
     "productId": "6ed626da-1a9d-4ba5-911c-f1a55b5e9023",
     "name": "Product 103",
     "price": 3764.53,
-    "stockQuantity": 372,
+    "stockQuantity": 371,
     "category": "Groceries",
     "packSize": "1L",
     "barcode": "890000000103"
@@ -126,15 +135,6 @@
     "barcode": "890000000011"
   },
   {
-    "productId": "dc4f1892-0e96-41e9-ad37-b996f845fcd8",
-    "name": "Product 110",
-    "price": 5307.8,
-    "stockQuantity": 252,
-    "category": "Household",
-    "packSize": "1L",
-    "barcode": "890000000110"
-  },
-  {
     "productId": "d3bd5f9f-b1cf-4fd5-a01d-9b21916a4e87",
     "name": "Product 111",
     "price": 3684.99,
@@ -162,15 +162,6 @@
     "barcode": "890000000113"
   },
   {
-    "productId": "4dbd82a4-cc05-4f25-9272-5635ed03a6ed",
-    "name": "Product 114",
-    "price": 4764.69,
-    "stockQuantity": 250,
-    "category": "Household",
-    "packSize": "250g",
-    "barcode": "890000000114"
-  },
-  {
     "productId": "dc538f3c-8f10-44b1-a34e-4b21d9471be8",
     "name": "Product 115",
     "price": 1237.74,
@@ -183,7 +174,7 @@
     "productId": "675fcf39-4020-4c83-ac69-ee940e9f60db",
     "name": "Product 116",
     "price": 1011.98,
-    "stockQuantity": 125,
+    "stockQuantity": 124,
     "category": "Snacks",
     "packSize": "Pack",
     "barcode": "890000000116"
@@ -192,7 +183,7 @@
     "productId": "916fd3f2-c112-42ac-86bb-1e2626aed30c",
     "name": "Product 117",
     "price": 1807.99,
-    "stockQuantity": 201,
+    "stockQuantity": 200,
     "category": "Dairy",
     "packSize": "1L",
     "barcode": "890000000117"
@@ -201,7 +192,7 @@
     "productId": "9c849d7d-31e4-4fe0-b085-c0192761e6fa",
     "name": "Product 118",
     "price": 6744.06,
-    "stockQuantity": 307,
+    "stockQuantity": 306,
     "category": "Groceries",
     "packSize": "1kg",
     "barcode": "890000000118"
@@ -219,7 +210,7 @@
     "productId": "53c999c5-cd4f-43e7-85ec-0faabcf9a7c6",
     "name": "Product 120",
     "price": 499.46,
-    "stockQuantity": 83,
+    "stockQuantity": 82,
     "category": "Beverages",
     "packSize": "250g",
     "barcode": "890000000120"
@@ -228,7 +219,7 @@
     "productId": "7088aad1-64cb-49d7-958e-916ba55c80c2",
     "name": "Product 121",
     "price": 1947.33,
-    "stockQuantity": 42,
+    "stockQuantity": 41,
     "category": "Groceries",
     "packSize": "500g",
     "barcode": "890000000121"
