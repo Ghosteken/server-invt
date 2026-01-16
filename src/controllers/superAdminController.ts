@@ -99,6 +99,7 @@ export const createOrg = async (req: Request, res: Response): Promise<void> => {
           "storeSales",
           "inventory",
           "productTracker",
+          "statements",
           "products",
           "customers",
           "locations",
@@ -112,9 +113,9 @@ export const createOrg = async (req: Request, res: Response): Promise<void> => {
           "purchasingAdvisor",
           "expenseAnomalyDetection"
         ];
-        const allFeaturesExceptAI = ALL_FEATURES.filter(
-          f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection"
-        );
+        const allFeaturesExceptAI = ALL_FEATURES
+          .filter(f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection")
+          .filter(f => f !== "statements");
         await writeFlags(
           { 
             [newAdmin.id]: allFeaturesExceptAI,
@@ -336,6 +337,7 @@ export const getOrgAdminFeatures = async (req: Request, res: Response): Promise<
       "storeSales",
       "inventory",
       "productTracker",
+      "statements",
       "products",
       "customers",
       "locations",
