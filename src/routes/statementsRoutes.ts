@@ -1,12 +1,11 @@
 import { Router } from "express";
 import prisma from "../db/prisma";
 import { z } from "zod";
-import { requirePermission } from "../middleware/permissionMiddleware";
 import { getInvoiceMeta } from "../services/invoiceMetaService";
 
 const router = Router();
 
-router.get("/customers/search", requirePermission("statements", "view"), async (req, res) => {
+router.get("/customers/search", async (req, res) => {
   try {
     const Query = z.object({ query: z.string().optional() });
     const { query } = Query.parse(req.query);
@@ -22,7 +21,7 @@ router.get("/customers/search", requirePermission("statements", "view"), async (
   }
 });
 
-router.get("/customers/:customerId", requirePermission("statements", "view"), async (req, res) => {
+router.get("/customers/:customerId", async (req, res) => {
   try {
     const Params = z.object({ customerId: z.string().min(1) });
     const { customerId } = Params.parse(req.params);
@@ -108,7 +107,7 @@ router.get("/customers/:customerId", requirePermission("statements", "view"), as
   }
 });
 
-router.get("/suppliers/search", requirePermission("statements", "view"), async (req, res) => {
+router.get("/suppliers/search", async (req, res) => {
   try {
     const Query = z.object({ query: z.string().optional() });
     const { query } = Query.parse(req.query);
@@ -126,7 +125,7 @@ router.get("/suppliers/search", requirePermission("statements", "view"), async (
   }
 });
 
-router.get("/suppliers/:supplierId", requirePermission("statements", "view"), async (req, res) => {
+router.get("/suppliers/:supplierId", async (req, res) => {
   try {
     const Params = z.object({ supplierId: z.string().min(1) });
     const { supplierId } = Params.parse(req.params);

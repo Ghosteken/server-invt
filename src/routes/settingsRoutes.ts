@@ -109,9 +109,8 @@ router.get("/features/allowed", async (req, res) => {
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
     const flags = await readFlags(tenantId);
-    const allowed = Array.isArray(flags["__allowed__"])
-      ? flags["__allowed__"]
-      : ALL_FEATURES.filter((f) => f !== "statements");
+    const rawAllowed = Array.isArray(flags["__allowed__"]) ? flags["__allowed__"] : ALL_FEATURES;
+    const allowed = rawAllowed.filter((f: string) => f !== "statements");
     res.json({ features: allowed });
   } catch (err) {
     res.status(500).json({ message: "Failed to read tenant allowed features" });
