@@ -462,6 +462,7 @@ model Banks {
   tenantId  String   @default("default")
   name      String
   account   String
+  balance   Float    @default(0)
   createdAt DateTime @default(now())
 
   @@index([tenantId])

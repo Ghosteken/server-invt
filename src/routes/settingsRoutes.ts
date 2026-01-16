@@ -228,11 +228,11 @@ router.get("/banks", authenticateToken, async (req: Request, res: Response) => {
 
 router.post("/banks", authenticateToken, requireAdmin, async (req: Request, res: Response) => {
   try {
-    const Body = z.object({ name: z.string().min(1), account: z.string().min(1) });
-    const { name, account } = Body.parse(req.body || {});
+    const Body = z.object({ name: z.string().min(1), account: z.string().min(1), balance: z.coerce.number().optional() });
+    const { name, account, balance } = Body.parse(req.body || {});
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
-    const list = await addBank(tenantId, { name, account });
+    const list = await addBank(tenantId, { name, account, balance });
     try { appendNotification({ type: "bank", message: `Bank account created: ${name} - ${account}`, actorUserId: req.user?.userId, tenantId }); } catch {}
     res.status(201).json({ banks: list });
   } catch (err) {
@@ -251,11 +251,12 @@ router.put("/banks", authenticateToken, requireAdmin, async (req: Request, res: 
       oldAccount: z.string().min(1),
       name: z.string().min(1),
       account: z.string().min(1),
+      balance: z.coerce.number().optional(),
     });
-    const { oldName, oldAccount, name, account } = Body.parse(req.body || {});
+    const { oldName, oldAccount, name, account, balance } = Body.parse(req.body || {});
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
-    const list = await updateBank(tenantId, { name: oldName, account: oldAccount }, { name, account });
+    const list = await updateBank(tenantId, { name: oldName, account: oldAccount }, { name, account, balance });
     try { appendNotification({ type: "bank", message: `Bank account updated: ${oldName} - ${oldAccount} → ${name} - ${account}`, actorUserId: req.user?.userId, tenantId }); } catch {}
     res.json({ banks: list });
   } catch (err) {
