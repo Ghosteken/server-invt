@@ -369,6 +369,9 @@ export const getProductMovements = async (
         productId,
         ...(timestampFilter ? { timestamp: timestampFilter } : {}),
       },
+      include: {
+        supplierMeta: true,
+      },
       orderBy: { timestamp: "desc" },
     });
 
@@ -407,6 +410,7 @@ export const getProductMovements = async (
       quantity: Number(p.quantity || 0),
       unitCost: Number(p.unitCost || 0),
       totalCost: Number(p.totalCost || 0),
+      invoiceNumber: p.supplierMeta?.invoiceNumber,
     }));
     const items = [...saleItems, ...purchaseItems].sort((a, b) => new Date(b.timestamp as any).getTime() - new Date(a.timestamp as any).getTime());
 
