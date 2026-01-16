@@ -99,6 +99,7 @@ export const createOrg = async (req: Request, res: Response): Promise<void> => {
           "storeSales",
           "inventory",
           "productTracker",
+          "statements",
           "products",
           "customers",
           "locations",
@@ -112,9 +113,9 @@ export const createOrg = async (req: Request, res: Response): Promise<void> => {
           "purchasingAdvisor",
           "expenseAnomalyDetection"
         ];
-        const allFeaturesExceptAI = ALL_FEATURES.filter(
-          f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection"
-        );
+        const allFeaturesExceptAI = ALL_FEATURES
+          .filter(f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection")
+          .filter(f => f !== "statements");
         await writeFlags(
           { 
             [newAdmin.id]: allFeaturesExceptAI,
@@ -349,7 +350,8 @@ export const getOrgAdminFeatures = async (req: Request, res: Response): Promise<
       "purchasingAdvisor",
       "expenseAnomalyDetection",
     ];
-    const list = flags[adminId] && Array.isArray(flags[adminId]) ? flags[adminId] : allFeatures;
+    const rawList = flags[adminId] && Array.isArray(flags[adminId]) ? flags[adminId] : allFeatures;
+    const list = rawList.filter((f: string) => f !== "statements");
     res.json({ features: list });
   } catch (err) {
     if (err instanceof ZodError) { res.status(400).json({ message: "Invalid input", errors: err.issues }); return; }
