@@ -34,6 +34,7 @@ model Products {
   price             Float
   rating            Float?
   stockQuantity     Int
+  openingStock      Int                 @default(0)
   expiryDate        DateTime?
   // New descriptive fields for richer inventory details
   category          String?
@@ -366,6 +367,7 @@ model PcsInventory {
   tenantId  String   @default("default")
   name      String
   quantity  Int      @default(0)
+  openingStock Int      @default(0)
   productId String?
   packSize  String?
   salesPrice Float?

@@ -92,6 +92,7 @@ export const upsertPcsEntries = async (
         tenantId,
         name: inc.name,
         quantity: nextQty,
+        openingStock: nextQty,
         productId: next.productId ?? null,
         packSize: next.packSize ?? null,
         salesPrice: next.salesPrice ?? null,

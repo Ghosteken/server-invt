@@ -113,6 +113,7 @@ export function createApp() {
   apiRouter.use("/store-sales", storeSalesRoutes);
   apiRouter.use("/stores", storesRoutes);
   apiRouter.use("/purchases", purchasesRoutes);
+  apiRouter.use("/statements", require("./routes/statementsRoutes").default);
   apiRouter.use("/invoices", invoiceRoutes);
   apiRouter.use("/sales-agents", salesAgentRoutes);
   apiRouter.use("/locations", locationRoutes);
