@@ -226,6 +226,7 @@ model Invoices {
   @@index([locationId])
   @@index([tenantId])
   @@index([tenantId, date])
+  @@index([tenantId, customerId, date])
 }
 
 model InvoiceItems {
@@ -505,6 +506,8 @@ model SupplierPurchaseMeta {
   purchase       Purchases @relation("PurchaseMeta", fields: [purchaseId], references: [purchaseId])
 
   @@index([tenantId])
+  @@index([tenantId, supplierName])
+  @@index([tenantId, supplierName, date])
   @@map("supplier_purchase_meta")
 }
 
