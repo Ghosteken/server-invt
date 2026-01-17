@@ -5,6 +5,37 @@ import { getInvoiceMeta } from "../services/invoiceMetaService";
 
 const router = Router();
 
+function applyConditionalGet(req: any, res: any, lastUpdated: Date | null, cacheKey: string): boolean {
+  if (!lastUpdated) return false;
+  const etag = `W/"${cacheKey}"`;
+  const lastModified = lastUpdated.toUTCString();
+  const ifNoneMatch = req.headers["if-none-match"];
+  const ifModifiedSince = req.headers["if-modified-since"];
+
+  if (ifNoneMatch && ifNoneMatch === etag) {
+    res.status(304);
+    res.set("ETag", etag);
+    res.set("Last-Modified", lastModified);
+    res.end();
+    return true;
+  }
+
+  if (ifModifiedSince) {
+    const since = new Date(ifModifiedSince as string);
+    if (!Number.isNaN(since.getTime()) && lastUpdated <= since) {
+      res.status(304);
+      res.set("ETag", etag);
+      res.set("Last-Modified", lastModified);
+      res.end();
+      return true;
+    }
+  }
+
+  res.set("ETag", etag);
+  res.set("Last-Modified", lastModified);
+  return false;
+}
+
 router.get("/customers/search", async (req, res) => {
   try {
     const Query = z.object({ query: z.string().optional() });
@@ -30,8 +61,10 @@ router.get("/customers/:customerId", async (req, res) => {
       to: z.string().optional(),
       status: z.enum(["paid", "unpaid", "partial"]).optional(),
       bank: z.string().optional(),
+      page: z.string().optional(),
+      pageSize: z.string().optional(),
     });
-    const { from, to, status, bank } = Query.parse(req.query);
+    const { from, to, status, bank, page: pageStr, pageSize: pageSizeStr } = Query.parse(req.query);
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
     const where: any = { tenantId, customerId };
@@ -61,7 +94,10 @@ router.get("/customers/:customerId", async (req, res) => {
       balance: number;
       payments: Array<{ date: string; amount: number; bankName: string; bankAccount: string }>;
     }> = [];
+    let lastUpdated: Date | null = null;
     for (const inv of invoices as any[]) {
+      const invoiceDate = inv.date instanceof Date ? inv.date : new Date(inv.date);
+      if (!lastUpdated || invoiceDate > lastUpdated) lastUpdated = invoiceDate;
       const paid = (inv.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount || 0), 0);
       const balance = Math.max(0, Number(inv.totalWithVAT || 0) - paid);
       const meta = await getInvoiceMeta(inv.invoiceId);
@@ -71,6 +107,10 @@ router.get("/customers/:customerId", async (req, res) => {
         bankName: String(p.bankName || ""),
         bankAccount: String(p.bankAccount || ""),
       }));
+      for (const p of inv.payments || []) {
+        const d = new Date(p.date);
+        if (!lastUpdated || d > lastUpdated) lastUpdated = d;
+      }
       entries.push({
         invoiceId: inv.invoiceId,
         invoiceNumber: meta?.invoiceNumber || undefined,
@@ -94,6 +134,15 @@ router.get("/customers/:customerId", async (req, res) => {
       const b = bank.trim().toLowerCase();
       filtered = filtered.filter((e) => e.payments.some((p) => p.bankName.toLowerCase().includes(b) || p.bankAccount.toLowerCase().includes(b)));
     }
+    const total = filtered.length;
+    const parsedPage = pageStr ? parseInt(pageStr, 10) : 1;
+    const parsedPageSize = pageSizeStr ? parseInt(pageSizeStr, 10) : 50;
+    const page = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+    const pageSize = Number.isNaN(parsedPageSize) || parsedPageSize < 1 ? 50 : Math.min(parsedPageSize, 200);
+    const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
+    const currentPage = Math.min(page, totalPages);
+    const start = (currentPage - 1) * pageSize;
+    const pagedEntries = filtered.slice(start, start + pageSize);
     const summary = {
       totalInvoices: filtered.length,
       totalBilled: filtered.reduce((s, e) => s + e.total, 0),
@@ -101,7 +150,10 @@ router.get("/customers/:customerId", async (req, res) => {
       balanceDue: filtered.reduce((s, e) => s + e.balance, 0),
       countSales: filtered.length,
     };
-    res.json({ summary, entries: filtered });
+    const cacheKey = `${total}-${currentPage}-${pageSize}-${lastUpdated ? lastUpdated.getTime() : 0}`;
+    const notModified = applyConditionalGet(req, res, lastUpdated, cacheKey);
+    if (notModified) return;
+    res.json({ summary, entries: pagedEntries, page: currentPage, pageSize, total, totalPages });
   } catch {
     res.status(500).json({ summary: { totalInvoices: 0, totalBilled: 0, totalPaid: 0, balanceDue: 0, countSales: 0 }, entries: [] });
   }
@@ -134,8 +186,10 @@ router.get("/suppliers/:supplierId", async (req, res) => {
       to: z.string().optional(),
       status: z.enum(["paid", "unpaid", "partial"]).optional(),
       bank: z.string().optional(),
+      page: z.string().optional(),
+      pageSize: z.string().optional(),
     });
-    const { from, to, status, bank } = Query.parse(req.query);
+    const { from, to, status, bank, page: pageStr, pageSize: pageSizeStr } = Query.parse(req.query);
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
     const supplier = await prisma.suppliers.findFirst({ where: { id: supplierId, tenantId } });
@@ -164,9 +218,12 @@ router.get("/suppliers/:supplierId", async (req, res) => {
       select: { purchaseId: true, amount: true, date: true, bankName: true, bankAccount: true },
     });
     const paidByPurchaseId = new Map<string, number>();
+    let lastUpdated: Date | null = null;
     for (const p of payments as any[]) {
       const pid = String(p.purchaseId);
       paidByPurchaseId.set(pid, (paidByPurchaseId.get(pid) || 0) + Number(p.amount || 0));
+      const d = new Date(p.date);
+      if (!lastUpdated || d > lastUpdated) lastUpdated = d;
     }
     const paymentsByInvoice = new Map<string, Array<{ date: string; amount: number; bankName: string; bankAccount: string }>>();
     for (const p of payments as any[]) {
@@ -188,7 +245,9 @@ router.get("/suppliers/:supplierId", async (req, res) => {
       if (unitCost === 0 && totalCost > 0 && quantity > 0) unitCost = totalCost / quantity;
       const prev = totalsByInvoice.get(String(m.invoiceNumber || ""));
       const nextTotal = (prev?.total || 0) + totalCost;
-      totalsByInvoice.set(String(m.invoiceNumber || ""), { total: nextTotal, timestamp: new Date(m.date || Date.now()) });
+      const ts = new Date(m.date || Date.now());
+      if (!lastUpdated || ts > lastUpdated) lastUpdated = ts;
+      totalsByInvoice.set(String(m.invoiceNumber || ""), { total: nextTotal, timestamp: ts });
     }
     let entries = Array.from(totalsByInvoice.entries()).map(([invoiceNumber, t]) => {
       const paid = (paymentsByInvoice.get(invoiceNumber) || []).reduce((sum, x) => sum + x.amount, 0);
@@ -213,6 +272,15 @@ router.get("/suppliers/:supplierId", async (req, res) => {
       const b = bank.trim().toLowerCase();
       entries = entries.filter((e) => e.payments.some((p) => p.bankName.toLowerCase().includes(b) || p.bankAccount.toLowerCase().includes(b)));
     }
+    const total = entries.length;
+    const parsedPage = pageStr ? parseInt(pageStr, 10) : 1;
+    const parsedPageSize = pageSizeStr ? parseInt(pageSizeStr, 10) : 50;
+    const page = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+    const pageSize = Number.isNaN(parsedPageSize) || parsedPageSize < 1 ? 50 : Math.min(parsedPageSize, 200);
+    const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
+    const currentPage = Math.min(page, totalPages);
+    const start = (currentPage - 1) * pageSize;
+    const pagedEntries = entries.slice(start, start + pageSize);
     const summary = {
       totalInvoices: entries.length,
       totalBilled: entries.reduce((s, e) => s + e.total, 0),
@@ -220,7 +288,10 @@ router.get("/suppliers/:supplierId", async (req, res) => {
       balanceDue: entries.reduce((s, e) => s + e.balance, 0),
       countPurchases: entries.length,
     };
-    res.json({ summary, entries });
+    const cacheKey = `${total}-${currentPage}-${pageSize}-${lastUpdated ? lastUpdated.getTime() : 0}`;
+    const notModified = applyConditionalGet(req, res, lastUpdated, cacheKey);
+    if (notModified) return;
+    res.json({ summary, entries: pagedEntries, page: currentPage, pageSize, total, totalPages });
   } catch {
     res.status(500).json({ summary: { totalInvoices: 0, totalBilled: 0, totalPaid: 0, balanceDue: 0, countPurchases: 0 }, entries: [] });
   }

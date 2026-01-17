@@ -337,6 +337,7 @@ export const getOrgAdminFeatures = async (req: Request, res: Response): Promise<
       "storeSales",
       "inventory",
       "productTracker",
+      "statements",
       "products",
       "customers",
       "locations",
@@ -350,8 +351,7 @@ export const getOrgAdminFeatures = async (req: Request, res: Response): Promise<
       "purchasingAdvisor",
       "expenseAnomalyDetection",
     ];
-    const rawList = flags[adminId] && Array.isArray(flags[adminId]) ? flags[adminId] : allFeatures;
-    const list = rawList.filter((f: string) => f !== "statements");
+    const list = flags[adminId] && Array.isArray(flags[adminId]) ? flags[adminId] : allFeatures;
     res.json({ features: list });
   } catch (err) {
     if (err instanceof ZodError) { res.status(400).json({ message: "Invalid input", errors: err.issues }); return; }
