@@ -73,6 +73,28 @@ router.get("/customers/:customerId", async (req, res) => {
       if (from) where.date.gte = new Date(from);
       if (to) where.date.lte = new Date(to);
     }
+    if (status) {
+      where.status = status;
+    }
+    if (bank && bank.trim()) {
+      const bankSearch = bank.trim();
+      where.payments = {
+        some: {
+          OR: [
+            { bankName: { contains: bankSearch, mode: "insensitive" } },
+            { bankAccount: { contains: bankSearch, mode: "insensitive" } },
+          ],
+        },
+      };
+    }
+    const parsedPage = pageStr ? parseInt(pageStr, 10) : 1;
+    const parsedPageSize = pageSizeStr ? parseInt(pageSizeStr, 10) : 50;
+    const page = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+    const pageSize = Number.isNaN(parsedPageSize) || parsedPageSize < 1 ? 50 : Math.min(parsedPageSize, 200);
+    const total = await prisma.invoices.count({ where });
+    const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
+    const currentPage = Math.min(page, totalPages);
+    const offset = (currentPage - 1) * pageSize;
     const invoices = await prisma.invoices.findMany({
       where,
       select: {
@@ -83,6 +105,8 @@ router.get("/customers/:customerId", async (req, res) => {
         payments: true,
       },
       orderBy: { date: "desc" },
+      skip: offset,
+      take: pageSize,
     });
     const entries: Array<{
       invoiceId: string;
@@ -122,38 +146,17 @@ router.get("/customers/:customerId", async (req, res) => {
         payments,
       });
     }
-    let filtered = entries;
-    if (status) {
-      filtered = filtered.filter((e) => {
-        if (status === "paid") return e.paid >= e.total;
-        if (status === "unpaid") return e.paid <= 0;
-        return e.paid > 0 && e.paid < e.total;
-      });
-    }
-    if (bank && bank.trim()) {
-      const b = bank.trim().toLowerCase();
-      filtered = filtered.filter((e) => e.payments.some((p) => p.bankName.toLowerCase().includes(b) || p.bankAccount.toLowerCase().includes(b)));
-    }
-    const total = filtered.length;
-    const parsedPage = pageStr ? parseInt(pageStr, 10) : 1;
-    const parsedPageSize = pageSizeStr ? parseInt(pageSizeStr, 10) : 50;
-    const page = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
-    const pageSize = Number.isNaN(parsedPageSize) || parsedPageSize < 1 ? 50 : Math.min(parsedPageSize, 200);
-    const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
-    const currentPage = Math.min(page, totalPages);
-    const start = (currentPage - 1) * pageSize;
-    const pagedEntries = filtered.slice(start, start + pageSize);
     const summary = {
-      totalInvoices: filtered.length,
-      totalBilled: filtered.reduce((s, e) => s + e.total, 0),
-      totalPaid: filtered.reduce((s, e) => s + e.paid, 0),
-      balanceDue: filtered.reduce((s, e) => s + e.balance, 0),
-      countSales: filtered.length,
+      totalInvoices: total,
+      totalBilled: entries.reduce((s, e) => s + e.total, 0),
+      totalPaid: entries.reduce((s, e) => s + e.paid, 0),
+      balanceDue: entries.reduce((s, e) => s + e.balance, 0),
+      countSales: total,
     };
     const cacheKey = `${total}-${currentPage}-${pageSize}-${lastUpdated ? lastUpdated.getTime() : 0}`;
     const notModified = applyConditionalGet(req, res, lastUpdated, cacheKey);
     if (notModified) return;
-    res.json({ summary, entries: pagedEntries, page: currentPage, pageSize, total, totalPages });
+    res.json({ summary, entries, page: currentPage, pageSize, total, totalPages });
   } catch {
     res.status(500).json({ summary: { totalInvoices: 0, totalBilled: 0, totalPaid: 0, balanceDue: 0, countSales: 0 }, entries: [] });
   }

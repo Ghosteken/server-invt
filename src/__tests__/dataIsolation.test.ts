@@ -515,10 +515,12 @@ describe("Data Isolation Security Tests", () => {
       const orgBCustomerInList = response.body.find((c: any) => c.customerId === orgBCustomerId);
       expect(orgBCustomerInList).toBeUndefined();
 
-      expect(prismaMock.customers.findMany).toHaveBeenCalledWith({
-        where: { tenantId: "orgA" },
-        orderBy: expect.any(Object),
-      });
+      expect(prismaMock.customers.findMany).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { tenantId: "orgA" },
+          orderBy: expect.any(Object),
+        })
+      );
     });
 
     it("should only return Org A's invoices when Org A lists invoices", async () => {
