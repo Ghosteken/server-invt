@@ -13,6 +13,7 @@ export const getCustomers = async (req: Request, res: Response): Promise<void> =
   try {
     const tenantId = req.tenantId || req.user?.tenantId || "default";
     const search = String(req.query.search || "").trim();
+    const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
     const where: any = { tenantId };
     if (search) {
       where.OR = [
@@ -27,6 +28,7 @@ export const getCustomers = async (req: Request, res: Response): Promise<void> =
     const customers = await prisma.customers.findMany({
       where,
       orderBy: { createdAt: "desc" },
+      take: limit,
     });
 
     res.json(customers.map((c: any) => ({
