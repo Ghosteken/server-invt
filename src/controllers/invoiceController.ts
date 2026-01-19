@@ -434,7 +434,7 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
     const tenantId = req.tenantId || req.user?.tenantId || "default";
     const where: any = { tenantId };
     if (agentId) {
-      where.OR = [ { salesAgentId: agentId } ];
+      where.OR = [{ salesAgentId: agentId }];
     }
     if (customerIdQ) {
       where.customerId = customerIdQ;
@@ -453,7 +453,19 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
     if (statusQ === "paid" || statusQ === "unpaid" || statusQ === "partial") {
       where.status = statusQ;
     }
-    const invoices = await prisma.invoices.findMany({
+    if (search) {
+      const searchOr = [
+        { invoiceId: { contains: search, mode: "insensitive" } },
+        { location: { contains: search, mode: "insensitive" } },
+        { customer: { name: { contains: search, mode: "insensitive" } } },
+      ];
+      if (where.AND) {
+        where.AND.push({ OR: searchOr });
+      } else {
+        where.AND = [{ OR: searchOr }];
+      }
+    }
+    const findManyArgs: any = {
       where,
       select: {
         invoiceId: true,
@@ -474,10 +486,17 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
         payments: true,
       },
       orderBy: { date: "desc" },
-    });
-    // Removed needless check loop for performance
+    };
+    if (limit > 0) {
+      findManyArgs.skip = offset;
+      findManyArgs.take = limit;
+    }
+    const [invoices, total] = await Promise.all([
+      prisma.invoices.findMany(findManyArgs),
+      prisma.invoices.count({ where }),
+    ]);
     if (!invoices.length) {
-      res.json({ invoices: [], total: 0 });
+      res.json({ invoices: [], total });
       return;
     }
     const customerIds = Array.from(new Set(invoices.map((i: any) => i.customerId))).filter(Boolean);
@@ -491,21 +510,7 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
         return { ...inv, customerName: customerMap.get(inv.customerId), invoiceNumber: meta?.invoiceNumber || undefined } as any;
       })
     );
-    let filtered = list.filter((inv) => {
-      if (!search) return true;
-      return (
-        inv.invoiceId.toLowerCase().includes(search) ||
-        (inv.invoiceNumber || "").toLowerCase().includes(search) ||
-        (inv.customerName || "").toLowerCase().includes(search) ||
-        inv.location.toLowerCase().includes(search)
-      );
-    });
-    if (statusQ === "paid" || statusQ === "unpaid" || statusQ === "partial") {
-      filtered = filtered.filter((inv) => inv.status === statusQ);
-    }
-    const total = filtered.length;
-    const pageSlice = limit > 0 ? filtered.slice(offset, offset + limit) : filtered;
-    res.json({ invoices: pageSlice, total });
+    res.json({ invoices: list, total });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "invoice", "Failed to load invoices"));
   }
