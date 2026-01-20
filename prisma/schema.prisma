@@ -50,6 +50,7 @@ model Products {
   Purchases         Purchases[]
   CustomerPurchases CustomerPurchases[]
   InvoiceItems      InvoiceItems[]
+  StockResets       StockResets[]
 
   @@index([name])
   @@index([category])
@@ -70,6 +71,18 @@ model Sales {
 
   @@index([tenantId, timestamp])
   @@index([productId])
+}
+
+model StockResets {
+  id        String   @id @default(uuid())
+  productId String
+  timestamp DateTime @default(now())
+  quantity  Int      // The stock quantity at the time of reset (new opening stock)
+  tenantId  String   @default("default")
+  product   Products @relation(fields: [productId], references: [productId])
+
+  @@index([productId])
+  @@index([tenantId])
 }
 
 model Purchases {

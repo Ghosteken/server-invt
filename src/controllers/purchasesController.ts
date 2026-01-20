@@ -285,7 +285,15 @@ export const createPurchase = async (req: Request, res: Response): Promise<void>
   try {
     const body = req.body || {};
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
-    const date = body.date ? new Date(body.date) : new Date();
+    
+    let date = body.date ? new Date(body.date) : new Date();
+    if (body.date) {
+       const now = new Date();
+       const d = new Date(body.date);
+       if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()) {
+         date = now;
+       }
+    }
       const supplierName: string | undefined = body.supplierName ? String(body.supplierName) : undefined;
       const supplierMobile: string | undefined = body.supplierMobile ? String(body.supplierMobile) : undefined;
       const paymentTerm: string | undefined = body.paymentTerm ? String(body.paymentTerm) : undefined;
