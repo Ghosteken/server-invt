@@ -69,7 +69,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     const token = jwt.sign(
       { userId: newUser.userId, email: newUser.email, role: newUser.role, tenantId: newUser.tenantId },
       JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
 
     console.log(`auth: signup success for email=${email} userId=${newUser.userId}`);
@@ -139,7 +139,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const token = jwt.sign(
       { userId: user.userId, email: user.email, role: user.role, tenantId: user.tenantId, features },
       JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
 
     console.log(`auth: login successful for ${email}`);
@@ -188,7 +188,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
         const token = jwt.sign(
           { userId: orgAdmin.id, email: orgAdmin.email, role: "org_admin", tenantId: orgAdmin.orgId, features },
           JWT_SECRET,
-          { expiresIn: "24h" }
+          { expiresIn: "7d" }
         );
         res.json({ message: "Login successful", token, user: { userId: orgAdmin.id, name: orgAdmin.name, email: orgAdmin.email, role: "org_admin" } });
         return;
@@ -228,7 +228,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
           const token = jwt.sign(
             { userId: fallbackOrgAdmin.id, email: fallbackOrgAdmin.email, role: "org_admin", tenantId: fallbackOrgAdmin.orgId },
             JWT_SECRET,
-            { expiresIn: "24h" }
+            { expiresIn: "7d" }
           );
           res.json({ message: "Login successful", token, user: { userId: fallbackOrgAdmin.id, name: fallbackOrgAdmin.name, email: fallbackOrgAdmin.email, role: "org_admin" } });
           return;
@@ -259,7 +259,7 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
     const token = jwt.sign(
       { userId: user.userId, email: user.email, role: user.role, ...(tenantId ? { tenantId } : {}), features },
       JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
 
     console.log(`auth: admin login successful for ${email}`);
@@ -364,7 +364,7 @@ export const orgAdminLogin = async (req: Request, res: Response): Promise<void> 
     const token = jwt.sign(
       { userId: admin.id, email: admin.email, role: "org_admin", tenantId: admin.orgId },
       JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
     res.json({ message: "Login successful", token, user: { userId: admin.id, name: admin.name, email: admin.email, role: "org_admin" } });
   } catch (err) {
@@ -459,7 +459,7 @@ export const signupOrg = async (req: Request, res: Response): Promise<void> => {
     const token = jwt.sign(
       { userId: newOrgAdmin.id, email: newOrgAdmin.email, role: "org_admin", tenantId: orgId },
       JWT_SECRET,
-      { expiresIn: "24h" }
+      { expiresIn: "7d" }
     );
 
     res.status(201).json({
