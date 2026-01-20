@@ -374,7 +374,7 @@ export const getProductMovements = async (
       },
       orderBy: { timestamp: "desc" },
     });
-    const resets = await (prisma as any).stockResets.findMany({
+    const resets = await prisma.stockResets.findMany({
       where: {
         productId,
         ...(timestampFilter ? { timestamp: timestampFilter } : {}),
@@ -424,6 +424,7 @@ export const getProductMovements = async (
       timestamp: r.timestamp,
       quantity: Number(r.quantity || 0),
       totalCost: 0,
+      source: r.type || "opening",
     }));
     const items = [...saleItems, ...purchaseItems, ...resetItems].sort((a, b) => {
       const tA = new Date(a.timestamp as any).getTime();
@@ -2532,8 +2533,8 @@ export const getProductUpdatesLast = async (
 
 export const resetOpeningStock = async (req: Request, res: Response): Promise<void> => {
   try {
-    const Body = z.object({ productId: z.string().min(1) });
-    const { productId } = Body.parse(req.body);
+    const Body = z.object({ productId: z.string().min(1), date: z.string().optional(), timestamp: z.string().optional() });
+    const { productId, date, timestamp } = Body.parse(req.body);
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
     
     const product = await prisma.products.findFirst({ where: { productId, tenantId } });
@@ -2542,16 +2543,24 @@ export const resetOpeningStock = async (req: Request, res: Response): Promise<vo
       return;
     }
 
-    const now = new Date();
+    let ts = new Date();
+    if (typeof date === "string" && date.trim()) {
+      const d = new Date(date);
+      if (!isNaN(d.getTime())) ts = d;
+    } else if (typeof timestamp === "string" && timestamp.trim()) {
+      const t = new Date(timestamp);
+      if (!isNaN(t.getTime())) ts = t;
+    }
     
     await prisma.$transaction(async (tx) => {
       // Create reset record
       await tx.stockResets.create({
         data: {
           productId: product.productId,
-          timestamp: now,
+          timestamp: ts,
           quantity: product.stockQuantity,
-          tenantId
+          tenantId,
+          type: "opening"
         }
       });
       // Update product opening stock
@@ -2576,6 +2585,18 @@ export const resetOpeningStock = async (req: Request, res: Response): Promise<vo
 export const resetAllOpeningStock = async (req: Request, res: Response): Promise<void> => {
   try {
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const Body = z.object({ date: z.string().optional(), timestamp: z.string().optional() }).optional();
+    const parsed = (() => {
+      try { return Body.parse(req.body || {}); } catch { return {}; }
+    })() as { date?: string; timestamp?: string };
+    let ts = new Date();
+    if (typeof parsed.date === "string" && parsed.date.trim()) {
+      const d = new Date(parsed.date);
+      if (!isNaN(d.getTime())) ts = d;
+    } else if (typeof parsed.timestamp === "string" && parsed.timestamp.trim()) {
+      const t = new Date(parsed.timestamp);
+      if (!isNaN(t.getTime())) ts = t;
+    }
     
     // Optimized: Fetch only necessary fields
     const products = await prisma.products.findMany({ 
@@ -2588,15 +2609,14 @@ export const resetAllOpeningStock = async (req: Request, res: Response): Promise
       return;
     }
     
-    const now = new Date();
-    
     // Prepare bulk insert data with client-side UUID generation
     const resetData = products.map(p => ({
       id: randomUUID(),
       productId: p.productId,
-      timestamp: now,
+      timestamp: ts,
       quantity: p.stockQuantity,
-      tenantId
+      tenantId,
+      type: "opening"
     }));
     
     await prisma.$transaction(async (tx) => {
@@ -2624,6 +2644,64 @@ export const resetAllOpeningStock = async (req: Request, res: Response): Promise
   } catch (err) {
     console.error("Error resetting all opening stocks:", err);
     res.status(500).json(createErrorResponse(err, "product", "Failed to reset all opening stocks"));
+  }
+};
+
+// Generate closing stock snapshot for a tenant (manual trigger)
+export const generateClosingSnapshot = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const Query = z.object({ date: z.string().optional() });
+    const Body = z.object({ date: z.string().optional() }).optional();
+    const q = (() => { try { return Query.parse(req.query || {}); } catch { return {}; } })() as { date?: string };
+    const b = (() => { try { return Body.parse(req.body || {}); } catch { return {}; } })() as { date?: string };
+    const rawDate = (b.date || q.date || "").trim();
+    const base = rawDate ? new Date(rawDate) : new Date();
+    // Calculate month-end timestamp (23:59:59 local)
+    const year = base.getFullYear();
+    const month = base.getMonth();
+    const firstOfMonth = new Date(year, month, 1, 0, 0, 0, 0);
+    const lastOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999);
+    // Fetch products
+    const products = await prisma.products.findMany({ where: { tenantId }, select: { productId: true, stockQuantity: true } });
+    if (!products.length) {
+      res.json({ success: true, count: 0 });
+      return;
+    }
+    // Dedupe: skip products that already have a closing snapshot this month
+    const existing = await (prisma as any).stockResets.findMany({
+      where: {
+        tenantId,
+        type: "closing",
+        timestamp: { gte: firstOfMonth, lte: lastOfMonth },
+      },
+      select: { productId: true },
+    });
+    const existingSet = new Set<string>(existing.map((e: any) => String(e.productId)));
+    const payload = products
+      .filter((p) => !existingSet.has(p.productId))
+      .map((p) => ({
+        id: randomUUID(),
+        productId: p.productId,
+        timestamp: lastOfMonth,
+        quantity: p.stockQuantity,
+        tenantId,
+        type: "closing",
+      }));
+    if (!payload.length) {
+      res.json({ success: true, count: 0, message: "Closing snapshots already exist for this month" });
+      return;
+    }
+    await prisma.stockResets.createMany({ data: payload });
+    await appendNotification({
+      type: "inventory",
+      message: `Generated closing stock snapshots for ${payload.length} products`,
+      actorUserId: req.user?.userId,
+      tenantId,
+    });
+    res.json({ success: true, count: payload.length, month: `${year}-${String(month + 1).padStart(2, "0")}` });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Failed to generate closing stock snapshots"));
   }
 };
 

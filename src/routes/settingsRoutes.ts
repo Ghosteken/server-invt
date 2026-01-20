@@ -8,7 +8,7 @@ import { Request, Response } from "express";
 import { readBanks, addBank, updateBank, removeBank } from "../services/banksService";
 import { appendNotification } from "../services/notificationService";
 import { authenticateToken, requireAdmin } from "../middleware/authMiddleware";
-import { resetOpeningStock, resetAllOpeningStock } from "../controllers/productController";
+import { resetOpeningStock, resetAllOpeningStock, generateClosingSnapshot } from "../controllers/productController";
 
 const router = Router();
 // Use shared Prisma client
@@ -387,5 +387,7 @@ router.delete("/expense-banks", authenticateToken, requireAdmin, async (req: Req
 // Reset opening stock
 router.post("/reset-opening-stock", authenticateToken, requireAdmin, resetOpeningStock);
 router.post("/reset-all-opening-stock", authenticateToken, requireAdmin, resetAllOpeningStock);
+// Generate closing snapshots (month-end)
+router.post("/generate-closing-snapshot", authenticateToken, requireAdmin, generateClosingSnapshot);
 
 export default router;
