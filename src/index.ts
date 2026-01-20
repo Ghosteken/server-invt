@@ -38,6 +38,7 @@ import permissionRoutes from "./routes/permissionRoutes";
 import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
 import { startInvoiceReminderJob } from "./jobs/invoiceReminderJob";
+import { startClosingStockSnapshotJob } from "./jobs/closingStockSnapshotJob";
 
 /* CONFIGURATIONS */
 dotenv.config();
@@ -284,6 +285,7 @@ try {
     // Sync org admins to Users so admin appears in tenant-scoped views
     syncOrgAdminsToUsers().catch((err) => console.warn("Bootstrap syncOrgAdminsToUsers failed:", err));
     startInvoiceReminderJob();
+    startClosingStockSnapshotJob();
   });
 
   // On unexpected errors, log and exit
