@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import prisma from "../db/prisma";
 import { withCache } from "../services/cache";
 import { createErrorResponse } from "../utils/errorHandler";
+import * as XLSX from "xlsx";
 
 export const getSalesReport = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -34,6 +35,7 @@ export const getSalesReport = async (req: Request, res: Response): Promise<void>
             },
           },
           customer: { select: { name: true } },
+          salesAgentRef: { select: { name: true } },
         },
       });
 
@@ -45,6 +47,22 @@ export const getSalesReport = async (req: Request, res: Response): Promise<void>
           })
         : [];
       const metaMap = new Map(metas.map((m) => [m.invoiceId, m.invoiceNumber]));
+
+      const productIds = Array.from(
+        new Set(
+          invoices.flatMap((inv) => inv.items.map((it) => it.productId)).filter(Boolean)
+        )
+      );
+      const productExpiryMap = new Map<string, string | undefined>();
+      if (productIds.length) {
+        const prods = await prisma.products.findMany({
+          where: { tenantId, productId: { in: productIds as string[] } },
+          select: { productId: true, expiryDate: true },
+        });
+        for (const p of prods as any[]) {
+          productExpiryMap.set(p.productId, p.expiryDate ? new Date(p.expiryDate).toISOString().slice(0, 10) : undefined);
+        }
+      }
 
       const items = invoices.flatMap((inv) =>
         inv.items.map((item) => ({
@@ -58,6 +76,8 @@ export const getSalesReport = async (req: Request, res: Response): Promise<void>
           unitPrice: item.unitPrice,
           totalCost: item.subtotal,
           timestamp: inv.date,
+          salesAgentName: (inv as any).salesAgentRef?.name || (inv as any).salesAgent || undefined,
+          expiryDate: item.productId ? productExpiryMap.get(item.productId) : undefined,
         }))
       );
 
@@ -275,6 +295,7 @@ export const getPurchasesReport = async (req: Request, res: Response): Promise<v
           quantity: true,
           unitCost: true,
           totalCost: true,
+          expiryDate: true,
         },
       });
 
@@ -309,6 +330,7 @@ export const getPurchasesReport = async (req: Request, res: Response): Promise<v
         unitCost: Number(p.unitCost || 0),
         totalCost: Number(p.totalCost || 0),
         timestamp: p.timestamp,
+        expiryDate: p.expiryDate ? new Date(p.expiryDate).toISOString().slice(0, 10) : undefined,
       }));
 
       const total = items.reduce((sum: number, it: any) => sum + Number(it.totalCost || 0), 0);
@@ -330,5 +352,150 @@ export const getPurchasesReport = async (req: Request, res: Response): Promise<v
     res.json(payload);
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "Failed to load purchases report"));
+  }
+};
+
+// Export Sales Report to Excel
+export const exportSalesReportExcel = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const fromRaw = req.query?.from as string | undefined;
+    const toRaw = req.query?.to as string | undefined;
+    const from = fromRaw ? new Date(fromRaw) : undefined;
+    const to = toRaw ? new Date(toRaw) : undefined;
+    let dateFilter: any | undefined = undefined;
+    if (from) dateFilter = { ...(dateFilter || {}), gte: from };
+    if (to) dateFilter = { ...(dateFilter || {}), lte: to };
+    const where: any = dateFilter ? { tenantId, date: dateFilter } : { tenantId };
+
+    const invoices = await prisma.invoices.findMany({
+      where,
+      orderBy: { date: "desc" },
+      include: {
+        items: {
+          select: {
+            id: true,
+            productId: true,
+            name: true,
+            quantity: true,
+            unitPrice: true,
+            subtotal: true,
+          },
+        },
+        customer: { select: { name: true } },
+        salesAgentRef: { select: { name: true } },
+      },
+    });
+    const invoiceIds = invoices.map((i) => i.invoiceId);
+    const metas = invoiceIds.length
+      ? await prisma.invoiceMeta.findMany({
+          where: { invoiceId: { in: invoiceIds } },
+          select: { invoiceId: true, invoiceNumber: true },
+        })
+      : [];
+    const metaMap = new Map(metas.map((m) => [m.invoiceId, m.invoiceNumber]));
+    const productIds = Array.from(
+      new Set(invoices.flatMap((inv) => inv.items.map((it) => it.productId)).filter(Boolean))
+    );
+    const productExpiryMap = new Map<string, string | undefined>();
+    if (productIds.length) {
+      const prods = await prisma.products.findMany({
+        where: { tenantId, productId: { in: productIds as string[] } },
+        select: { productId: true, expiryDate: true },
+      });
+      for (const p of prods as any[]) {
+        productExpiryMap.set(p.productId, p.expiryDate ? new Date(p.expiryDate).toISOString().slice(0, 10) : undefined);
+      }
+    }
+    const rows = invoices.flatMap((inv) =>
+      inv.items.map((item) => ({
+        Date: inv.date instanceof Date ? inv.date.toISOString().slice(0, 10) : "",
+        "Invoice Number": metaMap.get(inv.invoiceId) || inv.invoiceId,
+        Customer: inv.customer?.name || "",
+        Product: item.name || "",
+        Quantity: Number(item.quantity || 0),
+        "Unit Price": Number(item.unitPrice || 0),
+        Total: Number(item.subtotal || 0),
+        "Sales Agent": (inv as any).salesAgentRef?.name || (inv as any).salesAgent || "",
+        "Expiry Date": item.productId ? (productExpiryMap.get(item.productId) || "") : "",
+      }))
+    );
+    const wb = XLSX.utils.book_new();
+    const headers = ["Date", "Invoice Number", "Customer", "Product", "Quantity", "Unit Price", "Total", "Sales Agent", "Expiry Date"];
+    const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+    XLSX.utils.book_append_sheet(wb, ws, "Sales");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    const fname = `sales-report_${(fromRaw || "all").replace(/:/g, "-")}_to_${(toRaw || "now").replace(/:/g, "-")}.xlsx`;
+    res.setHeader("Content-Disposition", `attachment; filename=${fname}`);
+    res.status(200).send(buf);
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "Failed to export sales report as Excel"));
+  }
+};
+
+// Export Purchases Report to Excel
+export const exportPurchasesReportExcel = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    const fromRaw = req.query?.from as string | undefined;
+    const toRaw = req.query?.to as string | undefined;
+    const from = fromRaw ? new Date(fromRaw) : undefined;
+    const to = toRaw ? new Date(toRaw) : undefined;
+    let timestampFilter: any | undefined = undefined;
+    if (from) timestampFilter = { ...(timestampFilter || {}), gte: from };
+    if (to) timestampFilter = { ...(timestampFilter || {}), lte: to };
+    const where: any = timestampFilter ? { tenantId, timestamp: timestampFilter } : { tenantId };
+
+    const purchases = await prisma.purchases.findMany({
+      where,
+      orderBy: { timestamp: "desc" },
+      select: {
+        purchaseId: true,
+        productId: true,
+        timestamp: true,
+        quantity: true,
+        unitCost: true,
+        totalCost: true,
+        expiryDate: true,
+      },
+    });
+    const productIds = Array.from(new Set(purchases.map((p: any) => p.productId).filter(Boolean)));
+    const products = productIds.length
+      ? await prisma.products.findMany({
+          where: { tenantId, productId: { in: productIds as string[] } },
+          select: { productId: true, name: true },
+        })
+      : [];
+    const productNameMap = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
+    const purchaseIds = purchases.map((p: any) => p.purchaseId);
+    const metaRows2 = purchaseIds.length
+      ? await prisma.supplierPurchaseMeta.findMany({
+          where: { purchaseId: { in: purchaseIds } },
+          select: { purchaseId: true, supplierName: true, invoiceNumber: true },
+        })
+      : [];
+    const metaMap2 = new Map<string, any>(metaRows2.map((m: any) => [m.purchaseId, m]));
+    const rows = purchases.map((p: any) => ({
+      Date: p.timestamp instanceof Date ? p.timestamp.toISOString().slice(0, 10) : "",
+      "Invoice Number": metaMap2.get(p.purchaseId)?.invoiceNumber || "",
+      Supplier: metaMap2.get(p.purchaseId)?.supplierName || "",
+      Product: productNameMap.get(p.productId) || "",
+      Quantity: Number(p.quantity || 0),
+      "Unit Cost": Number(p.unitCost || 0),
+      Total: Number(p.totalCost || 0),
+      "Expiry Date": p.expiryDate ? new Date(p.expiryDate).toISOString().slice(0, 10) : "",
+    }));
+    const wb = XLSX.utils.book_new();
+    const headers = ["Date", "Invoice Number", "Supplier", "Product", "Quantity", "Unit Cost", "Total", "Expiry Date"];
+    const ws = XLSX.utils.json_to_sheet(rows, { header: headers });
+    XLSX.utils.book_append_sheet(wb, ws, "Purchases");
+    const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    const fname = `purchases-report_${(fromRaw || "all").replace(/:/g, "-")}_to_${(toRaw || "now").replace(/:/g, "-")}.xlsx`;
+    res.setHeader("Content-Disposition", `attachment; filename=${fname}`);
+    res.status(200).send(buf);
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "Failed to export purchases report as Excel"));
   }
 };
