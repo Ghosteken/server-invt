@@ -79,6 +79,7 @@ model StockResets {
   timestamp DateTime @default(now())
   quantity  Int      // The stock quantity at the time of reset (new opening stock)
   tenantId  String   @default("default")
+  type      String   @default("opening")
   product   Products @relation(fields: [productId], references: [productId])
 
   @@index([productId])
