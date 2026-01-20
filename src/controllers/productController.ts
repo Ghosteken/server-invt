@@ -374,6 +374,13 @@ export const getProductMovements = async (
       },
       orderBy: { timestamp: "desc" },
     });
+    const resets = await (prisma as any).stockResets.findMany({
+      where: {
+        productId,
+        ...(timestampFilter ? { timestamp: timestampFilter } : {}),
+      },
+      orderBy: { timestamp: "desc" },
+    });
 
     const saleDates: string[] = Array.from(new Set<string>(sales.map((s: any) => s.timestamp.toISOString())));
     const saleCustomerIds: string[] = Array.from(new Set<string>(sales.map((s: any) => s.customerId).filter(Boolean as any)));
@@ -412,7 +419,19 @@ export const getProductMovements = async (
       totalCost: Number(p.totalCost || 0),
       invoiceNumber: p.supplierMeta?.invoiceNumber,
     }));
-    const items = [...saleItems, ...purchaseItems].sort((a, b) => new Date(b.timestamp as any).getTime() - new Date(a.timestamp as any).getTime());
+    const resetItems = resets.map((r: any) => ({
+      kind: "reset" as const,
+      timestamp: r.timestamp,
+      quantity: Number(r.quantity || 0),
+      totalCost: 0,
+    }));
+    const items = [...saleItems, ...purchaseItems, ...resetItems].sort((a, b) => {
+      const tA = new Date(a.timestamp as any).getTime();
+      const tB = new Date(b.timestamp as any).getTime();
+      const vA = isNaN(tA) ? 0 : tA;
+      const vB = isNaN(tB) ? 0 : tB;
+      return vB - vA;
+    });
 
     res.json({
       product: {
@@ -2510,3 +2529,82 @@ export const getProductUpdatesLast = async (
     res.status(500).json(createErrorResponse(err, "product", "Failed to load last updates"));
   }
 };
+
+export const resetOpeningStock = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const Body = z.object({ productId: z.string().min(1) });
+    const { productId } = Body.parse(req.body);
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    
+    const product = await prisma.products.findFirst({ where: { productId, tenantId } });
+    if (!product) {
+      res.status(404).json({ message: "Product not found" });
+      return;
+    }
+
+    const now = new Date();
+    
+    await prisma.$transaction(async (tx) => {
+      // Create reset record
+      await tx.stockResets.create({
+        data: {
+          productId: product.productId,
+          timestamp: now,
+          quantity: product.stockQuantity,
+          tenantId
+        }
+      });
+      // Update product opening stock
+      await tx.products.update({
+        where: { productId: product.productId },
+        data: { openingStock: product.stockQuantity }
+      });
+    });
+    
+    await appendNotification({ type: "inventory", message: `Reset opening stock for ${product.name}`, actorUserId: req.user?.userId, tenantId });
+    
+    res.json({ success: true, productId });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      res.status(400).json({ message: "Invalid input", errors: err.issues });
+      return;
+    }
+    res.status(500).json(createErrorResponse(err, "product", "Failed to reset opening stock"));
+  }
+};
+
+export const resetAllOpeningStock = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
+    // Iterate all products
+    const products = await prisma.products.findMany({ where: { tenantId } });
+    
+    const now = new Date();
+    
+    await prisma.$transaction(async (tx) => {
+      for (const p of products) {
+        // Create reset record
+        await tx.stockResets.create({
+          data: {
+            productId: p.productId,
+            timestamp: now,
+            quantity: p.stockQuantity,
+            tenantId
+          }
+        });
+        // Update product opening stock
+        await tx.products.update({
+          where: { productId: p.productId },
+          data: { openingStock: p.stockQuantity }
+        });
+      }
+    });
+    
+    await appendNotification({ type: "inventory", message: `Reset opening stock for ${products.length} products`, actorUserId: req.user?.userId, tenantId });
+    
+    res.json({ success: true, count: products.length });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "product", "Failed to reset all opening stocks"));
+  }
+};
+

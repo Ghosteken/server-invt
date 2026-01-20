@@ -276,11 +276,22 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
       const agent = await prisma.salesAgents.findFirst({ where: { id: salesAgentId, tenantId } });
       resolvedSalesAgent = agent?.name || salesAgent;
     }
+
+    // Use current time if date is today to ensure correct chronological order in history
+    let finalDate = date ? new Date(date) : new Date();
+    if (date) {
+      const now = new Date();
+      const d = new Date(date);
+      if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()) {
+        finalDate = now;
+      }
+    }
+
     const created = await prisma.invoices.create({
       data: {
         invoiceId,
         customerId: resolvedCustomerId,
-        date: date ? new Date(date) : new Date(),
+        date: finalDate,
         location: resolvedLocation,
         salesAgent: resolvedSalesAgent,
         locationId: locationId || null,
