@@ -2576,34 +2576,53 @@ export const resetOpeningStock = async (req: Request, res: Response): Promise<vo
 export const resetAllOpeningStock = async (req: Request, res: Response): Promise<void> => {
   try {
     const tenantId = (req as any).tenantId || req.user?.tenantId || "default";
-    // Iterate all products
-    const products = await prisma.products.findMany({ where: { tenantId } });
+    
+    // Optimized: Fetch only necessary fields
+    const products = await prisma.products.findMany({ 
+      where: { tenantId },
+      select: { productId: true, stockQuantity: true }
+    });
+    
+    if (products.length === 0) {
+      res.json({ success: true, count: 0 });
+      return;
+    }
     
     const now = new Date();
     
+    // Prepare bulk insert data with client-side UUID generation
+    const resetData = products.map(p => ({
+      id: randomUUID(),
+      productId: p.productId,
+      timestamp: now,
+      quantity: p.stockQuantity,
+      tenantId
+    }));
+    
     await prisma.$transaction(async (tx) => {
-      for (const p of products) {
-        // Create reset record
-        await tx.stockResets.create({
-          data: {
-            productId: p.productId,
-            timestamp: now,
-            quantity: p.stockQuantity,
-            tenantId
-          }
-        });
-        // Update product opening stock
-        await tx.products.update({
-          where: { productId: p.productId },
-          data: { openingStock: p.stockQuantity }
+      // Batch create resets
+      if (resetData.length > 0) {
+        await tx.stockResets.createMany({
+          data: resetData
         });
       }
+
+      // Efficiently update all products' openingStock using raw SQL
+      // This avoids N updates and runs in O(1) time
+      await tx.$executeRaw`
+        UPDATE "Products" 
+        SET "openingStock" = "stockQuantity" 
+        WHERE "tenantId" = ${tenantId}
+      `;
+    }, {
+      timeout: 60000 // Increase timeout to 60s for safety
     });
     
     await appendNotification({ type: "inventory", message: `Reset opening stock for ${products.length} products`, actorUserId: req.user?.userId, tenantId });
     
     res.json({ success: true, count: products.length });
   } catch (err) {
+    console.error("Error resetting all opening stocks:", err);
     res.status(500).json(createErrorResponse(err, "product", "Failed to reset all opening stocks"));
   }
 };
