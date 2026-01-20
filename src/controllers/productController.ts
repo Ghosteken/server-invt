@@ -444,6 +444,7 @@ export const getProductMovements = async (
       items,
     });
   } catch (err) {
+    console.error("Error in getProductMovements:", err);
     res.status(500).json(createErrorResponse(err, "product", "Error retrieving product movements"));
   }
 };
