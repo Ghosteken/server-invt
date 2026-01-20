@@ -21,7 +21,7 @@ export const superAdminLogin = async (req: Request, res: Response): Promise<void
       return;
     }
     if (email === configuredEmail && password === configuredPassword) {
-      const token = jwt.sign({ userId: "super-admin", email, role: "super_admin" }, JWT_SECRET, { expiresIn: "24h" });
+      const token = jwt.sign({ userId: "super-admin", email, role: "super_admin" }, JWT_SECRET, { expiresIn: "7d" });
       res.json({ token, user: { userId: "super-admin", name: "Super Admin", email, role: "super_admin" } });
       return;
     }
