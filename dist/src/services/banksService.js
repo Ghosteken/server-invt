@@ -13,7 +13,7 @@ async function readBanks(tenantId) {
     try {
         const db = prisma_1.default;
         const rows = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
-        return rows.map((r) => ({ name: r.name, account: r.account }));
+        return rows.map((r) => ({ name: r.name, account: r.account, balance: Number(r.balance || 0) }));
     }
     catch {
         return [];
@@ -22,19 +22,28 @@ async function readBanks(tenantId) {
 async function addBank(tenantId, bank) {
     const name = String(bank.name).trim();
     const account = String(bank.account).trim();
+    const balance = bank.balance;
     try {
         const db = prisma_1.default;
         const existing = await db.banks.findFirst({ where: { tenantId, name, account } });
         if (!existing) {
-            await db.banks.create({ data: { id: cryptoRandom(), tenantId, name, account } });
+            await db.banks.create({
+                data: {
+                    id: cryptoRandom(),
+                    tenantId,
+                    name,
+                    account,
+                    balance: balance !== undefined ? Number(balance) : 0,
+                },
+            });
         }
         const rows = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
-        return rows.map((r) => ({ name: r.name, account: r.account }));
+        return rows.map((r) => ({ name: r.name, account: r.account, balance: Number(r.balance || 0) }));
     }
     catch {
         const db = prisma_1.default;
         const rows = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } }).catch(() => []);
-        return rows.map((r) => ({ name: r.name, account: r.account }));
+        return rows.map((r) => ({ name: r.name, account: r.account, balance: Number(r.balance || 0) }));
     }
 }
 async function updateBank(tenantId, oldBank, nextBank) {
@@ -42,19 +51,27 @@ async function updateBank(tenantId, oldBank, nextBank) {
     const oldAccount = String(oldBank.account).trim();
     const name = String(nextBank.name).trim();
     const account = String(nextBank.account).trim();
+    const balance = nextBank.balance;
     try {
         const db = prisma_1.default;
         const existing = await db.banks.findFirst({ where: { tenantId, name: oldName, account: oldAccount } });
         if (existing) {
-            await db.banks.update({ where: { id: existing.id }, data: { name, account } });
+            await db.banks.update({
+                where: { id: existing.id },
+                data: {
+                    name,
+                    account,
+                    ...(balance !== undefined ? { balance: Number(balance) } : {}),
+                },
+            });
         }
         const rows = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
-        return rows.map((r) => ({ name: r.name, account: r.account }));
+        return rows.map((r) => ({ name: r.name, account: r.account, balance: Number(r.balance || 0) }));
     }
     catch {
         const db = prisma_1.default;
         const rows = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } }).catch(() => []);
-        return rows.map((r) => ({ name: r.name, account: r.account }));
+        return rows.map((r) => ({ name: r.name, account: r.account, balance: Number(r.balance || 0) }));
     }
 }
 function cryptoRandom() {
@@ -76,11 +93,11 @@ async function removeBank(tenantId, bank) {
             await db.banks.delete({ where: { id: existing.id } });
         }
         const rows = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
-        return rows.map((r) => ({ name: r.name, account: r.account }));
+        return rows.map((r) => ({ name: r.name, account: r.account, balance: Number(r.balance || 0) }));
     }
     catch {
         const db = prisma_1.default;
         const rows = await db.banks.findMany({ where: { tenantId }, orderBy: { name: "asc" } }).catch(() => []);
-        return rows.map((r) => ({ name: r.name, account: r.account }));
+        return rows.map((r) => ({ name: r.name, account: r.account, balance: Number(r.balance || 0) }));
     }
 }

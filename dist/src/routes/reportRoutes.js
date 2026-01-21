@@ -7,4 +7,6 @@ const router = (0, express_1.Router)();
 router.get("/sales", authMiddleware_1.authenticateToken, reportController_1.getSalesReport);
 router.get("/financial", authMiddleware_1.authenticateToken, reportController_1.getFinancialReport);
 router.get("/purchases", authMiddleware_1.authenticateToken, reportController_1.getPurchasesReport);
+router.get("/sales/export", authMiddleware_1.authenticateToken, reportController_1.exportSalesReportExcel);
+router.get("/purchases/export", authMiddleware_1.authenticateToken, reportController_1.exportPurchasesReportExcel);
 exports.default = router;

@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.removeCustomerFromGroup = exports.addCustomerToGroup = exports.deleteCustomerGroup = exports.updateCustomerGroup = exports.createCustomerGroup = exports.getCustomerGroups = exports.exportCustomersExcel = exports.importCustomersSample = exports.importCustomers = exports.deleteCustomer = exports.updateCustomer = exports.purgeCustomerPurchases = exports.createCustomer = exports.deleteCustomerPurchase = exports.getCustomers = void 0;
+exports.removeCustomerFromGroup = exports.addCustomerToGroup = exports.deleteCustomerGroup = exports.updateCustomerGroup = exports.createCustomerGroup = exports.getCustomerGroups = exports.exportCustomersExcel = exports.importCustomersSample = exports.importCustomers = exports.deleteCustomer = exports.updateCustomer = exports.purgeCustomerPurchases = exports.createCustomer = exports.deleteCustomerPurchase = exports.getCustomersPaged = exports.getCustomers = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const XLSX = __importStar(require("xlsx"));
 const crypto_1 = require("crypto");
@@ -49,6 +49,7 @@ const getCustomers = async (req, res) => {
     try {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
         const search = String(req.query.search || "").trim();
+        const limit = Math.min(Math.max(Number(req.query.limit) || 100, 1), 500);
         const where = { tenantId };
         if (search) {
             where.OR = [
@@ -60,19 +61,12 @@ const getCustomers = async (req, res) => {
                 { country: { contains: search, mode: "insensitive" } },
             ];
         }
-        const customers = await prisma_1.default.customers.findMany({ where, orderBy: { createdAt: "desc" } });
-        // Fetch purchases grouped by customer
-        const purchases = await prisma_1.default.customerPurchases.findMany({ where: { tenantId } });
-        const productIds = Array.from(new Set(purchases.map((p) => p.productId)));
-        const products = await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
-        const nameById = new Map(products.map((p) => [p.productId, p.name]));
-        const byCustomer = new Map();
-        for (const p of purchases) {
-            const list = byCustomer.get(p.customerId) || [];
-            list.push({ id: p.id, productId: p.productId, productName: nameById.get(p.productId) || p.productId, quantity: p.quantity, totalCost: p.totalCost });
-            byCustomer.set(p.customerId, list);
-        }
-        const result = customers.map((c) => ({
+        const customers = await prisma_1.default.customers.findMany({
+            where,
+            orderBy: { createdAt: "desc" },
+            take: limit,
+        });
+        res.json(customers.map((c) => ({
             customerId: c.customerId,
             name: c.name,
             mobile: c.mobile,
@@ -80,17 +74,64 @@ const getCustomers = async (req, res) => {
             city: c.city,
             state: c.state,
             country: c.country,
-            tenantId: c.tenantId,
             createdAt: c.createdAt,
-            purchases: byCustomer.get(c.customerId) || [],
-        }));
-        res.json(result);
+            tenantId: c.tenantId,
+            purchases: [],
+        })));
     }
     catch (err) {
         res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Error retrieving customers"));
     }
 };
 exports.getCustomers = getCustomers;
+const getCustomersPaged = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const search = String(req.query.search || "").trim();
+        const limit = Math.min(Math.max(Number(req.query.limit) || 50, 1), 200);
+        const offset = Math.max(Number(req.query.offset) || 0, 0);
+        const where = { tenantId };
+        if (search) {
+            where.OR = [
+                { name: { contains: search, mode: "insensitive" } },
+                { mobile: { contains: search, mode: "insensitive" } },
+                { address: { contains: search, mode: "insensitive" } },
+                { city: { contains: search, mode: "insensitive" } },
+                { state: { contains: search, mode: "insensitive" } },
+                { country: { contains: search, mode: "insensitive" } },
+            ];
+        }
+        const [total, customers] = await Promise.all([
+            prisma_1.default.customers.count({ where }),
+            prisma_1.default.customers.findMany({
+                where,
+                orderBy: { createdAt: "desc" },
+                skip: offset,
+                take: limit,
+                select: { customerId: true, name: true, mobile: true, address: true, city: true, state: true, country: true, createdAt: true, tenantId: true },
+            }),
+        ]);
+        res.json({
+            total,
+            customers: customers.map((c) => ({
+                customerId: c.customerId,
+                name: c.name,
+                mobile: c.mobile || undefined,
+                address: c.address || undefined,
+                city: c.city || undefined,
+                state: c.state || undefined,
+                country: c.country || undefined,
+                createdAt: c.createdAt,
+                tenantId: c.tenantId,
+                purchases: [],
+            })),
+        });
+    }
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "customer", "Error retrieving customers"));
+    }
+};
+exports.getCustomersPaged = getCustomersPaged;
 // DELETE /customers/purchases/:id - delete a specific customer purchase (customer sale)
 const deleteCustomerPurchase = async (req, res) => {
     try {

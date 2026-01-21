@@ -10,12 +10,27 @@ const errorHandler_1 = require("../utils/errorHandler");
 const listStores = async (req, res) => {
     try {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        const search = (req.query.search || "").toString().trim().toLowerCase();
-        const stores = await prisma_1.default.stores.findMany({ where: { tenantId }, include: { branches: true }, orderBy: { name: "asc" } });
-        const filtered = search
-            ? stores.filter((s) => s.name.toLowerCase().includes(search))
-            : stores;
-        res.json({ stores: filtered });
+        const search = (req.query.search || "").toString().trim();
+        const pageRaw = req.query.page ? parseInt(String(req.query.page), 10) : 1;
+        const pageSizeRaw = req.query.pageSize ? parseInt(String(req.query.pageSize), 10) : 50;
+        const page = Number.isNaN(pageRaw) || pageRaw < 1 ? 1 : pageRaw;
+        const pageSize = Number.isNaN(pageSizeRaw) || pageSizeRaw < 1 ? 50 : Math.min(pageSizeRaw, 200);
+        const where = { tenantId };
+        if (search) {
+            where.name = { contains: search, mode: "insensitive" };
+        }
+        const total = await prisma_1.default.stores.count({ where });
+        const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
+        const currentPage = Math.min(page, totalPages);
+        const offset = (currentPage - 1) * pageSize;
+        const stores = await prisma_1.default.stores.findMany({
+            where,
+            include: { branches: true },
+            orderBy: { name: "asc" },
+            skip: offset,
+            take: pageSize,
+        });
+        res.json({ stores, total, page: currentPage, pageSize, totalPages });
     }
     catch (err) {
         res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "store", "Failed to list stores"));

@@ -43,6 +43,8 @@ const permissionRoutes_1 = __importDefault(require("./routes/permissionRoutes"))
 const swagger_ui_express_1 = __importDefault(require("swagger-ui-express"));
 const yamljs_1 = __importDefault(require("yamljs"));
 const invoiceReminderJob_1 = require("./jobs/invoiceReminderJob");
+const closingStockSnapshotJob_1 = require("./jobs/closingStockSnapshotJob");
+const socket_1 = require("./socket");
 /* CONFIGURATIONS */
 dotenv_1.default.config();
 const app = (0, express_1.default)();
@@ -65,6 +67,7 @@ const io = new socket_io_1.Server(httpServer, {
     }
 });
 app.set("io", io);
+(0, socket_1.setIO)(io);
 // Enable gzip compression (Brotli is handled by proxies/CDNs if present)
 app.use((0, compression_1.default)());
 app.use(express_1.default.json());
@@ -274,6 +277,7 @@ try {
         // Sync org admins to Users so admin appears in tenant-scoped views
         (0, adminBootstrap_1.syncOrgAdminsToUsers)().catch((err) => console.warn("Bootstrap syncOrgAdminsToUsers failed:", err));
         (0, invoiceReminderJob_1.startInvoiceReminderJob)();
+        (0, closingStockSnapshotJob_1.startClosingStockSnapshotJob)();
     });
     // On unexpected errors, log and exit
     server.on("error", (err) => {

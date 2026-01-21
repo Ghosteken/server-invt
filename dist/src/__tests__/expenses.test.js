@@ -6,12 +6,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const supertest_1 = __importDefault(require("supertest"));
 // Minimal Prisma mock
 const prismaMock = {
+    $transaction: jest.fn(async (fn) => fn(prismaMock)),
     expenses: {
         findMany: jest.fn(),
         create: jest.fn(),
         findFirst: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
+    },
+    expenseBanks: {
+        findFirst: jest.fn(),
+        update: jest.fn(),
     },
     auditLogs: {
         create: jest.fn(),

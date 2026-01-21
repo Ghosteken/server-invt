@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.importExpenseCategories = exports.createExpenseCategory = exports.getExpenseCategories = exports.revokeExpense = exports.rejectExpense = exports.approveExpense = exports.deleteExpenseController = exports.updateExpenseController = exports.createExpense = exports.listExpenses = exports.getExpensesByCategory = void 0;
+exports.importExpenseCategories = exports.createExpenseCategory = exports.getExpenseCategories = exports.revokeExpense = exports.rejectExpense = exports.approveExpense = exports.exportExpensesExcel = exports.deleteExpenseController = exports.updateExpenseController = exports.createExpense = exports.listExpenses = exports.getExpensesByCategory = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const XLSX = __importStar(require("xlsx"));
 const crypto_1 = require("crypto");
@@ -86,14 +86,18 @@ const listExpenses = async (req, res) => {
             if (to)
                 where.timestamp.lte = to;
         }
-        const rows = await prisma_1.default.expenses.findMany({ where, orderBy: { timestamp: "desc" } });
+        const db = prisma_1.default;
+        const rows = await db.expenses.findMany({ where, include: { expenseBank: true }, orderBy: { timestamp: "desc" } });
         const expenses = rows.map((r) => ({
             id: r.expenseId,
             category: r.category,
-            name: r.category,
+            name: String(r.name || "").trim() || r.category,
             amount: r.amount,
             date: r.timestamp.toISOString().slice(0, 10),
             status: r.status || "pending",
+            expenseBankId: r.expenseBankId ?? undefined,
+            expenseBankName: r.expenseBank?.name ?? undefined,
+            expenseBankAccount: r.expenseBank?.account ?? undefined,
         }));
         res.json({ expenses });
     }
@@ -114,18 +118,40 @@ const createExpense = async (req, res) => {
         const name = String(body.name || "").trim();
         const amount = Number(body.amount) || 0;
         const date = body.date ? new Date(String(body.date)) : new Date();
+        const expenseBankIdRaw = body.expenseBankId !== undefined ? String(body.expenseBankId || "").trim() : "";
+        const expenseBankId = expenseBankIdRaw || null;
         if (!category || !name || !amount) {
             res.status(400).json({ message: "category, name, and amount are required" });
             return;
         }
-        const created = await prisma_1.default.expenses.create({ data: { expenseId: (0, crypto_1.randomUUID)(), category, amount, timestamp: date, tenantId, status: "pending" } });
+        const db = prisma_1.default;
+        const created = await db.$transaction(async (tx) => {
+            let bank = null;
+            if (expenseBankId) {
+                bank = await tx.expenseBanks.findFirst({ where: { id: expenseBankId, tenantId } });
+                if (!bank) {
+                    res.status(400).json({ message: "Selected expense bank account not found" });
+                    return null;
+                }
+                const bal = Number(bank.balance || 0);
+                if (bal < amount) {
+                    res.status(400).json({ message: "Insufficient balance in selected expense bank account" });
+                    return null;
+                }
+                await tx.expenseBanks.update({ where: { id: bank.id }, data: { balance: bal - amount } });
+            }
+            const exp = await tx.expenses.create({ data: { expenseId: (0, crypto_1.randomUUID)(), category, name, amount, timestamp: date, tenantId, status: "pending", expenseBankId } });
+            return exp;
+        });
+        if (!created)
+            return;
         // appendNotification({ type: "expense", message: `Created expense '${name}' (${category}) ₦${amount.toLocaleString("en")}` });
         // Emit socket event
         const io = req.app.get("io");
         if (io) {
-            io.emit("expense:created", { id: created.expenseId, category, name, amount, date: date.toISOString().slice(0, 10), status: "pending" });
+            io.emit("expense:created", { id: created.expenseId, category, name, amount, date: date.toISOString().slice(0, 10), status: "pending", expenseBankId: created.expenseBankId ?? undefined });
         }
-        res.status(201).json({ expense: { id: created.expenseId, category, name, amount, date: date.toISOString().slice(0, 10), status: "pending" } });
+        res.status(201).json({ expense: { id: created.expenseId, category, name, amount, date: date.toISOString().slice(0, 10), status: "pending", expenseBankId: created.expenseBankId ?? undefined } });
     }
     catch (err) {
         res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "expense", "Failed to create expense"));
@@ -145,27 +171,77 @@ const updateExpenseController = async (req, res) => {
             res.status(400).json({ message: "Missing expense id" });
             return;
         }
-        const existing = await prisma_1.default.expenses.findFirst({ where: { expenseId: id, tenantId } });
+        const db = prisma_1.default;
+        const existing = await db.expenses.findFirst({ where: { expenseId: id, tenantId } });
         if (!existing) {
             res.status(404).json({ message: "Expense not found" });
             return;
         }
         const changes = req.body || {};
-        const data = {};
-        if (changes.category !== undefined)
-            data.category = String(changes.category).trim();
-        if (changes.amount !== undefined)
-            data.amount = Number(changes.amount) || 0;
-        if (changes.date !== undefined)
-            data.timestamp = new Date(String(changes.date));
-        const next = await prisma_1.default.expenses.update({ where: { expenseId: id }, data });
+        const nextCategory = changes.category !== undefined ? String(changes.category).trim() : existing.category;
+        const nextName = changes.name !== undefined ? String(changes.name).trim() : existing.name;
+        const nextAmount = changes.amount !== undefined ? Number(changes.amount) || 0 : Number(existing.amount || 0);
+        const nextTimestamp = changes.date !== undefined ? new Date(String(changes.date)) : existing.timestamp;
+        const nextExpenseBankId = changes.expenseBankId !== undefined ? (String(changes.expenseBankId || "").trim() || null) : (existing.expenseBankId ?? null);
+        const oldAmount = Number(existing.amount || 0);
+        const oldExpenseBankId = existing.expenseBankId ?? null;
+        const next = await db.$transaction(async (tx) => {
+            if (oldExpenseBankId && oldExpenseBankId === nextExpenseBankId) {
+                const delta = nextAmount - oldAmount;
+                if (delta !== 0) {
+                    const bank = await tx.expenseBanks.findFirst({ where: { id: oldExpenseBankId, tenantId } });
+                    if (!bank) {
+                        res.status(400).json({ message: "Selected expense bank account not found" });
+                        return null;
+                    }
+                    const bal = Number(bank.balance || 0);
+                    if (delta > 0 && bal < delta) {
+                        res.status(400).json({ message: "Insufficient balance in selected expense bank account" });
+                        return null;
+                    }
+                    await tx.expenseBanks.update({ where: { id: bank.id }, data: { balance: bal - delta } });
+                }
+            }
+            else {
+                if (oldExpenseBankId) {
+                    const oldBank = await tx.expenseBanks.findFirst({ where: { id: oldExpenseBankId, tenantId } });
+                    if (oldBank) {
+                        const bal = Number(oldBank.balance || 0);
+                        await tx.expenseBanks.update({ where: { id: oldBank.id }, data: { balance: bal + oldAmount } });
+                    }
+                }
+                if (nextExpenseBankId) {
+                    const newBank = await tx.expenseBanks.findFirst({ where: { id: nextExpenseBankId, tenantId } });
+                    if (!newBank) {
+                        res.status(400).json({ message: "Selected expense bank account not found" });
+                        return null;
+                    }
+                    const bal = Number(newBank.balance || 0);
+                    if (bal < nextAmount) {
+                        res.status(400).json({ message: "Insufficient balance in selected expense bank account" });
+                        return null;
+                    }
+                    await tx.expenseBanks.update({ where: { id: newBank.id }, data: { balance: bal - nextAmount } });
+                }
+            }
+            const data = {
+                category: nextCategory,
+                name: nextName,
+                amount: nextAmount,
+                timestamp: nextTimestamp,
+                expenseBankId: nextExpenseBankId,
+            };
+            return tx.expenses.update({ where: { expenseId: id }, data });
+        });
+        if (!next)
+            return;
         (0, notificationService_1.appendNotification)({ type: "expense", message: `Updated expense '${existing.category}' (${next.category}) to ₦${Number(next.amount || 0).toLocaleString("en")}`, tenantId, actorUserId: req.user?.userId });
         // Emit socket event
         const io = req.app.get("io");
         if (io) {
-            io.emit("expense:updated", { id: next.expenseId, category: next.category, name: next.category, amount: next.amount, date: next.timestamp.toISOString().slice(0, 10), status: next.status });
+            io.emit("expense:updated", { id: next.expenseId, category: next.category, name: next.name || next.category, amount: next.amount, date: next.timestamp.toISOString().slice(0, 10), status: next.status, expenseBankId: next.expenseBankId ?? undefined });
         }
-        res.json({ expense: { id: next.expenseId, category: next.category, name: next.category, amount: next.amount, date: next.timestamp.toISOString().slice(0, 10), status: next.status } });
+        res.json({ expense: { id: next.expenseId, category: next.category, name: next.name || next.category, amount: next.amount, date: next.timestamp.toISOString().slice(0, 10), status: next.status, expenseBankId: next.expenseBankId ?? undefined } });
     }
     catch (err) {
         res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "expense", "Failed to update expense"));
@@ -184,12 +260,24 @@ const deleteExpenseController = async (req, res) => {
             res.status(400).json({ message: "Missing expense id" });
             return;
         }
-        const existing = await prisma_1.default.expenses.findFirst({ where: { expenseId: id, tenantId } });
+        const db = prisma_1.default;
+        const existing = await db.expenses.findFirst({ where: { expenseId: id, tenantId } });
         if (!existing) {
             res.status(404).json({ message: "Expense not found" });
             return;
         }
-        await prisma_1.default.expenses.delete({ where: { expenseId: id } });
+        await db.$transaction(async (tx) => {
+            const amt = Number(existing.amount || 0);
+            const bankId = existing.expenseBankId ?? null;
+            if (bankId) {
+                const bank = await tx.expenseBanks.findFirst({ where: { id: bankId, tenantId } });
+                if (bank) {
+                    const bal = Number(bank.balance || 0);
+                    await tx.expenseBanks.update({ where: { id: bank.id }, data: { balance: bal + amt } });
+                }
+            }
+            await tx.expenses.delete({ where: { expenseId: id } });
+        });
         const desc = existing.category || "Uncategorized";
         const amt = Number(existing.amount || 0).toLocaleString("en");
         (0, notificationService_1.appendNotification)({ type: "expense", message: `Deleted expense: ${desc} (₦${amt})`, tenantId, actorUserId: req.user?.userId });
@@ -205,6 +293,34 @@ const deleteExpenseController = async (req, res) => {
     }
 };
 exports.deleteExpenseController = deleteExpenseController;
+// Export expenses as Excel
+const exportExpensesExcel = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const db = prisma_1.default;
+        const rows = await db.expenses.findMany({ where: { tenantId }, include: { expenseBank: true }, orderBy: { timestamp: "desc" } });
+        const mapped = (rows || []).map((r) => ({
+            Date: r.timestamp instanceof Date ? r.timestamp.toISOString().slice(0, 10) : "",
+            Category: r.category ?? "",
+            Name: String(r.name || "").trim() || r.category || "",
+            Amount: Number(r.amount || 0),
+            Status: r.status || "pending",
+            ExpenseBankName: r.expenseBank?.name ?? "",
+            ExpenseBankAccount: r.expenseBank?.account ?? "",
+        }));
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.json_to_sheet(mapped, { header: ["Date", "Category", "Name", "Amount", "Status", "ExpenseBankName", "ExpenseBankAccount"] });
+        XLSX.utils.book_append_sheet(wb, ws, "Expenses");
+        const buf = XLSX.write(wb, { type: "buffer", bookType: "xlsx" });
+        res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        res.setHeader("Content-Disposition", "attachment; filename=expenses.xlsx");
+        res.status(200).send(buf);
+    }
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "expense", "Failed to export expenses as Excel"));
+    }
+};
+exports.exportExpensesExcel = exportExpensesExcel;
 /**
  * Approve an expense (writes to audit logs for traceability).
  */

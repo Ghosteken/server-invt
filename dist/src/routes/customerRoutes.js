@@ -10,6 +10,7 @@ const authMiddleware_1 = require("../middleware/authMiddleware");
 const permissionMiddleware_1 = require("../middleware/permissionMiddleware");
 const router = (0, express_1.Router)();
 router.get("/", authMiddleware_1.authenticateToken, customerController_1.getCustomers);
+router.get("/paged", authMiddleware_1.authenticateToken, customerController_1.getCustomersPaged);
 router.post("/", authMiddleware_1.authenticateToken, (0, permissionMiddleware_1.requirePermission)("customers", "create"), customerController_1.createCustomer);
 router.put("/:id", authMiddleware_1.authenticateToken, (0, permissionMiddleware_1.requirePermission)("customers", "edit"), customerController_1.updateCustomer);
 router.delete("/:id", authMiddleware_1.authenticateToken, (0, permissionMiddleware_1.requirePermission)("customers", "delete"), customerController_1.deleteCustomer);

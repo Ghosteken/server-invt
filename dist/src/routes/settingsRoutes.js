@@ -12,6 +12,7 @@ const financialLayoutService_1 = require("../services/financialLayoutService");
 const banksService_1 = require("../services/banksService");
 const notificationService_1 = require("../services/notificationService");
 const authMiddleware_1 = require("../middleware/authMiddleware");
+const productController_1 = require("../controllers/productController");
 const router = (0, express_1.Router)();
 // Use shared Prisma client
 const ALL_FEATURES = [
@@ -19,6 +20,7 @@ const ALL_FEATURES = [
     "storeSales",
     "inventory",
     "productTracker",
+    "statements",
     "products",
     "customers",
     "locations",
@@ -229,11 +231,11 @@ router.get("/banks", authMiddleware_1.authenticateToken, async (req, res) => {
 });
 router.post("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, async (req, res) => {
     try {
-        const Body = zod_1.z.object({ name: zod_1.z.string().min(1), account: zod_1.z.string().min(1) });
-        const { name, account } = Body.parse(req.body || {});
+        const Body = zod_1.z.object({ name: zod_1.z.string().min(1), account: zod_1.z.string().min(1), balance: zod_1.z.coerce.number().optional() });
+        const { name, account, balance } = Body.parse(req.body || {});
         const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
         const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
-        const list = await (0, banksService_1.addBank)(tenantId, { name, account });
+        const list = await (0, banksService_1.addBank)(tenantId, { name, account, balance });
         try {
             (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account created: ${name} - ${account}`, actorUserId: req.user?.userId, tenantId });
         }
@@ -255,11 +257,12 @@ router.put("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.requir
             oldAccount: zod_1.z.string().min(1),
             name: zod_1.z.string().min(1),
             account: zod_1.z.string().min(1),
+            balance: zod_1.z.coerce.number().optional(),
         });
-        const { oldName, oldAccount, name, account } = Body.parse(req.body || {});
+        const { oldName, oldAccount, name, account, balance } = Body.parse(req.body || {});
         const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
         const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
-        const list = await (0, banksService_1.updateBank)(tenantId, { name: oldName, account: oldAccount }, { name, account });
+        const list = await (0, banksService_1.updateBank)(tenantId, { name: oldName, account: oldAccount }, { name, account, balance });
         try {
             (0, notificationService_1.appendNotification)({ type: "bank", message: `Bank account updated: ${oldName} - ${oldAccount} → ${name} - ${account}`, actorUserId: req.user?.userId, tenantId });
         }
@@ -295,4 +298,114 @@ router.delete("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.req
         res.status(500).json({ message: "Failed to delete bank account" });
     }
 });
+function cryptoRandom() {
+    try {
+        const { randomUUID } = require("crypto");
+        return randomUUID();
+    }
+    catch {
+        return Math.random().toString(36).slice(2);
+    }
+}
+router.get("/expense-banks", authMiddleware_1.authenticateToken, async (req, res) => {
+    try {
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
+        const db = prisma_1.default;
+        const rows = await db.expenseBanks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+        res.json({ expenseBanks: rows.map((r) => ({ id: r.id, name: r.name, account: r.account, balance: Number(r.balance || 0) })) });
+    }
+    catch {
+        res.status(500).json({ expenseBanks: [] });
+    }
+});
+router.post("/expense-banks", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, async (req, res) => {
+    try {
+        const Body = zod_1.z.object({ name: zod_1.z.string().min(1), account: zod_1.z.string().min(1), balance: zod_1.z.coerce.number().optional() });
+        const { name, account, balance } = Body.parse(req.body || {});
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
+        const db = prisma_1.default;
+        const existing = await db.expenseBanks.findFirst({ where: { tenantId, name: String(name).trim(), account: String(account).trim() } });
+        if (!existing) {
+            await db.expenseBanks.create({
+                data: { id: cryptoRandom(), tenantId, name: String(name).trim(), account: String(account).trim(), balance: balance !== undefined ? Number(balance) : 0 },
+            });
+            try {
+                (0, notificationService_1.appendNotification)({ type: "expenseBank", message: `Expense bank created: ${name} - ${account}`, actorUserId: req.user?.userId, tenantId });
+            }
+            catch { }
+        }
+        const rows = await db.expenseBanks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+        res.status(201).json({ expenseBanks: rows.map((r) => ({ id: r.id, name: r.name, account: r.account, balance: Number(r.balance || 0) })) });
+    }
+    catch (err) {
+        if (err instanceof zod_1.ZodError) {
+            res.status(400).json({ message: "Invalid input", errors: err.issues });
+            return;
+        }
+        res.status(500).json({ message: "Failed to create expense bank account" });
+    }
+});
+router.put("/expense-banks", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, async (req, res) => {
+    try {
+        const Body = zod_1.z.object({ id: zod_1.z.string().min(1), name: zod_1.z.string().min(1), account: zod_1.z.string().min(1), balance: zod_1.z.coerce.number() });
+        const { id, name, account, balance } = Body.parse(req.body || {});
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
+        const db = prisma_1.default;
+        const existing = await db.expenseBanks.findFirst({ where: { id, tenantId } });
+        if (!existing) {
+            res.status(404).json({ message: "Expense bank account not found" });
+            return;
+        }
+        await db.expenseBanks.update({ where: { id }, data: { name: String(name).trim(), account: String(account).trim(), balance: Number(balance) } });
+        try {
+            (0, notificationService_1.appendNotification)({ type: "expenseBank", message: `Expense bank updated: ${existing.name} - ${existing.account} → ${name} - ${account}`, actorUserId: req.user?.userId, tenantId });
+        }
+        catch { }
+        const rows = await db.expenseBanks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+        res.json({ expenseBanks: rows.map((r) => ({ id: r.id, name: r.name, account: r.account, balance: Number(r.balance || 0) })) });
+    }
+    catch (err) {
+        if (err instanceof zod_1.ZodError) {
+            res.status(400).json({ message: "Invalid input", errors: err.issues });
+            return;
+        }
+        res.status(500).json({ message: "Failed to update expense bank account" });
+    }
+});
+router.delete("/expense-banks", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, async (req, res) => {
+    try {
+        const Body = zod_1.z.object({ id: zod_1.z.string().min(1) });
+        const { id } = Body.parse(req.body || {});
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
+        const db = prisma_1.default;
+        const existing = await db.expenseBanks.findFirst({ where: { id, tenantId } });
+        if (!existing) {
+            res.status(404).json({ message: "Expense bank account not found" });
+            return;
+        }
+        await db.expenseBanks.delete({ where: { id } });
+        try {
+            (0, notificationService_1.appendNotification)({ type: "expenseBank", message: `Expense bank removed: ${existing.name} - ${existing.account}`, actorUserId: req.user?.userId, tenantId });
+        }
+        catch { }
+        const rows = await db.expenseBanks.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
+        res.json({ expenseBanks: rows.map((r) => ({ id: r.id, name: r.name, account: r.account, balance: Number(r.balance || 0) })) });
+    }
+    catch (err) {
+        if (err instanceof zod_1.ZodError) {
+            res.status(400).json({ message: "Invalid input", errors: err.issues });
+            return;
+        }
+        res.status(500).json({ message: "Failed to delete expense bank account" });
+    }
+});
+// Reset opening stock
+router.post("/reset-opening-stock", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, productController_1.resetOpeningStock);
+router.post("/reset-all-opening-stock", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, productController_1.resetAllOpeningStock);
+// Generate closing snapshots (month-end)
+router.post("/generate-closing-snapshot", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, productController_1.generateClosingSnapshot);
 exports.default = router;
