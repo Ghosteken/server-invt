@@ -66,7 +66,7 @@ const signup = async (req, res) => {
             },
         });
         // Generate JWT token
-        const token = jsonwebtoken_1.default.sign({ userId: newUser.userId, email: newUser.email, role: newUser.role, tenantId: newUser.tenantId }, JWT_SECRET, { expiresIn: "24h" });
+        const token = jsonwebtoken_1.default.sign({ userId: newUser.userId, email: newUser.email, role: newUser.role, tenantId: newUser.tenantId }, JWT_SECRET, { expiresIn: "7d" });
         console.log(`auth: signup success for email=${email} userId=${newUser.userId}`);
         res.status(201).json({
             message: "User created successfully",
@@ -126,7 +126,7 @@ const login = async (req, res) => {
                 : userFeatures;
         }
         catch { }
-        const token = jsonwebtoken_1.default.sign({ userId: user.userId, email: user.email, role: user.role, tenantId: user.tenantId, features }, JWT_SECRET, { expiresIn: "24h" });
+        const token = jsonwebtoken_1.default.sign({ userId: user.userId, email: user.email, role: user.role, tenantId: user.tenantId, features }, JWT_SECRET, { expiresIn: "7d" });
         console.log(`auth: login successful for ${email}`);
         res.json({
             message: "Login successful",
@@ -176,7 +176,7 @@ const adminLogin = async (req, res) => {
                         : userFeatures;
                 }
                 catch { }
-                const token = jsonwebtoken_1.default.sign({ userId: orgAdmin.id, email: orgAdmin.email, role: "org_admin", tenantId: orgAdmin.orgId, features }, JWT_SECRET, { expiresIn: "24h" });
+                const token = jsonwebtoken_1.default.sign({ userId: orgAdmin.id, email: orgAdmin.email, role: "org_admin", tenantId: orgAdmin.orgId, features }, JWT_SECRET, { expiresIn: "7d" });
                 res.json({ message: "Login successful", token, user: { userId: orgAdmin.id, name: orgAdmin.name, email: orgAdmin.email, role: "org_admin" } });
                 return;
             }
@@ -210,7 +210,7 @@ const adminLogin = async (req, res) => {
             if (fallbackOrgAdmin) {
                 const ok = await compareAsync(password, fallbackOrgAdmin.passwordHash);
                 if (ok) {
-                    const token = jsonwebtoken_1.default.sign({ userId: fallbackOrgAdmin.id, email: fallbackOrgAdmin.email, role: "org_admin", tenantId: fallbackOrgAdmin.orgId }, JWT_SECRET, { expiresIn: "24h" });
+                    const token = jsonwebtoken_1.default.sign({ userId: fallbackOrgAdmin.id, email: fallbackOrgAdmin.email, role: "org_admin", tenantId: fallbackOrgAdmin.orgId }, JWT_SECRET, { expiresIn: "7d" });
                     res.json({ message: "Login successful", token, user: { userId: fallbackOrgAdmin.id, name: fallbackOrgAdmin.name, email: fallbackOrgAdmin.email, role: "org_admin" } });
                     return;
                 }
@@ -239,7 +239,7 @@ const adminLogin = async (req, res) => {
                 : userFeatures;
         }
         catch { }
-        const token = jsonwebtoken_1.default.sign({ userId: user.userId, email: user.email, role: user.role, ...(tenantId ? { tenantId } : {}), features }, JWT_SECRET, { expiresIn: "24h" });
+        const token = jsonwebtoken_1.default.sign({ userId: user.userId, email: user.email, role: user.role, ...(tenantId ? { tenantId } : {}), features }, JWT_SECRET, { expiresIn: "7d" });
         console.log(`auth: admin login successful for ${email}`);
         res.json({
             message: "Login successful",
@@ -332,7 +332,7 @@ const orgAdminLogin = async (req, res) => {
             res.status(401).json({ message: "Invalid credentials" });
             return;
         }
-        const token = jsonwebtoken_1.default.sign({ userId: admin.id, email: admin.email, role: "org_admin", tenantId: admin.orgId }, JWT_SECRET, { expiresIn: "24h" });
+        const token = jsonwebtoken_1.default.sign({ userId: admin.id, email: admin.email, role: "org_admin", tenantId: admin.orgId }, JWT_SECRET, { expiresIn: "7d" });
         res.json({ message: "Login successful", token, user: { userId: admin.id, name: admin.name, email: admin.email, role: "org_admin" } });
     }
     catch (err) {
@@ -408,7 +408,7 @@ const signupOrg = async (req, res) => {
             [newOrgAdmin.id]: allFeaturesExceptAI,
             "__allowed__": allFeaturesExceptAI
         }, orgId);
-        const token = jsonwebtoken_1.default.sign({ userId: newOrgAdmin.id, email: newOrgAdmin.email, role: "org_admin", tenantId: orgId }, JWT_SECRET, { expiresIn: "24h" });
+        const token = jsonwebtoken_1.default.sign({ userId: newOrgAdmin.id, email: newOrgAdmin.email, role: "org_admin", tenantId: orgId }, JWT_SECRET, { expiresIn: "7d" });
         res.status(201).json({
             message: "Organization registered successfully",
             token,

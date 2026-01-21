@@ -260,11 +260,20 @@ const createInvoice = async (req, res) => {
             const agent = await prisma_1.default.salesAgents.findFirst({ where: { id: salesAgentId, tenantId } });
             resolvedSalesAgent = agent?.name || salesAgent;
         }
+        // Use current time if date is today to ensure correct chronological order in history
+        let finalDate = date ? new Date(date) : new Date();
+        if (date) {
+            const now = new Date();
+            const d = new Date(date);
+            if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()) {
+                finalDate = now;
+            }
+        }
         const created = await prisma_1.default.invoices.create({
             data: {
                 invoiceId,
                 customerId: resolvedCustomerId,
-                date: date ? new Date(date) : new Date(),
+                date: finalDate,
                 location: resolvedLocation,
                 salesAgent: resolvedSalesAgent,
                 locationId: locationId || null,
@@ -441,7 +450,20 @@ const getInvoices = async (req, res) => {
         if (statusQ === "paid" || statusQ === "unpaid" || statusQ === "partial") {
             where.status = statusQ;
         }
-        const invoices = await prisma_1.default.invoices.findMany({
+        if (search) {
+            const searchOr = [
+                { invoiceId: { contains: search, mode: "insensitive" } },
+                { location: { contains: search, mode: "insensitive" } },
+                { customer: { name: { contains: search, mode: "insensitive" } } },
+            ];
+            if (where.AND) {
+                where.AND.push({ OR: searchOr });
+            }
+            else {
+                where.AND = [{ OR: searchOr }];
+            }
+        }
+        const findManyArgs = {
             where,
             select: {
                 invoiceId: true,
@@ -459,12 +481,20 @@ const getInvoices = async (req, res) => {
                 createdAt: true,
                 updatedAt: true,
                 items: true,
+                payments: true,
             },
             orderBy: { date: "desc" },
-        });
-        // Removed needless check loop for performance
+        };
+        if (limit > 0) {
+            findManyArgs.skip = offset;
+            findManyArgs.take = limit;
+        }
+        const [invoices, total] = await Promise.all([
+            prisma_1.default.invoices.findMany(findManyArgs),
+            prisma_1.default.invoices.count({ where }),
+        ]);
         if (!invoices.length) {
-            res.json({ invoices: [], total: 0 });
+            res.json({ invoices: [], total });
             return;
         }
         const customerIds = Array.from(new Set(invoices.map((i) => i.customerId))).filter(Boolean);
@@ -476,20 +506,7 @@ const getInvoices = async (req, res) => {
             const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
             return { ...inv, customerName: customerMap.get(inv.customerId), invoiceNumber: meta?.invoiceNumber || undefined };
         }));
-        let filtered = list.filter((inv) => {
-            if (!search)
-                return true;
-            return (inv.invoiceId.toLowerCase().includes(search) ||
-                (inv.invoiceNumber || "").toLowerCase().includes(search) ||
-                (inv.customerName || "").toLowerCase().includes(search) ||
-                inv.location.toLowerCase().includes(search));
-        });
-        if (statusQ === "paid" || statusQ === "unpaid" || statusQ === "partial") {
-            filtered = filtered.filter((inv) => inv.status === statusQ);
-        }
-        const total = filtered.length;
-        const pageSlice = limit > 0 ? filtered.slice(offset, offset + limit) : filtered;
-        res.json({ invoices: pageSlice, total });
+        res.json({ invoices: list, total });
     }
     catch (err) {
         res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "invoice", "Failed to load invoices"));
@@ -757,18 +774,50 @@ const addPayment = async (req, res) => {
             res.status(404).json({ message: "Invoice not found" });
             return;
         }
-        const payment = await prisma_1.default.payments.create({
-            data: {
-                id: (0, crypto_1.randomUUID)(),
-                invoiceId: id,
-                customerId: body.customerId || inv.customerId,
-                date: body.date ? new Date(body.date) : new Date(),
-                amount: Number(body.amount) || 0,
-                bankName: body.bankName,
-                bankAccount: body.bankAccount,
-                tenantId,
-            },
+        const amount = Number(body.amount) || 0;
+        // Check if invoice is already fully paid
+        const currentPaid = (inv.payments || []).reduce((acc, p) => acc + Number(p.amount), 0);
+        const remaining = Math.max(0, inv.totalWithVAT - currentPaid);
+        if (remaining <= 0) {
+            res.status(400).json({ message: "Invoice is already fully paid" });
+            return;
+        }
+        // Prevent overpayment
+        if (amount > remaining + 0.01) { // small buffer for float precision
+            res.status(400).json({ message: `Payment amount (₦${amount.toFixed(2)}) exceeds remaining balance (₦${remaining.toFixed(2)})` });
+            return;
+        }
+        const payment = await prisma_1.default.$transaction(async (tx) => {
+            const bank = await tx.banks.findFirst({ where: { tenantId, name: body.bankName, account: body.bankAccount } });
+            if (!bank) {
+                const err = new Error("Selected bank account not found");
+                err.status = 400;
+                throw err;
+            }
+            // Invoice payments INCREASE bank balance
+            const bal = Number(bank.balance || 0);
+            await tx.banks.update({ where: { id: bank.id }, data: { balance: bal + amount } });
+            const pay = await tx.payments.create({
+                data: {
+                    id: (0, crypto_1.randomUUID)(),
+                    invoiceId: id,
+                    customerId: body.customerId || inv.customerId,
+                    date: body.date ? new Date(body.date) : new Date(),
+                    amount,
+                    bankName: body.bankName,
+                    bankAccount: body.bankAccount,
+                    tenantId,
+                },
+            });
+            return pay;
+        }).catch((e) => {
+            const code = typeof e?.status === "number" ? e.status : 500;
+            const msg = typeof e?.message === "string" ? e.message : "Failed to add payment";
+            res.status(code).json({ message: msg });
+            return null;
         });
+        if (!payment)
+            return;
         const paymentsSum = (inv.payments || []).reduce((acc, p) => acc + p.amount, 0) + payment.amount;
         const status = statusFromPayments(inv.totalWithVAT, paymentsSum);
         const updatedInv = await prisma_1.default.invoices.update({ where: { invoiceId: id }, data: { status } });

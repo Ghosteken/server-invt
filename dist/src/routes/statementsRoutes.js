@@ -1,0 +1,308 @@
+"use strict";
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const express_1 = require("express");
+const prisma_1 = __importDefault(require("../db/prisma"));
+const zod_1 = require("zod");
+const invoiceMetaService_1 = require("../services/invoiceMetaService");
+const router = (0, express_1.Router)();
+function applyConditionalGet(req, res, lastUpdated, cacheKey) {
+    if (!lastUpdated)
+        return false;
+    const etag = `W/"${cacheKey}"`;
+    const lastModified = lastUpdated.toUTCString();
+    const ifNoneMatch = req.headers["if-none-match"];
+    const ifModifiedSince = req.headers["if-modified-since"];
+    if (ifNoneMatch && ifNoneMatch === etag) {
+        res.status(304);
+        res.set("ETag", etag);
+        res.set("Last-Modified", lastModified);
+        res.end();
+        return true;
+    }
+    if (ifModifiedSince) {
+        const since = new Date(ifModifiedSince);
+        if (!Number.isNaN(since.getTime()) && lastUpdated <= since) {
+            res.status(304);
+            res.set("ETag", etag);
+            res.set("Last-Modified", lastModified);
+            res.end();
+            return true;
+        }
+    }
+    res.set("ETag", etag);
+    res.set("Last-Modified", lastModified);
+    return false;
+}
+router.get("/customers/search", async (req, res) => {
+    try {
+        const Query = zod_1.z.object({ query: zod_1.z.string().optional() });
+        const { query } = Query.parse(req.query);
+        const q = (query || "").toString().trim();
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
+        const where = { tenantId };
+        if (q)
+            where.name = { contains: q, mode: "insensitive" };
+        const rows = await prisma_1.default.customers.findMany({ where, orderBy: { name: "asc" }, select: { customerId: true, name: true, mobile: true } });
+        res.json({ customers: rows.map((r) => ({ customerId: r.customerId, name: r.name, mobile: r.mobile || undefined })) });
+    }
+    catch {
+        res.status(500).json({ customers: [] });
+    }
+});
+router.get("/customers/:customerId", async (req, res) => {
+    try {
+        const Params = zod_1.z.object({ customerId: zod_1.z.string().min(1) });
+        const { customerId } = Params.parse(req.params);
+        const Query = zod_1.z.object({
+            from: zod_1.z.string().optional(),
+            to: zod_1.z.string().optional(),
+            status: zod_1.z.enum(["paid", "unpaid", "partial"]).optional(),
+            bank: zod_1.z.string().optional(),
+            page: zod_1.z.string().optional(),
+            pageSize: zod_1.z.string().optional(),
+        });
+        const { from, to, status, bank, page: pageStr, pageSize: pageSizeStr } = Query.parse(req.query);
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
+        const where = { tenantId, customerId };
+        if (from || to) {
+            where.date = {};
+            if (from)
+                where.date.gte = new Date(from);
+            if (to)
+                where.date.lte = new Date(to);
+        }
+        if (status) {
+            where.status = status;
+        }
+        if (bank && bank.trim()) {
+            const bankSearch = bank.trim();
+            where.payments = {
+                some: {
+                    OR: [
+                        { bankName: { contains: bankSearch, mode: "insensitive" } },
+                        { bankAccount: { contains: bankSearch, mode: "insensitive" } },
+                    ],
+                },
+            };
+        }
+        const parsedPage = pageStr ? parseInt(pageStr, 10) : 1;
+        const parsedPageSize = pageSizeStr ? parseInt(pageSizeStr, 10) : 50;
+        const page = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+        const pageSize = Number.isNaN(parsedPageSize) || parsedPageSize < 1 ? 50 : Math.min(parsedPageSize, 200);
+        const total = await prisma_1.default.invoices.count({ where });
+        const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
+        const currentPage = Math.min(page, totalPages);
+        const offset = (currentPage - 1) * pageSize;
+        const invoices = await prisma_1.default.invoices.findMany({
+            where,
+            select: {
+                invoiceId: true,
+                date: true,
+                status: true,
+                totalWithVAT: true,
+                payments: true,
+            },
+            orderBy: { date: "desc" },
+            skip: offset,
+            take: pageSize,
+        });
+        const entries = [];
+        let lastUpdated = null;
+        for (const inv of invoices) {
+            const invoiceDate = inv.date instanceof Date ? inv.date : new Date(inv.date);
+            if (!lastUpdated || invoiceDate > lastUpdated)
+                lastUpdated = invoiceDate;
+            const paid = (inv.payments || []).reduce((sum, p) => sum + Number(p.amount || 0), 0);
+            const balance = Math.max(0, Number(inv.totalWithVAT || 0) - paid);
+            const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(inv.invoiceId);
+            const payments = (inv.payments || []).map((p) => ({
+                date: new Date(p.date).toISOString(),
+                amount: Number(p.amount || 0),
+                bankName: String(p.bankName || ""),
+                bankAccount: String(p.bankAccount || ""),
+            }));
+            for (const p of inv.payments || []) {
+                const d = new Date(p.date);
+                if (!lastUpdated || d > lastUpdated)
+                    lastUpdated = d;
+            }
+            entries.push({
+                invoiceId: inv.invoiceId,
+                invoiceNumber: meta?.invoiceNumber || undefined,
+                date: inv.date.toISOString(),
+                status: inv.status,
+                total: Number(inv.totalWithVAT || 0),
+                paid,
+                balance,
+                payments,
+            });
+        }
+        const summary = {
+            totalInvoices: total,
+            totalBilled: entries.reduce((s, e) => s + e.total, 0),
+            totalPaid: entries.reduce((s, e) => s + e.paid, 0),
+            balanceDue: entries.reduce((s, e) => s + e.balance, 0),
+            countSales: total,
+        };
+        const cacheKey = `${total}-${currentPage}-${pageSize}-${lastUpdated ? lastUpdated.getTime() : 0}`;
+        const notModified = applyConditionalGet(req, res, lastUpdated, cacheKey);
+        if (notModified)
+            return;
+        res.json({ summary, entries, page: currentPage, pageSize, total, totalPages });
+    }
+    catch {
+        res.status(500).json({ summary: { totalInvoices: 0, totalBilled: 0, totalPaid: 0, balanceDue: 0, countSales: 0 }, entries: [] });
+    }
+});
+router.get("/suppliers/search", async (req, res) => {
+    try {
+        const Query = zod_1.z.object({ query: zod_1.z.string().optional() });
+        const { query } = Query.parse(req.query);
+        const q = (query || "").toString().trim();
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
+        const rows = await prisma_1.default.suppliers.findMany({
+            where: q ? { tenantId, name: { contains: q, mode: "insensitive" } } : { tenantId },
+            orderBy: { name: "asc" },
+            select: { id: true, name: true, mobile: true },
+        });
+        res.json({ suppliers: rows.map((r) => ({ id: r.id, name: r.name, mobile: r.mobile || undefined })) });
+    }
+    catch {
+        res.status(500).json({ suppliers: [] });
+    }
+});
+router.get("/suppliers/:supplierId", async (req, res) => {
+    try {
+        const Params = zod_1.z.object({ supplierId: zod_1.z.string().min(1) });
+        const { supplierId } = Params.parse(req.params);
+        const Query = zod_1.z.object({
+            from: zod_1.z.string().optional(),
+            to: zod_1.z.string().optional(),
+            status: zod_1.z.enum(["paid", "unpaid", "partial"]).optional(),
+            bank: zod_1.z.string().optional(),
+            page: zod_1.z.string().optional(),
+            pageSize: zod_1.z.string().optional(),
+        });
+        const { from, to, status, bank, page: pageStr, pageSize: pageSizeStr } = Query.parse(req.query);
+        const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+        const tenantId = headerTenant || req.tenantId || req.user?.tenantId || "default";
+        const supplier = await prisma_1.default.suppliers.findFirst({ where: { id: supplierId, tenantId } });
+        const supplierName = supplier?.name || "";
+        const metaWhere = { tenantId, supplierName: supplierName ? { equals: supplierName } : undefined };
+        if (from || to) {
+            let toDateStr;
+            if (to) {
+                const d = new Date(to);
+                d.setHours(23, 59, 59, 999);
+                toDateStr = d.toISOString();
+            }
+            metaWhere.date = {
+                ...(from ? { gte: new Date(from).toISOString() } : {}),
+                ...(to ? { lte: toDateStr } : {}),
+            };
+        }
+        const metas = await prisma_1.default.supplierPurchaseMeta.findMany({ where: metaWhere, select: { invoiceNumber: true, purchaseId: true, date: true } });
+        const purchaseIds = metas.map((m) => m.purchaseId);
+        const purchases = await prisma_1.default.purchases.findMany({
+            where: { tenantId, purchaseId: { in: purchaseIds } },
+            select: { purchaseId: true, totalCost: true, unitCost: true, quantity: true },
+        });
+        const payments = await prisma_1.default.supplierPayments.findMany({
+            where: { tenantId, purchaseId: { in: purchaseIds } },
+            select: { purchaseId: true, amount: true, date: true, bankName: true, bankAccount: true },
+        });
+        const paidByPurchaseId = new Map();
+        let lastUpdated = null;
+        for (const p of payments) {
+            const pid = String(p.purchaseId);
+            paidByPurchaseId.set(pid, (paidByPurchaseId.get(pid) || 0) + Number(p.amount || 0));
+            const d = new Date(p.date);
+            if (!lastUpdated || d > lastUpdated)
+                lastUpdated = d;
+        }
+        const paymentsByInvoice = new Map();
+        for (const p of payments) {
+            const meta = metas.find((m) => String(m.purchaseId) === String(p.purchaseId));
+            const inv = meta?.invoiceNumber || "";
+            const arr = paymentsByInvoice.get(inv) || [];
+            arr.push({ date: new Date(p.date).toISOString(), amount: Number(p.amount || 0), bankName: String(p.bankName || ""), bankAccount: String(p.bankAccount || "") });
+            paymentsByInvoice.set(inv, arr);
+        }
+        const totalsByInvoice = new Map();
+        for (const m of metas) {
+            const pid = String(m.purchaseId);
+            const p = purchases.find((x) => String(x.purchaseId) === pid);
+            if (!p)
+                continue;
+            const quantity = Number(p.quantity) || 1;
+            let unitCost = Number(p.unitCost || 0);
+            let totalCost = Number(p.totalCost || 0);
+            if (totalCost === 0 && unitCost > 0)
+                totalCost = unitCost * quantity;
+            if (unitCost === 0 && totalCost > 0 && quantity > 0)
+                unitCost = totalCost / quantity;
+            const prev = totalsByInvoice.get(String(m.invoiceNumber || ""));
+            const nextTotal = (prev?.total || 0) + totalCost;
+            const ts = new Date(m.date || Date.now());
+            if (!lastUpdated || ts > lastUpdated)
+                lastUpdated = ts;
+            totalsByInvoice.set(String(m.invoiceNumber || ""), { total: nextTotal, timestamp: ts });
+        }
+        let entries = Array.from(totalsByInvoice.entries()).map(([invoiceNumber, t]) => {
+            const paid = (paymentsByInvoice.get(invoiceNumber) || []).reduce((sum, x) => sum + x.amount, 0);
+            const balance = Math.max(0, t.total - paid);
+            return {
+                invoiceNumber,
+                date: t.timestamp.toISOString(),
+                total: t.total,
+                paid,
+                balance,
+                payments: paymentsByInvoice.get(invoiceNumber) || [],
+            };
+        });
+        if (status) {
+            entries = entries.filter((e) => {
+                if (status === "paid")
+                    return e.paid >= e.total;
+                if (status === "unpaid")
+                    return e.paid <= 0;
+                return e.paid > 0 && e.paid < e.total;
+            });
+        }
+        if (bank && bank.trim()) {
+            const b = bank.trim().toLowerCase();
+            entries = entries.filter((e) => e.payments.some((p) => p.bankName.toLowerCase().includes(b) || p.bankAccount.toLowerCase().includes(b)));
+        }
+        const total = entries.length;
+        const parsedPage = pageStr ? parseInt(pageStr, 10) : 1;
+        const parsedPageSize = pageSizeStr ? parseInt(pageSizeStr, 10) : 50;
+        const page = Number.isNaN(parsedPage) || parsedPage < 1 ? 1 : parsedPage;
+        const pageSize = Number.isNaN(parsedPageSize) || parsedPageSize < 1 ? 50 : Math.min(parsedPageSize, 200);
+        const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);
+        const currentPage = Math.min(page, totalPages);
+        const start = (currentPage - 1) * pageSize;
+        const pagedEntries = entries.slice(start, start + pageSize);
+        const summary = {
+            totalInvoices: entries.length,
+            totalBilled: entries.reduce((s, e) => s + e.total, 0),
+            totalPaid: entries.reduce((s, e) => s + e.paid, 0),
+            balanceDue: entries.reduce((s, e) => s + e.balance, 0),
+            countPurchases: entries.length,
+        };
+        const cacheKey = `${total}-${currentPage}-${pageSize}-${lastUpdated ? lastUpdated.getTime() : 0}`;
+        const notModified = applyConditionalGet(req, res, lastUpdated, cacheKey);
+        if (notModified)
+            return;
+        res.json({ summary, entries: pagedEntries, page: currentPage, pageSize, total, totalPages });
+    }
+    catch {
+        res.status(500).json({ summary: { totalInvoices: 0, totalBilled: 0, totalPaid: 0, balanceDue: 0, countPurchases: 0 }, entries: [] });
+    }
+});
+exports.default = router;

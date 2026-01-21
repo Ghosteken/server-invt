@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getProductUpdatesLast = exports.exportPcsExcel = exports.getPcsSample = exports.getImportSample = exports.purgeProducts = exports.deleteProduct = exports.processInvoiceManual = exports.processInvoice = exports.importProducts = exports.upsertPcsItems = exports.importPcsProducts = exports.reloadPcs = exports.getPcsProducts = exports.getProductMovements = exports.exportProductsExcel = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
+exports.generateClosingSnapshot = exports.resetAllOpeningStock = exports.resetOpeningStock = exports.getProductUpdatesLast = exports.exportPcsExcel = exports.getPcsSample = exports.getImportSample = exports.purgeProducts = exports.deleteProduct = exports.processInvoiceManual = exports.processInvoice = exports.importProducts = exports.upsertPcsItems = exports.importPcsProducts = exports.reloadPcs = exports.getPcsProducts = exports.getProductMovements = exports.exportProductsExcel = exports.exportProducts = exports.updateProduct = exports.getProductById = exports.createProduct = exports.getProducts = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const invoiceMetaService_1 = require("../services/invoiceMetaService");
 const errorHandler_1 = require("../utils/errorHandler");
@@ -139,6 +139,7 @@ const createProduct = async (req, res) => {
                 name,
                 price,
                 stockQuantity,
+                openingStock: stockQuantity,
                 category,
                 description,
                 packSize,
@@ -360,6 +361,16 @@ const getProductMovements = async (req, res) => {
                 productId,
                 ...(timestampFilter ? { timestamp: timestampFilter } : {}),
             },
+            include: {
+                supplierMeta: true,
+            },
+            orderBy: { timestamp: "desc" },
+        });
+        const resets = await prisma_1.default.stockResets.findMany({
+            where: {
+                productId,
+                ...(timestampFilter ? { timestamp: timestampFilter } : {}),
+            },
             orderBy: { timestamp: "desc" },
         });
         const saleDates = Array.from(new Set(sales.map((s) => s.timestamp.toISOString())));
@@ -398,18 +409,34 @@ const getProductMovements = async (req, res) => {
             quantity: Number(p.quantity || 0),
             unitCost: Number(p.unitCost || 0),
             totalCost: Number(p.totalCost || 0),
+            invoiceNumber: p.supplierMeta?.invoiceNumber,
         }));
-        const items = [...saleItems, ...purchaseItems].sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+        const resetItems = resets.map((r) => ({
+            kind: "reset",
+            timestamp: r.timestamp,
+            quantity: Number(r.quantity || 0),
+            totalCost: 0,
+            source: r.type || "opening",
+        }));
+        const items = [...saleItems, ...purchaseItems, ...resetItems].sort((a, b) => {
+            const tA = new Date(a.timestamp).getTime();
+            const tB = new Date(b.timestamp).getTime();
+            const vA = isNaN(tA) ? 0 : tA;
+            const vB = isNaN(tB) ? 0 : tB;
+            return vB - vA;
+        });
         res.json({
             product: {
                 productId: product.productId,
                 name: product.name,
                 stockQuantity: Number(product.stockQuantity || 0),
+                openingStock: Number(product.openingStock || 0),
             },
             items,
         });
     }
     catch (err) {
+        console.error("Error in getProductMovements:", err);
         res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "product", "Error retrieving product movements"));
     }
 };
@@ -758,6 +785,7 @@ const importPcsProducts = async (req, res) => {
                             price: item.salesPrice != null ? Number(item.salesPrice) : 0,
                             purchasePrice: item.purchasePrice != null ? Number(item.purchasePrice) : null,
                             stockQuantity: 0, // Ensure stock is 0 for PCS-only imports
+                            openingStock: 0,
                             expiryDate: (item.expiryDate instanceof Date) ? item.expiryDate : (item.expiryDate ? new Date(item.expiryDate) : null),
                             category: item.category ?? null,
                             description: item.description ?? null,
@@ -1377,7 +1405,7 @@ const importProducts = async (req, res) => {
                     else {
                         newItemData.category = bestCategoryForName(item.name);
                     }
-                    batchedCreates.push({ ...newItemData, tenantId });
+                    batchedCreates.push({ ...newItemData, openingStock: newItemData.stockQuantity || 0, tenantId });
                     // Log create (batch to memory)
                     pendingAuditUpdates.push({ productId: item.productId, fields: ["name", "price", "purchasePrice", "stockQuantity", "expiryDate", "category", "description", "packSize", "barcode"].filter((f) => item[f] !== undefined), source: "import" });
                     mergedItemsForJson.push(item);
@@ -2467,3 +2495,189 @@ const getProductUpdatesLast = async (req, res) => {
     }
 };
 exports.getProductUpdatesLast = getProductUpdatesLast;
+const resetOpeningStock = async (req, res) => {
+    try {
+        const Body = zod_1.z.object({ productId: zod_1.z.string().min(1), date: zod_1.z.string().optional(), timestamp: zod_1.z.string().optional() });
+        const { productId, date, timestamp } = Body.parse(req.body);
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const product = await prisma_1.default.products.findFirst({ where: { productId, tenantId } });
+        if (!product) {
+            res.status(404).json({ message: "Product not found" });
+            return;
+        }
+        let ts = new Date();
+        if (typeof date === "string" && date.trim()) {
+            const d = new Date(date);
+            if (!isNaN(d.getTime()))
+                ts = d;
+        }
+        else if (typeof timestamp === "string" && timestamp.trim()) {
+            const t = new Date(timestamp);
+            if (!isNaN(t.getTime()))
+                ts = t;
+        }
+        await prisma_1.default.$transaction(async (tx) => {
+            // Create reset record
+            await tx.stockResets.create({
+                data: {
+                    productId: product.productId,
+                    timestamp: ts,
+                    quantity: product.stockQuantity,
+                    tenantId,
+                    type: "opening"
+                }
+            });
+            // Update product opening stock
+            await tx.products.update({
+                where: { productId: product.productId },
+                data: { openingStock: product.stockQuantity }
+            });
+        });
+        await (0, notificationService_1.appendNotification)({ type: "inventory", message: `Reset opening stock for ${product.name}`, actorUserId: req.user?.userId, tenantId });
+        res.json({ success: true, productId });
+    }
+    catch (err) {
+        if (err instanceof zod_1.z.ZodError) {
+            res.status(400).json({ message: "Invalid input", errors: err.issues });
+            return;
+        }
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "product", "Failed to reset opening stock"));
+    }
+};
+exports.resetOpeningStock = resetOpeningStock;
+const resetAllOpeningStock = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const Body = zod_1.z.object({ date: zod_1.z.string().optional(), timestamp: zod_1.z.string().optional() }).optional();
+        const parsed = (() => {
+            try {
+                return Body.parse(req.body || {});
+            }
+            catch {
+                return {};
+            }
+        })();
+        let ts = new Date();
+        if (typeof parsed.date === "string" && parsed.date.trim()) {
+            const d = new Date(parsed.date);
+            if (!isNaN(d.getTime()))
+                ts = d;
+        }
+        else if (typeof parsed.timestamp === "string" && parsed.timestamp.trim()) {
+            const t = new Date(parsed.timestamp);
+            if (!isNaN(t.getTime()))
+                ts = t;
+        }
+        // Optimized: Fetch only necessary fields
+        const products = await prisma_1.default.products.findMany({
+            where: { tenantId },
+            select: { productId: true, stockQuantity: true }
+        });
+        if (products.length === 0) {
+            res.json({ success: true, count: 0 });
+            return;
+        }
+        // Prepare bulk insert data with client-side UUID generation
+        const resetData = products.map(p => ({
+            id: (0, crypto_1.randomUUID)(),
+            productId: p.productId,
+            timestamp: ts,
+            quantity: p.stockQuantity,
+            tenantId,
+            type: "opening"
+        }));
+        await prisma_1.default.$transaction(async (tx) => {
+            // Batch create resets
+            if (resetData.length > 0) {
+                await tx.stockResets.createMany({
+                    data: resetData
+                });
+            }
+            // Efficiently update all products' openingStock using raw SQL
+            // This avoids N updates and runs in O(1) time
+            await tx.$executeRaw `
+        UPDATE "Products" 
+        SET "openingStock" = "stockQuantity" 
+        WHERE "tenantId" = ${tenantId}
+      `;
+        }, {
+            timeout: 60000 // Increase timeout to 60s for safety
+        });
+        await (0, notificationService_1.appendNotification)({ type: "inventory", message: `Reset opening stock for ${products.length} products`, actorUserId: req.user?.userId, tenantId });
+        res.json({ success: true, count: products.length });
+    }
+    catch (err) {
+        console.error("Error resetting all opening stocks:", err);
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "product", "Failed to reset all opening stocks"));
+    }
+};
+exports.resetAllOpeningStock = resetAllOpeningStock;
+// Generate closing stock snapshot for a tenant (manual trigger)
+const generateClosingSnapshot = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const Query = zod_1.z.object({ date: zod_1.z.string().optional() });
+        const Body = zod_1.z.object({ date: zod_1.z.string().optional() }).optional();
+        const q = (() => { try {
+            return Query.parse(req.query || {});
+        }
+        catch {
+            return {};
+        } })();
+        const b = (() => { try {
+            return Body.parse(req.body || {});
+        }
+        catch {
+            return {};
+        } })();
+        const rawDate = (b.date || q.date || "").trim();
+        const base = rawDate ? new Date(rawDate) : new Date();
+        // Calculate month-end timestamp (23:59:59 local)
+        const year = base.getFullYear();
+        const month = base.getMonth();
+        const firstOfMonth = new Date(year, month, 1, 0, 0, 0, 0);
+        const lastOfMonth = new Date(year, month + 1, 0, 23, 59, 59, 999);
+        // Fetch products
+        const products = await prisma_1.default.products.findMany({ where: { tenantId }, select: { productId: true, stockQuantity: true } });
+        if (!products.length) {
+            res.json({ success: true, count: 0 });
+            return;
+        }
+        // Dedupe: skip products that already have a closing snapshot this month
+        const existing = await prisma_1.default.stockResets.findMany({
+            where: {
+                tenantId,
+                type: "closing",
+                timestamp: { gte: firstOfMonth, lte: lastOfMonth },
+            },
+            select: { productId: true },
+        });
+        const existingSet = new Set(existing.map((e) => String(e.productId)));
+        const payload = products
+            .filter((p) => !existingSet.has(p.productId))
+            .map((p) => ({
+            id: (0, crypto_1.randomUUID)(),
+            productId: p.productId,
+            timestamp: lastOfMonth,
+            quantity: p.stockQuantity,
+            tenantId,
+            type: "closing",
+        }));
+        if (!payload.length) {
+            res.json({ success: true, count: 0, message: "Closing snapshots already exist for this month" });
+            return;
+        }
+        await prisma_1.default.stockResets.createMany({ data: payload });
+        await (0, notificationService_1.appendNotification)({
+            type: "inventory",
+            message: `Generated closing stock snapshots for ${payload.length} products`,
+            actorUserId: req.user?.userId,
+            tenantId,
+        });
+        res.json({ success: true, count: payload.length, month: `${year}-${String(month + 1).padStart(2, "0")}` });
+    }
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "product", "Failed to generate closing stock snapshots"));
+    }
+};
+exports.generateClosingSnapshot = generateClosingSnapshot;

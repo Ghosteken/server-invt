@@ -138,10 +138,29 @@ const getPurchases = async (req, res) => {
             });
             // 3. Aggregate
             const invoiceStats = new Map();
+            const purchaseIdsByInvoice = new Map();
+            for (const m of allInvoiceMetas) {
+                const inv = String(m.invoiceNumber || "").trim();
+                if (!inv)
+                    continue;
+                const list = purchaseIdsByInvoice.get(inv) || [];
+                list.push(String(m.purchaseId));
+                purchaseIdsByInvoice.set(inv, list);
+            }
+            const purchaseById = new Map();
+            for (const p of allInvoicePurchases) {
+                purchaseById.set(String(p.purchaseId), p);
+            }
+            const paidByPurchaseId = new Map();
+            for (const pay of allInvoicePayments) {
+                const pid = String(pay.purchaseId);
+                const prev = paidByPurchaseId.get(pid) || 0;
+                paidByPurchaseId.set(pid, prev + Number(pay.amount || 0));
+            }
             for (const invNum of invoiceNumbers) {
-                const pIds = allInvoiceMetas.filter((m) => m.invoiceNumber === invNum).map((m) => m.purchaseId);
-                const relatedPurchases = allInvoicePurchases.filter((p) => pIds.includes(p.purchaseId));
-                relatedPurchases.sort((a, b) => a.purchaseId.localeCompare(b.purchaseId));
+                const pIds = purchaseIdsByInvoice.get(invNum) || [];
+                const relatedPurchases = pIds.map((pid) => purchaseById.get(pid)).filter(Boolean);
+                relatedPurchases.sort((a, b) => String(a.purchaseId).localeCompare(String(b.purchaseId)));
                 const items = relatedPurchases.map((p) => {
                     const quantity = Number(p.quantity) || 1;
                     // Robust calculation logic matching reportController
@@ -165,7 +184,7 @@ const getPurchases = async (req, res) => {
                 });
                 const totalCost = items.reduce((sum, item) => sum + (item.totalCost || 0), 0);
                 const totalQuantity = items.reduce((sum, item) => sum + (item.quantity || 0), 0);
-                const totalPaid = allInvoicePayments.filter((p) => pIds.includes(p.purchaseId)).reduce((sum, p) => sum + Number(p.amount), 0);
+                const totalPaid = pIds.reduce((sum, pid) => sum + (paidByPurchaseId.get(pid) || 0), 0);
                 const rep = relatedPurchases[0] || {};
                 invoiceStats.set(invNum, {
                     items,
@@ -278,7 +297,14 @@ const createPurchase = async (req, res) => {
     try {
         const body = req.body || {};
         const tenantId = req.tenantId || req.user?.tenantId || "default";
-        const date = body.date ? new Date(body.date) : new Date();
+        let date = body.date ? new Date(body.date) : new Date();
+        if (body.date) {
+            const now = new Date();
+            const d = new Date(body.date);
+            if (d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate()) {
+                date = now;
+            }
+        }
         const supplierName = body.supplierName ? String(body.supplierName) : undefined;
         const supplierMobile = body.supplierMobile ? String(body.supplierMobile) : undefined;
         const paymentTerm = body.paymentTerm ? String(body.paymentTerm) : undefined;
