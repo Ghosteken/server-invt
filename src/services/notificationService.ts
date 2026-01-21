@@ -1,4 +1,5 @@
 import prisma from "../db/prisma";
+import { getIO } from "../socket";
 
 type NotificationItem = {
   id: string;
@@ -17,31 +18,20 @@ export async function appendNotification(n: {
   timestamp?: string;
 }): Promise<void> {
   try {
-    const tenantId = n.tenantId || "default";
-    
-    await prisma.notifications.create({
-      data: {
+    const io = getIO();
+    if (io) {
+      const tenantId = n.tenantId || "default";
+      const payload = {
         id: cryptoRandom(),
         tenantId,
         type: n.type,
         message: n.message,
         actorUserId: n.actorUserId || null,
-        timestamp: n.timestamp ? new Date(n.timestamp) : new Date(),
-      },
-    });
-
-    // Auto-cleanup: keep only latest 500 notifications per tenant
-    const count = await prisma.notifications.count({ where: { tenantId } });
-    if (count > 500) {
-      const toDelete = await prisma.notifications.findMany({
-        where: { tenantId },
-        orderBy: { timestamp: "asc" },
-        take: count - 500,
-        select: { id: true },
-      });
-      await prisma.notifications.deleteMany({
-        where: { id: { in: toDelete.map((n) => n.id) } },
-      });
+        timestamp: n.timestamp ? new Date(n.timestamp).toISOString() : new Date().toISOString(),
+      };
+      
+      // Emit to all clients. Client must filter by tenantId.
+      io.emit("notification", payload);
     }
   } catch (e) {
     console.warn("appendNotification failed", e);
@@ -52,25 +42,9 @@ export async function getLatestNotifications(
   tenantId: string,
   limit: number = 20
 ): Promise<NotificationItem[]> {
-  try {
-    const notifications = await prisma.notifications.findMany({
-      where: { tenantId },
-      orderBy: { timestamp: "desc" },
-      take: Math.min(limit, 100),
-    });
-
-    return notifications.map((n) => ({
-      id: n.id,
-      type: n.type,
-      message: n.message,
-      timestamp: n.timestamp.toISOString(),
-      actorUserId: n.actorUserId || undefined,
-      tenantId: n.tenantId,
-    }));
-  } catch (e) {
-    console.warn("getLatestNotifications failed", e);
-    return [];
-  }
+  // Persistence removed as per requirement.
+  // Returning empty array to satisfy contract.
+  return [];
 }
 
 export async function appendAuditLog({
@@ -102,7 +76,7 @@ export async function appendAuditLog({
     });
   } catch (e) {
     console.warn("appendAuditLog failed", e);
-    // fallback: write notification
+    // fallback: write notification (now ephemeral)
     await appendNotification({
       type: "audit",
       message: `${action} ${resourceType} ${resourceId || ""}`.trim(),

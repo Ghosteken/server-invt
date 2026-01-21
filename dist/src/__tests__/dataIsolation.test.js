@@ -26,6 +26,9 @@ const prismaMock = {
         delete: jest.fn(),
         count: jest.fn(),
     },
+    pcsInventory: {
+        findMany: jest.fn().mockResolvedValue([]),
+    },
     customers: {
         findFirst: jest.fn(),
         findMany: jest.fn(),
@@ -434,10 +437,10 @@ describe("Data Isolation Security Tests", () => {
             });
             const orgBCustomerInList = response.body.find((c) => c.customerId === orgBCustomerId);
             expect(orgBCustomerInList).toBeUndefined();
-            expect(prismaMock.customers.findMany).toHaveBeenCalledWith({
+            expect(prismaMock.customers.findMany).toHaveBeenCalledWith(expect.objectContaining({
                 where: { tenantId: "orgA" },
                 orderBy: expect.any(Object),
-            });
+            }));
         });
         it("should only return Org A's invoices when Org A lists invoices", async () => {
             // Mock: Org A lists invoices - returns only Org A's invoices

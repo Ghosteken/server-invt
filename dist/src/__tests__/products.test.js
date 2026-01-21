@@ -11,6 +11,9 @@ const prismaMock = {
     products: {
         findMany: jest.fn(),
     },
+    pcsInventory: {
+        findMany: jest.fn().mockResolvedValue([]),
+    },
 };
 jest.mock("../db/prisma", () => ({
     __esModule: true,

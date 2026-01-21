@@ -115,6 +115,7 @@ function createApp() {
     apiRouter.use("/store-sales", storeSalesRoutes_1.default);
     apiRouter.use("/stores", storesRoutes_1.default);
     apiRouter.use("/purchases", purchasesRoutes_1.default);
+    apiRouter.use("/statements", require("./routes/statementsRoutes").default);
     apiRouter.use("/invoices", invoiceRoutes_1.default);
     apiRouter.use("/sales-agents", salesAgentRoutes_1.default);
     apiRouter.use("/locations", locationRoutes_1.default);

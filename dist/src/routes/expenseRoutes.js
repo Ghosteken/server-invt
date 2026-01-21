@@ -12,6 +12,7 @@ const router = (0, express_1.Router)();
 const upload = (0, multer_1.default)({ storage: multer_1.default.memoryStorage() });
 router.get("/", authMiddleware_1.authenticateToken, expenseController_1.getExpensesByCategory);
 router.get("/list", authMiddleware_1.authenticateToken, expenseController_1.listExpenses);
+router.get("/export/excel", authMiddleware_1.authenticateToken, expenseController_1.exportExpensesExcel);
 router.get("/categories", authMiddleware_1.authenticateToken, expenseController_1.getExpenseCategories);
 router.post("/categories", authMiddleware_1.authenticateToken, (0, permissionMiddleware_1.requirePermission)("expenses", "createCategory"), expenseController_1.createExpenseCategory);
 router.post("/", authMiddleware_1.authenticateToken, (0, permissionMiddleware_1.requirePermission)("expenses", "create"), expenseController_1.createExpense);

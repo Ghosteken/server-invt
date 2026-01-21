@@ -24,7 +24,7 @@ const superAdminLogin = async (req, res) => {
             return;
         }
         if (email === configuredEmail && password === configuredPassword) {
-            const token = jsonwebtoken_1.default.sign({ userId: "super-admin", email, role: "super_admin" }, JWT_SECRET, { expiresIn: "24h" });
+            const token = jsonwebtoken_1.default.sign({ userId: "super-admin", email, role: "super_admin" }, JWT_SECRET, { expiresIn: "7d" });
             res.json({ token, user: { userId: "super-admin", name: "Super Admin", email, role: "super_admin" } });
             return;
         }
@@ -106,6 +106,7 @@ const createOrg = async (req, res) => {
                     "storeSales",
                     "inventory",
                     "productTracker",
+                    "statements",
                     "products",
                     "customers",
                     "locations",
@@ -119,7 +120,9 @@ const createOrg = async (req, res) => {
                     "purchasingAdvisor",
                     "expenseAnomalyDetection"
                 ];
-                const allFeaturesExceptAI = ALL_FEATURES.filter(f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection");
+                const allFeaturesExceptAI = ALL_FEATURES
+                    .filter(f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection")
+                    .filter(f => f !== "statements");
                 await (0, featureFlagsService_1.writeFlags)({
                     [newAdmin.id]: allFeaturesExceptAI,
                     "__allowed__": allFeaturesExceptAI
@@ -278,7 +281,6 @@ const deleteOrg = async (req, res) => {
             await tx.pcsInventory.deleteMany({ where: { tenantId: id } });
             await tx.auditLogs.deleteMany({ where: { tenantId: id } });
             await tx.supportMessages.deleteMany({ where: { tenantId: id } });
-            await tx.notifications.deleteMany({ where: { tenantId: id } });
             await tx.products.deleteMany({ where: { tenantId: id } });
             await tx.customerGroups.deleteMany({ where: { tenantId: id } });
             await tx.salesAgents.deleteMany({ where: { tenantId: id } });
@@ -349,6 +351,7 @@ const getOrgAdminFeatures = async (req, res) => {
             "storeSales",
             "inventory",
             "productTracker",
+            "statements",
             "products",
             "customers",
             "locations",

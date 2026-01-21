@@ -272,7 +272,6 @@ export const deleteOrg = async (req: Request, res: Response): Promise<void> => {
       await tx.pcsInventory.deleteMany({ where: { tenantId: id } });
       await tx.auditLogs.deleteMany({ where: { tenantId: id } });
       await tx.supportMessages.deleteMany({ where: { tenantId: id } });
-      await tx.notifications.deleteMany({ where: { tenantId: id } });
       await tx.products.deleteMany({ where: { tenantId: id } });
       await tx.customerGroups.deleteMany({ where: { tenantId: id } });
       await tx.salesAgents.deleteMany({ where: { tenantId: id } });
