@@ -39,6 +39,7 @@ import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
 import { startInvoiceReminderJob } from "./jobs/invoiceReminderJob";
 import { startClosingStockSnapshotJob } from "./jobs/closingStockSnapshotJob";
+import { setIO } from "./socket";
 
 /* CONFIGURATIONS */
 dotenv.config();
@@ -63,6 +64,7 @@ const io = new Server(httpServer, {
   }
 });
 app.set("io", io);
+setIO(io);
 
 // Enable gzip compression (Brotli is handled by proxies/CDNs if present)
 app.use(compression());
