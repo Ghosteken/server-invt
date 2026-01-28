@@ -134,7 +134,7 @@ describe("POST /products/invoice/manual", () => {
       console.log("console.error calls:", consoleSpy.mock.calls.map((c) => (c[1] && (c[1].message || c[1].toString())) || c[0]));
     }
     expect(res.statusCode).toBe(200);
-    expect(adjustPcsQuantityMock).toHaveBeenCalledWith({ name: "Loose Yogurt", delta: -3 });
+    expect(adjustPcsQuantityMock).toHaveBeenCalledWith({ name: "Loose Yogurt", delta: -3, tenantId: "default" });
     expect(res.body?.updates).toEqual([]);
   });
 
