@@ -451,10 +451,14 @@ export const getProductMovements = async (
 
 export const getPcsProducts = async (req: Request, res: Response): Promise<void> => {
   try {
-    const Query = z.object({ search: z.string().optional() });
-    const q = Query.safeParse({ search: req.query.search?.toString() });
+    const Query = z.object({ search: z.string().optional(), includeZero: z.string().optional() });
+    const q = Query.safeParse({ search: req.query.search?.toString(), includeZero: req.query.includeZero?.toString() });
     const rawSearch = q.success ? q.data.search ?? "" : "";
     const search = rawSearch.trim().toLowerCase();
+    const includeZero =
+      q.success &&
+      q.data.includeZero != null &&
+      ["1", "true", "yes", "y"].includes(String(q.data.includeZero).trim().toLowerCase());
     const tenantId = req.tenantId || req.user?.tenantId || "default";
     const pcs = await readPcsInventory(tenantId);
     // Load all products to allow robust matching and enrichment
@@ -539,6 +543,9 @@ export const getPcsProducts = async (req: Request, res: Response): Promise<void>
     let enriched = Array.from(agg.values());
     if (search) {
       enriched = enriched.filter((e) => String(e.name || "").toLowerCase().includes(search));
+    }
+    if (!includeZero) {
+      enriched = enriched.filter((e) => Number(e.pcsQuantity || 0) > 0);
     }
     res.json(enriched);
   } catch (err) {
@@ -2104,7 +2111,7 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
       }
       // When unit is PCS, adjust PCS inventory file and do not change carton stockQuantity
       if (item.unit === 'pcs') {
-        adjustPcsQuantity({ name: item.name, delta: -item.quantity });
+        await adjustPcsQuantity({ name: item.name, delta: -item.quantity, tenantId });
         if (prod) {
           const unitPrice = Number(item.unitPrice ?? prod.price ?? 0);
           const totalCost = Number(item.subtotal ?? unitPrice * item.quantity);
@@ -2225,7 +2232,7 @@ export const processInvoiceManual = async (req: Request, res: Response): Promise
 
       if (unit === 'pcs') {
         const nameForPcs = String(it?.name || product?.name || '').trim();
-        if (nameForPcs) adjustPcsQuantity({ name: nameForPcs, delta: -qty });
+        if (nameForPcs) await adjustPcsQuantity({ name: nameForPcs, delta: -qty, tenantId });
       } else {
         if (!product) continue; // skip unknown product for carton flow
         // Deduct stock (clamp at 0)
