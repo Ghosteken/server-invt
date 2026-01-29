@@ -1064,8 +1064,15 @@ export const importProducts = async (
         const purchasePriceRaw = kv["purchase price"] ?? kv["purchaseprice"] ?? kv["cost"] ?? kv["unit cost"] ?? kv["buying price"] ?? kv["buy price"];
         if (purchasePriceRaw !== undefined && purchasePriceRaw !== null) present.add("purchaseprice");
         // Support quantity/stock variants
-        const stockRaw = kv["stockquantity"] ?? kv["quantity"] ?? kv["qty"] ?? kv["qty/ctn"] ?? kv["qty ctn"] ?? kv["stock"];
-        if (stockRaw !== undefined && stockRaw !== null) present.add("stockquantity");
+        const stockKeys = ["stockquantity", "quantity", "qty", "qty/ctn", "qty ctn", "stock"];
+        let stockRaw: any = undefined;
+        for (const k of stockKeys) {
+          if (Object.prototype.hasOwnProperty.call(kv, k)) {
+            stockRaw = kv[k];
+            break;
+          }
+        }
+        if (stockRaw !== undefined) present.add("stockquantity");
         // Optional expiry date variants
         const expiryRaw = kv["expiry date"] ?? kv["exp date"] ?? kv["expiry"] ?? kv["expity date"] ?? kv["expity"] ?? kv["expirydate"] ?? null;
         if (expiryRaw !== undefined && expiryRaw !== null) present.add("expirydate");
