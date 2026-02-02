@@ -49,6 +49,7 @@ jest.mock("../middleware/authMiddleware", () => ({
 // Mock permission middleware
 jest.mock("../middleware/permissionMiddleware", () => ({
   requirePermission: (module: string, action: string) => (req: any, res: any, next: any) => next(),
+  requireFeature: (module: string) => (req: any, res: any, next: any) => next(),
 }));
 
 import createApp from "../app";

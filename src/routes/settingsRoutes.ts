@@ -8,6 +8,7 @@ import { Request, Response } from "express";
 import { readBanks, addBank, updateBank, removeBank } from "../services/banksService";
 import { appendNotification } from "../services/notificationService";
 import { authenticateToken, requireAdmin } from "../middleware/authMiddleware";
+import { requirePermission, requireFeature } from "../middleware/permissionMiddleware";
 import { resetOpeningStock, resetAllOpeningStock, generateClosingSnapshot } from "../controllers/productController";
 
 const router = Router();
@@ -31,6 +32,7 @@ const ALL_FEATURES = [
   "logistics",
   "purchasingAdvisor",
   "expenseAnomalyDetection",
+  "accounts",
 ];
 
 // Set features by email for convenience in admin UI
@@ -228,7 +230,7 @@ router.get("/banks", authenticateToken, async (req: Request, res: Response) => {
   }
 });
 
-router.post("/banks", authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.post("/banks", authenticateToken, requireFeature("accounts"), async (req: Request, res: Response) => {
   try {
     const Body = z.object({ name: z.string().min(1), account: z.string().min(1), balance: z.coerce.number().optional() });
     const { name, account, balance } = Body.parse(req.body || {});
@@ -246,7 +248,7 @@ router.post("/banks", authenticateToken, requireAdmin, async (req: Request, res:
   }
 });
 
-router.put("/banks", authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.put("/banks", authenticateToken, requireFeature("accounts"), async (req: Request, res: Response) => {
   try {
     const Body = z.object({
       oldName: z.string().min(1),
@@ -270,7 +272,7 @@ router.put("/banks", authenticateToken, requireAdmin, async (req: Request, res: 
   }
 });
 
-router.delete("/banks", authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.delete("/banks", authenticateToken, requireFeature("accounts"), async (req: Request, res: Response) => {
   try {
     const Body = z.object({ name: z.string().min(1), account: z.string().min(1) });
     const { name, account } = Body.parse(req.body || {});
@@ -309,7 +311,7 @@ router.get("/expense-banks", authenticateToken, async (req: Request, res: Respon
   }
 });
 
-router.post("/expense-banks", authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.post("/expense-banks", authenticateToken, requireFeature("accounts"), async (req: Request, res: Response) => {
   try {
     const Body = z.object({ name: z.string().min(1), account: z.string().min(1), balance: z.coerce.number().optional() });
     const { name, account, balance } = Body.parse(req.body || {});
@@ -334,7 +336,7 @@ router.post("/expense-banks", authenticateToken, requireAdmin, async (req: Reque
   }
 });
 
-router.put("/expense-banks", authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.put("/expense-banks", authenticateToken, requireFeature("accounts"), async (req: Request, res: Response) => {
   try {
     const Body = z.object({ id: z.string().min(1), name: z.string().min(1), account: z.string().min(1), balance: z.coerce.number() });
     const { id, name, account, balance } = Body.parse(req.body || {});
@@ -359,7 +361,7 @@ router.put("/expense-banks", authenticateToken, requireAdmin, async (req: Reques
   }
 });
 
-router.delete("/expense-banks", authenticateToken, requireAdmin, async (req: Request, res: Response) => {
+router.delete("/expense-banks", authenticateToken, requireFeature("accounts"), async (req: Request, res: Response) => {
   try {
     const Body = z.object({ id: z.string().min(1) });
     const { id } = Body.parse(req.body || {});
