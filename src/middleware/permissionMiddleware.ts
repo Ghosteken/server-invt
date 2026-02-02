@@ -1,6 +1,42 @@
 import { Request, Response, NextFunction } from "express";
 import prisma from "../db/prisma";
 
+export const requireFeature = (moduleName: string) => {
+  return async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({ message: "Authentication required" });
+      }
+
+      const { userId, tenantId } = req.user;
+      const tid = tenantId || "default";
+
+      const flags = await prisma.featureFlags.findUnique({
+        where: { tenantId_userId: { tenantId: tid, userId } }
+      });
+
+      let hasFeature = false;
+      const features = flags?.features;
+
+      if (Array.isArray(features)) {
+        hasFeature = features.includes(moduleName);
+      } else if (typeof features === 'object' && features !== null) {
+        // @ts-ignore
+        hasFeature = !!features[moduleName];
+      }
+
+      if (!hasFeature) {
+        return res.status(403).json({ message: `Feature '${moduleName}' is not enabled for this user` });
+      }
+
+      next();
+    } catch (error) {
+      console.error("Feature check error:", error);
+      res.status(500).json({ message: "Internal server error during feature check" });
+    }
+  };
+};
+
 export const requirePermission = (moduleName: string, action: string) => {
   return async (req: Request, res: Response, next: NextFunction) => {
     try {
