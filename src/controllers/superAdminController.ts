@@ -336,6 +336,7 @@ export const getOrgAdminFeatures = async (req: Request, res: Response): Promise<
       "storeSales",
       "inventory",
       "productTracker",
+      "accounts",
       "statements",
       "products",
       "customers",
