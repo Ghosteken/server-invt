@@ -119,7 +119,7 @@ describe("Data Isolation Security Tests", () => {
     jest.clearAllMocks();
     // Mock Feature Flags to be enabled for all tests
     prismaMock.featureFlags.findUnique.mockResolvedValue({
-      features: ["inventory", "customers", "invoices", "purchases", "expenses", "products", "reports", "customerGroups"],
+      features: ["inventory", "customers", "invoices", "purchases", "expenses", "products", "reports", "customerGroups", "accounts"],
     });
   });
 
