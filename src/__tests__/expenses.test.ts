@@ -9,6 +9,7 @@ const prismaMock = {
     findFirst: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    count: jest.fn(),
   },
   expenseBanks: {
     findFirst: jest.fn(),
@@ -105,6 +106,7 @@ describe("Expense Status Logic", () => {
     ];
 
     prismaMock.expenses.findMany.mockResolvedValueOnce(expenses);
+    prismaMock.expenses.count.mockResolvedValueOnce(expenses.length);
 
     // Call /expenses/list NOT /expenses
     const res = await request(app).get("/expenses/list").expect(200);

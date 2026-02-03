@@ -47,20 +47,37 @@ export const listExpenses = async (req: Request, res: Response): Promise<void> =
     const category = String(req.query.category || "").trim();
     const from = req.query.from ? new Date(String(req.query.from)) : undefined;
     const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+    const status = String(req.query.status || "").trim();
     
+    // Pagination
+    const page = parseInt(String(req.query.page || "1"), 10);
+    const limit = parseInt(String(req.query.limit || "25"), 10);
+    const skip = (page - 1) * limit;
+
     if (to) {
       to.setHours(23, 59, 59, 999);
     }
 
     const where: any = { tenantId };
     if (category) where.category = { contains: category, mode: "insensitive" };
+    if (status) where.status = status;
     if (from || to) {
       where.timestamp = {};
       if (from) where.timestamp.gte = from;
       if (to) where.timestamp.lte = to;
     }
     const db = prisma as any;
-    const rows = await db.expenses.findMany({ where, include: { expenseBank: true }, orderBy: { timestamp: "desc" } });
+    
+    const [rows, total] = await Promise.all([
+      db.expenses.findMany({ 
+        where, 
+        include: { expenseBank: true }, 
+        orderBy: { timestamp: "desc" },
+        skip,
+        take: limit
+      }),
+      db.expenses.count({ where })
+    ]);
     
     const expenses = rows.map((r: any) => ({
       id: r.expenseId,
@@ -73,7 +90,7 @@ export const listExpenses = async (req: Request, res: Response): Promise<void> =
       expenseBankName: r.expenseBank?.name ?? undefined,
       expenseBankAccount: r.expenseBank?.account ?? undefined,
     }));
-    res.json({ expenses });
+    res.json({ expenses, total });
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "expense", "Error retrieving expenses"));
   }
