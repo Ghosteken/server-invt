@@ -174,16 +174,18 @@ model Customers {
 }
 
 model CustomerPurchases {
-  id         String    @id
-  customerId String
-  productId  String
-  timestamp  DateTime  @default(now())
-  quantity   Int
-  unitPrice  Float
-  totalCost  Float
-  tenantId   String    @default("default")
-  customer   Customers @relation(fields: [customerId], references: [customerId])
-  product    Products  @relation(fields: [productId], references: [productId])
+  id           String    @id
+  customerId   String
+  productId    String
+  timestamp    DateTime  @default(now())
+  quantity     Int
+  unit         String?   // "ctn" or "pcs"
+  unitPrice    Float
+  totalCost    Float
+  isOverridden Boolean   @default(false)
+  tenantId     String    @default("default")
+  customer     Customers @relation(fields: [customerId], references: [customerId])
+  product      Products  @relation(fields: [productId], references: [productId])
 
   @@index([tenantId, timestamp])
   @@index([productId])
@@ -244,15 +246,16 @@ model Invoices {
 }
 
 model InvoiceItems {
-  id        String  @id
-  invoiceId String
-  productId String?
-  name      String
-  unit      String // "ctn" or "pcs"
-  quantity  Int
-  unitPrice Float
-  subtotal  Float
-  tenantId  String  @default("default")
+  id           String  @id
+  invoiceId    String
+  productId    String?
+  name         String
+  unit         String // "ctn" or "pcs"
+  quantity     Int
+  unitPrice    Float
+  subtotal     Float
+  isOverridden Boolean @default(false)
+  tenantId     String  @default("default")
 
   invoice Invoices  @relation(fields: [invoiceId], references: [invoiceId])
   product Products? @relation(fields: [productId], references: [productId])
