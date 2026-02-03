@@ -25,4 +25,6 @@ jobs:
         env:
             DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
             DIRECT_URL: ${{ secrets.STAGING_DIRECT_URL }}
-        run: npx prisma migrate deploy
+        run: |
+          npx prisma migrate resolve --applied "20260203000000_add_customer_purchases_unit_overridden" || echo "Migration already handled"
+          npx prisma migrate deploy
