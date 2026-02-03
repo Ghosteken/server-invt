@@ -1,29 +1,5 @@
 [
   {
-    "productId": "6e06db5c-c905-473e-a2fa-e5db7f44c2c6",
-    "field": "packsize",
-    "updatedAt": "2026-01-08T00:06:18.504Z",
-    "source": "import"
-  },
-  {
-    "productId": "6e06db5c-c905-473e-a2fa-e5db7f44c2c6",
-    "field": "barcode",
-    "updatedAt": "2026-01-08T00:06:18.504Z",
-    "source": "import"
-  },
-  {
-    "productId": "b483f86a-599f-4d61-895d-4a97a3802157",
-    "field": "name",
-    "updatedAt": "2026-01-08T00:06:18.581Z",
-    "source": "import"
-  },
-  {
-    "productId": "b483f86a-599f-4d61-895d-4a97a3802157",
-    "field": "price",
-    "updatedAt": "2026-01-08T00:06:18.581Z",
-    "source": "import"
-  },
-  {
     "productId": "b483f86a-599f-4d61-895d-4a97a3802157",
     "field": "purchaseprice",
     "updatedAt": "2026-01-08T00:06:18.581Z",
@@ -299997,6 +299973,30 @@
     "productId": "b5c3a539-e31a-4223-b4c6-f3f9de0063c7",
     "field": "stockquantity",
     "updatedAt": "2026-01-20T13:02:00.785Z",
+    "source": "api"
+  },
+  {
+    "productId": "fadc9083-fc40-43cb-976e-83a9500e6ced",
+    "field": "purchaseprice",
+    "updatedAt": "2026-02-03T07:47:03.447Z",
+    "source": "api"
+  },
+  {
+    "productId": "fadc9083-fc40-43cb-976e-83a9500e6ced",
+    "field": "expirydate",
+    "updatedAt": "2026-02-03T07:47:03.447Z",
+    "source": "api"
+  },
+  {
+    "productId": "fadc9083-fc40-43cb-976e-83a9500e6ced",
+    "field": "category",
+    "updatedAt": "2026-02-03T07:47:03.447Z",
+    "source": "api"
+  },
+  {
+    "productId": "18c1c2c7-77a6-455c-acfd-ed6ad46a56f8",
+    "field": "stockquantity",
+    "updatedAt": "2026-02-03T08:52:23.682Z",
     "source": "api"
   }
 ]

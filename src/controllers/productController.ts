@@ -252,7 +252,21 @@ export const updateProduct = async (
         const newNorm = newVal instanceof Date ? newVal.getTime() : newVal;
         if (oldNorm !== newNorm) changed.push(k);
       }
-      if (changed.length) recordFieldUpdates(productId, changed, "api");
+      if (changed.length) {
+        recordFieldUpdates(productId, changed, "api");
+        // Point 3: Track manual edits in product tracker
+        if (changed.includes("stockQuantity") || changed.includes("price")) {
+          await prisma.stockResets.create({
+            data: {
+              productId,
+              quantity: updated.stockQuantity,
+              tenantId,
+              type: "edit",
+              timestamp: new Date()
+            }
+          });
+        }
+      }
     } catch (logErr) {
       console.warn("Failed to log field updates on updateProduct:", logErr);
     }
@@ -405,10 +419,12 @@ export const getProductMovements = async (
         kind: "sale" as const,
         timestamp: s.timestamp,
         quantity: Number(s.quantity || 0),
+        unit: s.unit || "ctn", // Default to ctn if not specified
         unitPrice: Number(s.unitPrice || 0),
         totalCost: Number(s.totalCost || 0),
         invoiceId,
         invoiceNumber,
+        isOverridden: !!s.isOverridden, // Include override status
       };
     });
     const purchaseItems = purchases.map((p: any) => ({
