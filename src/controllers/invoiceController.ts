@@ -44,6 +44,7 @@ const CreateInvoiceBodySchema = z.object({
   dueDate: z.string().optional(),
   notes: z.string().optional(),
   invoiceNumber: z.string().optional(),
+  overrideStock: z.boolean().optional().default(false),
   items: z.array(z.object({
     productId: z.string().optional(),
     name: z.string().min(1),
@@ -66,6 +67,7 @@ const UpdateInvoiceBodySchema = z.object({
   dueDate: z.string().optional(),
   notes: z.string().optional(),
   invoiceNumber: z.string().optional(),
+  overrideStock: z.boolean().optional().default(false),
   items: z
     .array(
       z.object({
@@ -287,6 +289,63 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
       }
     }
 
+    // Check stock availability if not overridden
+    if (!body.overrideStock) {
+      const insufficientItems: string[] = [];
+      const tempCtn = new Map<string, number>();
+      const tempPcs = new Map<string, number>();
+
+      // Aggregate requested quantities
+      for (const it of hydrated) {
+        if (it.unit === "pcs") {
+          const key = String(it.name || "").trim().toLowerCase();
+          if (key) tempPcs.set(key, (tempPcs.get(key) || 0) + it.quantity);
+        } else {
+          // ctn or ctnx units
+          if (it.productId) {
+            tempCtn.set(it.productId, (tempCtn.get(it.productId) || 0) + it.quantity);
+          }
+        }
+      }
+
+      // Check carton stock
+      if (tempCtn.size > 0) {
+        const ids = Array.from(tempCtn.keys());
+        const prods = await prisma.products.findMany({ where: { tenantId, productId: { in: ids } } });
+        const prodMap = new Map(prods.map(p => [p.productId, p]));
+        for (const [pid, reqQty] of tempCtn.entries()) {
+          const p = prodMap.get(pid);
+          if (!p || (p.stockQuantity < reqQty)) {
+            insufficientItems.push(`${p?.name || "Unknown Product"} (Requested: ${reqQty}, Available: ${p?.stockQuantity ?? 0})`);
+          }
+        }
+      }
+
+      // Check PCS stock
+      if (tempPcs.size > 0) {
+        const names = Array.from(tempPcs.keys());
+        const pcsEntries = await prisma.pcsInventory.findMany({ 
+          where: { tenantId, name: { in: names, mode: "insensitive" } } 
+        });
+        const pcsMap = new Map(pcsEntries.map(p => [p.name.toLowerCase(), p]));
+        for (const [name, reqQty] of tempPcs.entries()) {
+          const p = pcsMap.get(name);
+          if (!p || (p.quantity < reqQty)) {
+            insufficientItems.push(`${p?.name || name} (Requested: ${reqQty}, Available: ${p?.quantity ?? 0})`);
+          }
+        }
+      }
+
+      if (insufficientItems.length > 0) {
+        res.status(409).json({ 
+          message: "Insufficient stock for items", 
+          insufficientItems,
+          requiresOverride: true 
+        });
+        return;
+      }
+    }
+
     const created = await prisma.invoices.create({
       data: {
         invoiceId,
@@ -306,7 +365,17 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
         totalWithVAT: totals.totalWithVAT,
         notes: notes || null,
         tenantId,
-        items: { create: hydrated.map((h) => ({ id: randomUUID(), productId: h.productId || null, name: h.name, unit: h.unit, quantity: h.quantity, unitPrice: h.unitPrice, subtotal: h.subtotal, tenantId })) },
+        items: { create: hydrated.map((h) => ({ 
+          id: randomUUID(), 
+          productId: h.productId || null, 
+          name: h.name, 
+          unit: h.unit, 
+          quantity: h.quantity, 
+          unitPrice: h.unitPrice, 
+          subtotal: h.subtotal, 
+          tenantId,
+          isOverridden: body.overrideStock 
+        })) },
       },
       include: { items: true, payments: true },
     });
@@ -356,21 +425,59 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
 
     const pcsTotals = new Map<string, number>();
     const ctnTotals = new Map<string, { qty: number }>();
-    const purchaseRows: Array<{ id: string; customerId: string; productId: string; timestamp: Date; quantity: number; unitPrice: number; totalCost: number; tenantId: string }> = [];
+    const purchaseRows: Array<{ id: string; customerId: string; productId: string; timestamp: Date; quantity: number; unit?: string; unitPrice: number; totalCost: number; tenantId: string; isOverridden?: boolean }> = [];
     for (const h of hydrated) {
       const qty = Math.max(0, Number(h.quantity) || 0);
       const unitPrice = Number(h.unitPrice || 0);
       const totalCost = unitPrice * qty;
+
+      // Point 1: Sync price back to inventory
+      if (h.unit === "ctn" && h.productId) {
+        // Update product carton price
+        await prisma.products.update({
+          where: { productId: h.productId },
+          data: { price: unitPrice }
+        });
+      } else if (h.unit === "pcs" && h.name) {
+        // Update PCS sales price
+        await prisma.pcsInventory.updateMany({
+          where: { tenantId, name: { equals: h.name, mode: "insensitive" } },
+          data: { salesPrice: unitPrice }
+        });
+      }
+
       if (h.unit === "pcs") {
         const key = String(h.name || "").trim().toLowerCase();
         if (key) pcsTotals.set(key, (pcsTotals.get(key) || 0) + qty);
         if (h.productId) {
-          purchaseRows.push({ id: randomUUID(), customerId: resolvedCustomerId, productId: h.productId, timestamp: created.date, quantity: qty, unitPrice, totalCost, tenantId });
+          purchaseRows.push({ 
+            id: randomUUID(), 
+            customerId: resolvedCustomerId, 
+            productId: h.productId, 
+            timestamp: created.date, 
+            quantity: qty, 
+            unit: "pcs",
+            unitPrice, 
+            totalCost, 
+            tenantId,
+            isOverridden: body.overrideStock 
+          });
         }
       } else {
         if (h.productId) {
           ctnTotals.set(h.productId, { qty: (ctnTotals.get(h.productId)?.qty || 0) + qty });
-          purchaseRows.push({ id: randomUUID(), customerId: resolvedCustomerId, productId: h.productId, timestamp: created.date, quantity: qty, unitPrice, totalCost, tenantId });
+          purchaseRows.push({ 
+            id: randomUUID(), 
+            customerId: resolvedCustomerId, 
+            productId: h.productId, 
+            timestamp: created.date, 
+            quantity: qty, 
+            unit: "ctn",
+            unitPrice, 
+            totalCost, 
+            tenantId,
+            isOverridden: body.overrideStock 
+          });
         }
       }
     }
@@ -659,7 +766,16 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
         totalWithVAT: totals.totalWithVAT,
         items: body.items ? {
           deleteMany: { invoiceId: id },
-          create: updatedItems.map((h: any) => ({ id: h.id, productId: h.productId || null, name: h.name, unit: h.unit, quantity: h.quantity, unitPrice: h.unitPrice, subtotal: h.subtotal })),
+          create: updatedItems.map((h: any) => ({ 
+            id: h.id, 
+            productId: h.productId || null, 
+            name: h.name, 
+            unit: h.unit, 
+            quantity: h.quantity, 
+            unitPrice: h.unitPrice, 
+            subtotal: h.subtotal,
+            isOverridden: body.overrideStock 
+          })),
         } : undefined,
       },
       include: { items: true, payments: true },
@@ -744,14 +860,37 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
               productId,
               timestamp: updated.date,
               quantity: delta,
+              unit: "ctn",
               unitPrice,
               totalCost: unitPrice * delta,
+              tenantId,
+              isOverridden: body.overrideStock || false
             } });
           }
         }
       } else if (k.startsWith("pcs:")) {
         const name = k.slice(4);
         await adjustPcsQuantity({ name, delta: -delta, tenantId });
+        // Also record purchase if quantity increased and we can find a productId
+        if (delta > 0) {
+          const info = nextMap.get(k);
+          const pcsRow = await prisma.pcsInventory.findFirst({ where: { tenantId, name: { equals: name, mode: "insensitive" } } });
+          if (pcsRow?.productId) {
+            const unitPrice = Number(info?.unitPrice || pcsRow.salesPrice || 0);
+            await prisma.customerPurchases.create({ data: {
+              id: randomUUID(),
+              customerId: updated.customerId,
+              productId: pcsRow.productId,
+              timestamp: updated.date,
+              quantity: delta,
+              unit: "pcs",
+              unitPrice,
+              totalCost: unitPrice * delta,
+              tenantId,
+              isOverridden: body.overrideStock || false
+            } });
+          }
+        }
       }
     }
     const meta = await getInvoiceMeta(id, req.tenantId || req.user?.tenantId || "default");
