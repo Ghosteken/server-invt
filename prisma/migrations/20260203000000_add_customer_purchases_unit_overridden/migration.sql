@@ -5,8 +5,6 @@ ADD COLUMN     "unit" TEXT;
 -- AlterTable
 ALTER TABLE "InvoiceItems" ADD COLUMN     "isOverridden" BOOLEAN NOT NULL DEFAULT false;
 
--- DropTable
-DROP TABLE "public"."notifications";
 
 -- CreateIndex
 CREATE INDEX "CustomerPurchases_tenantId_timestamp_idx" ON "CustomerPurchases"("tenantId", "timestamp");
