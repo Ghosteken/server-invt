@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { getExpensesByCategory, importExpenseCategories, listExpenses, createExpense, getExpenseCategories, updateExpenseController, deleteExpenseController, createExpenseCategory, approveExpense, rejectExpense, revokeExpense, exportExpensesExcel, importExpenses } from "../controllers/expenseController";
-import { authenticateToken, requireAdmin } from "../middleware/authMiddleware";
+import { authenticateToken } from "../middleware/authMiddleware";
 import { requirePermission } from "../middleware/permissionMiddleware";
 
 const router = Router();
