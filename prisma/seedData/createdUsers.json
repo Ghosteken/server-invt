@@ -54,5 +54,12 @@
     "email": "per@per.com",
     "role": "user",
     "createdAt": "2026-01-13T23:58:02.242Z"
+  },
+  {
+    "userId": "ccf66df4-342a-4bd2-ba8e-b1995cdd9289",
+    "name": "sand1",
+    "email": "sand1@gmail.com",
+    "role": "user",
+    "createdAt": "2026-02-09T09:10:51.117Z"
   }
 ]
