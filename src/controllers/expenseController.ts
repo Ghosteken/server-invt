@@ -350,12 +350,15 @@ export const importExpenses = async (req: Request, res: Response): Promise<void>
       for (const k of Object.keys(row)) kv[norm(k)] = row[k];
 
       const category = kv["category"];
-      const name = kv["name"];
+      let name = kv["name"];
+      if (!name || String(name).trim() === "") {
+        name = "unnamed";
+      }
       let dateValue = kv["date"];
       const amount = Number(kv["amount"] || 0);
       const status = kv["status"] || "pending";
 
-      if (!category || !name || !dateValue) {
+      if (!category || !dateValue) {
         skipped++;
         continue;
       }
@@ -365,7 +368,21 @@ export const importExpenses = async (req: Request, res: Response): Promise<void>
         // Excel numeric date
         timestamp = new Date(Math.round((dateValue - 25569) * 86400 * 1000));
       } else {
-        timestamp = new Date(dateValue);
+        const dateStr = String(dateValue).trim();
+        // Try parsing DD/MM/YYYY HH:mm AM/PM or similar
+        const dmyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?)?/i);
+        
+        if (dmyMatch) {
+          const [_, day, month, year, hoursRaw, minutes, ampm] = dmyMatch;
+          let hours = parseInt(hoursRaw || "0");
+          if (ampm) {
+            if (ampm.toUpperCase() === "PM" && hours < 12) hours += 12;
+            if (ampm.toUpperCase() === "AM" && hours === 12) hours = 0;
+          }
+          timestamp = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), hours, parseInt(minutes || "0"));
+        } else {
+          timestamp = new Date(dateStr);
+        }
       }
 
       if (isNaN(timestamp.getTime())) {
