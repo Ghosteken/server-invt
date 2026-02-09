@@ -13,11 +13,11 @@ router.get("/export/excel", authenticateToken, exportExpensesExcel);
 router.get("/categories", authenticateToken, getExpenseCategories);
 router.post("/categories", authenticateToken, requirePermission("expenses", "createCategory"), createExpenseCategory);
 router.post("/", authenticateToken, requirePermission("expenses", "create"), createExpense);
-router.put("/:id", authenticateToken, updateExpenseController);
-router.delete("/:id", authenticateToken, deleteExpenseController);
-router.put("/:id/approve", authenticateToken, requireAdmin, approveExpense);
-router.put("/:id/reject", authenticateToken, requireAdmin, rejectExpense);
-router.put("/:id/revoke", authenticateToken, requireAdmin, revokeExpense);
+router.put("/:id", authenticateToken, requirePermission("expenses", "update"), updateExpenseController);
+router.delete("/:id", authenticateToken, requirePermission("expenses", "delete"), deleteExpenseController);
+router.put("/:id/approve", authenticateToken, requirePermission("expenseApproval", "approve"), approveExpense);
+router.put("/:id/reject", authenticateToken, requirePermission("expenseApproval", "reject"), rejectExpense);
+router.put("/:id/revoke", authenticateToken, requirePermission("expenseApproval", "revoke"), revokeExpense);
 router.post("/categories/import", authenticateToken, upload.single("file"), importExpenseCategories);
 
 export default router;
