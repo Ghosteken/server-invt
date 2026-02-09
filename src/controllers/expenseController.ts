@@ -285,8 +285,24 @@ export const deleteExpenseController = async (req: Request, res: Response): Prom
 export const exportExpensesExcel = async (req: Request, res: Response): Promise<void> => {
   try {
     const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const from = req.query.from ? new Date(String(req.query.from)) : undefined;
+    const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+    const category = String(req.query.category || "").trim();
+
+    const where: any = { tenantId };
+    if (category) where.category = category;
+    if (from || to) {
+      where.timestamp = {};
+      if (from) where.timestamp.gte = from;
+      if (to) where.timestamp.lte = to;
+    }
+
     const db = prisma as any;
-    const rows = await db.expenses.findMany({ where: { tenantId }, include: { expenseBank: true }, orderBy: { timestamp: "desc" } });
+    const rows = await db.expenses.findMany({ 
+      where, 
+      include: { expenseBank: true }, 
+      orderBy: { timestamp: "desc" } 
+    });
     const mapped = (rows || []).map((r: any) => ({
       Date: r.timestamp instanceof Date ? r.timestamp.toISOString().slice(0, 10) : "",
       Category: r.category ?? "",
@@ -305,6 +321,116 @@ export const exportExpensesExcel = async (req: Request, res: Response): Promise<
     res.status(200).send(buf);
   } catch (err) {
     res.status(500).json(createErrorResponse(err, "expense", "Failed to export expenses as Excel"));
+  }
+};
+
+/**
+ * Import expenses from an Excel file.
+ * Required columns: Category, Name, Date
+ * Optional/Fallback: Amount (0), Status (pending)
+ */
+export const importExpenses = async (req: Request, res: Response): Promise<void> => {
+  try {
+    const tenantId = req.tenantId || req.user?.tenantId || "default";
+    const file = (req as any).file as Express.Multer.File | undefined;
+    if (!file) {
+      res.status(400).json({ message: "No file uploaded. Use field name 'file'." });
+      return;
+    }
+
+    const workbook = XLSX.read(file.buffer, { type: "buffer" });
+    const firstSheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[firstSheetName];
+    const rows: Record<string, any>[] = XLSX.utils.sheet_to_json(worksheet, { defval: null });
+
+    const norm = (k: string) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+
+    const expensesToCreate = [];
+    let skipped = 0;
+
+    for (const row of rows) {
+      const kv: Record<string, any> = {};
+      for (const k of Object.keys(row)) kv[norm(k)] = row[k];
+
+      const category = kv["category"];
+      const name = kv["name"];
+      let dateValue = kv["date"];
+      const amount = Number(kv["amount"] || 0);
+      const status = kv["status"] || "pending";
+
+      if (!category || !name || !dateValue) {
+        skipped++;
+        continue;
+      }
+
+      let timestamp: Date;
+      if (typeof dateValue === "number") {
+        // Excel numeric date
+        timestamp = new Date(Math.round((dateValue - 25569) * 86400 * 1000));
+      } else {
+        timestamp = new Date(dateValue);
+      }
+
+      if (isNaN(timestamp.getTime())) {
+        skipped++;
+        continue;
+      }
+
+      expensesToCreate.push({
+        expenseId: randomUUID(),
+        tenantId,
+        category: String(category).trim(),
+        name: String(name).trim(),
+        amount,
+        timestamp,
+        status: String(status).trim().toLowerCase() as any,
+      });
+    }
+
+    if (expensesToCreate.length > 0) {
+      await prisma.expenses.createMany({
+        data: expensesToCreate,
+      });
+
+      // Automatically create missing categories
+      const uniqueCategories = Array.from(new Set(expensesToCreate.map(e => e.category.toLowerCase())));
+      const existingCategoriesRaw = await prisma.expenseByCategory.findMany({
+        where: { tenantId, category: { in: uniqueCategories } },
+        select: { category: true }
+      });
+      const existingCategories = new Set(existingCategoriesRaw.map(r => r.category.toLowerCase()));
+      const missingCategories = uniqueCategories.filter(c => !existingCategories.has(c));
+
+      for (const cat of missingCategories) {
+        try {
+          const summaryId = randomUUID();
+          const now = new Date();
+          await prisma.expenseSummary.create({
+            data: { expenseSummaryId: summaryId, totalExpenses: 0, date: now, tenantId }
+          });
+          await prisma.expenseByCategory.create({
+            data: {
+              expenseByCategoryId: randomUUID(),
+              expenseSummaryId: summaryId,
+              category: cat,
+              amount: BigInt(0),
+              date: now,
+              tenantId,
+            },
+          });
+        } catch (e) {
+          console.error(`Failed to auto-create category ${cat}:`, e);
+        }
+      }
+    }
+
+    res.json({
+      success: true,
+      importedCount: expensesToCreate.length,
+      skippedCount: skipped,
+    });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "expense", "Failed to import expenses"));
   }
 };
 
