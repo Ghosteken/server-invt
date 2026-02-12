@@ -25,6 +25,7 @@ model Users {
   password  String
   role      String  @default("user") // "admin" or "user"
   isBlocked Boolean @default(false)
+  status    String  @default("pending") // "pending", "approved", "declined"
   tenantId  String  @default("default")
 }
 
@@ -449,6 +450,7 @@ model OrgAdmins {
   email     String
   passwordHash String
   isBlocked Boolean  @default(false)
+  status    String   @default("pending") // "pending", "approved", "declined"
   createdAt DateTime @default(now())
   org       Organizations @relation(fields: [orgId], references: [id])
 
