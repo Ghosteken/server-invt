@@ -21,12 +21,6 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Resolve stuck migration (if any)
-        env:
-            DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
-            DIRECT_URL: ${{ secrets.STAGING_DIRECT_URL }}
-        run: npx prisma migrate resolve --rolled-back 20260212000113_add_status_field || true
-
       - name: Run Prisma migrations (staging)
         env:
             DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
