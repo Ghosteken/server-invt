@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { superAdminLogin, listOrgs, createOrg, listOrgAdmins, createOrgAdmin, getOrg, blockOrg, unblockOrg, blockOrgAdmin, unblockOrgAdmin, deleteOrg, getOrgAdminFeatures, setOrgAdminFeatures } from "../controllers/superAdminController";
+import { superAdminLogin, listOrgs, createOrg, listOrgAdmins, createOrgAdmin, getOrg, blockOrg, unblockOrg, blockOrgAdmin, unblockOrgAdmin, deleteOrg, getOrgAdminFeatures, setOrgAdminFeatures, listPendingUsers, updateUserStatus } from "../controllers/superAdminController";
 
 const router = Router();
 
@@ -16,5 +16,8 @@ router.patch("/orgs/:orgId/admins/:adminId/block", blockOrgAdmin);
 router.patch("/orgs/:orgId/admins/:adminId/unblock", unblockOrgAdmin);
 router.get("/orgs/:orgId/admins/:adminId/features", getOrgAdminFeatures);
 router.put("/orgs/:orgId/admins/:adminId/features", setOrgAdminFeatures);
+
+router.get("/users/pending", listPendingUsers);
+router.patch("/users/:userId/status", updateUserStatus);
 
 export default router;

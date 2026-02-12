@@ -61,27 +61,21 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
         email: normalizedEmail,
         password: hashedPassword,
         role: "user", // Default role
+        status: "pending",
         ...(tenantIdBody ? { tenantId: tenantIdBody } : {}),
       },
     });
 
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: newUser.userId, email: newUser.email, role: newUser.role, tenantId: newUser.tenantId },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
     console.log(`auth: signup success for email=${email} userId=${newUser.userId}`);
     res.status(201).json({
-      message: "User created successfully",
-      token,
+      message: "User created successfully. Your account is pending approval.",
       user: {
         userId: newUser.userId,
         name: newUser.name,
         email: newUser.email,
         role: newUser.role,
         tenantId: newUser.tenantId,
+        status: newUser.status
       },
     });
   } catch (err) {
@@ -112,6 +106,12 @@ export const login = async (req: Request, res: Response): Promise<void> => {
   if (user.isBlocked) {
       console.log(`auth: login blocked for ${email}`);
       res.status(403).json({ message: "Account is blocked" });
+      return;
+    }
+
+    if (user.status !== "approved") {
+      console.log(`auth: login pending for ${email}`);
+      res.status(403).json({ message: "Your account is pending approval. Please wait for up to 24 hours." });
       return;
     }
   const isPasswordValid = await compareAsync(password, user.password);
@@ -203,6 +203,10 @@ export const adminLogin = async (req: Request, res: Response): Promise<void> => 
     }
     if (user.isBlocked) {
       res.status(403).json({ message: "Account is blocked" });
+      return;
+    }
+    if (user.status !== "approved") {
+      res.status(403).json({ message: "Your account is pending approval. Please wait for up to 24 hours." });
       return;
     }
     const isPasswordValid = await compareAsync(password, user.password);
@@ -351,6 +355,10 @@ export const orgAdminLogin = async (req: Request, res: Response): Promise<void> 
       res.status(403).json({ message: "Admin account is blocked" });
       return;
     }
+    if (admin.status !== "approved") {
+      res.status(403).json({ message: "Your account is pending approval. Please wait for up to 24 hours." });
+      return;
+    }
     const org = await prisma.organizations.findUnique({ where: { id: admin.orgId } });
     if (org && org.isBlocked) {
       res.status(403).json({ message: "Organization is blocked" });
@@ -422,6 +430,7 @@ export const signupOrg = async (req: Request, res: Response): Promise<void> => {
           name: adminName,
           email: normalizedEmail,
           passwordHash: passwordHash,
+          status: "pending",
         }
       });
 
@@ -435,42 +444,19 @@ export const signupOrg = async (req: Request, res: Response): Promise<void> => {
           role: "admin",
           tenantId: orgId,
           isBlocked: false,
+          status: "pending",
           phone: phone || null
         }
       });
     });
 
-    const newOrgAdmin = await prisma.orgAdmins.findFirst({ where: { email: normalizedEmail, orgId } });
-    
-    if (!newOrgAdmin) throw new Error("Failed to retrieve created admin");
-
-    // Lock AI features by default for new org admins
-    const allFeaturesExceptAI = ALL_FEATURES.filter(
-      f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection"
-    );
-    await writeFlags(
-      { 
-        [newOrgAdmin.id]: allFeaturesExceptAI,
-        "__allowed__": allFeaturesExceptAI
-      },
-      orgId
-    );
-
-    const token = jwt.sign(
-      { userId: newOrgAdmin.id, email: newOrgAdmin.email, role: "org_admin", tenantId: orgId },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
-
     res.status(201).json({
-      message: "Organization registered successfully",
-      token,
+      message: "Organization registered successfully. Your account is pending approval.",
       user: {
-        userId: newOrgAdmin.id,
-        name: newOrgAdmin.name,
-        email: newOrgAdmin.email,
-        role: "org_admin",
-        tenantId: orgId
+        email: normalizedEmail,
+        role: "admin",
+        tenantId: orgId,
+        status: "pending"
       }
     });
 

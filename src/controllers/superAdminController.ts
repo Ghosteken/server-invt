@@ -386,3 +386,77 @@ export const setOrgAdminFeatures = async (req: Request, res: Response): Promise<
     res.status(500).json(createErrorResponse(err, "Failed to write features"));
   }
 };
+
+export const listPendingUsers = async (req: Request, res: Response): Promise<void> => {
+  const auth = requireSuperAdmin(req, res);
+  if (!auth.ok) return;
+  try {
+    const users = await prisma.users.findMany({
+      where: { status: "pending" },
+      orderBy: { userId: "desc" },
+    });
+    res.json({ users });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "Failed to list pending users"));
+  }
+};
+
+export const updateUserStatus = async (req: Request, res: Response): Promise<void> => {
+  const auth = requireSuperAdmin(req, res);
+  if (!auth.ok) return;
+  try {
+    const { userId } = req.params;
+    const { status } = req.body as { status: string };
+    
+    if (!["approved", "declined", "pending"].includes(status)) {
+      res.status(400).json({ message: "Invalid status" });
+      return;
+    }
+
+    const user = await prisma.users.update({
+      where: { userId },
+      data: { status },
+    });
+
+    // If the user is an org admin (linked via email), update the OrgAdmin status too
+    try {
+      const orgAdmin = await prisma.orgAdmins.findFirst({
+        where: { email: user.email, orgId: user.tenantId || "default" }
+      });
+      if (orgAdmin) {
+        await prisma.orgAdmins.update({
+          where: { id: orgAdmin.id },
+          data: { status }
+        });
+
+        // Initialize features if approved
+        if (status === "approved") {
+          const ALL_FEATURES = [
+            "reports", "storeSales", "inventory", "productTracker", "accounts", 
+            "statements", "products", "customers", "locations", "invoices", 
+            "expenses", "salesAgents", "purchases", "customerGroups", "logistics",
+            "expenseApproval", "purchasingAdvisor", "expenseAnomalyDetection"
+          ];
+          // Filter out AI features by default for new orgs if you want, 
+          // but usually approval is the time to grant them.
+          const initialFeatures = ALL_FEATURES.filter(
+            f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection"
+          );
+          await writeFlags(
+            { 
+              [orgAdmin.id]: initialFeatures,
+              "__allowed__": initialFeatures
+            },
+            user.tenantId || "default"
+          );
+        }
+      }
+    } catch (e) {
+      console.error("Error updating related org admin status/features:", e);
+    }
+
+    res.json({ user });
+  } catch (err) {
+    res.status(500).json(createErrorResponse(err, "Failed to update user status"));
+  }
+};

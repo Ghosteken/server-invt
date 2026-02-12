@@ -8,9 +8,9 @@ process.env.RATE_LIMIT_MAX = '9999';
 // In-memory users fixture
 const hashed = require('bcryptjs').hashSync('pass123', 10);
 const usersFixture = [
-  { userId: 'u1', name: 'Alice', email: 'user@example.com', password: hashed, role: 'user', isBlocked: false },
-  { userId: 'u2', name: 'Bob Admin', email: 'admin@inventory.com', password: hashed, role: 'admin', isBlocked: false },
-  { userId: 'u3', name: 'Charlie Blocked', email: 'blocked@example.com', password: hashed, role: 'user', isBlocked: true },
+  { userId: 'u1', name: 'Alice', email: 'user@example.com', password: hashed, role: 'user', isBlocked: false, status: 'approved' },
+  { userId: 'u2', name: 'Bob Admin', email: 'admin@inventory.com', password: hashed, role: 'admin', isBlocked: false, status: 'approved' },
+  { userId: 'u3', name: 'Charlie Blocked', email: 'blocked@example.com', password: hashed, role: 'user', isBlocked: true, status: 'approved' },
 ];
 
 // Mock PrismaClient to avoid real DB access
