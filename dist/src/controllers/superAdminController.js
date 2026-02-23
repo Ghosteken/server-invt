@@ -3,7 +3,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.setOrgAdminFeatures = exports.getOrgAdminFeatures = exports.unblockOrgAdmin = exports.blockOrgAdmin = exports.unblockOrg = exports.blockOrg = exports.deleteOrg = exports.getOrg = exports.createOrgAdmin = exports.listOrgAdmins = exports.createOrg = exports.listOrgs = exports.superAdminLogin = void 0;
+exports.updateUserStatus = exports.listPendingUsers = exports.setOrgAdminFeatures = exports.getOrgAdminFeatures = exports.unblockOrgAdmin = exports.blockOrgAdmin = exports.unblockOrg = exports.blockOrg = exports.deleteOrg = exports.getOrg = exports.createOrgAdmin = exports.listOrgAdmins = exports.createOrg = exports.listOrgs = exports.superAdminLogin = void 0;
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
 const jsonwebtoken_1 = __importDefault(require("jsonwebtoken"));
 const crypto_1 = require("crypto");
@@ -351,6 +351,7 @@ const getOrgAdminFeatures = async (req, res) => {
             "storeSales",
             "inventory",
             "productTracker",
+            "accounts",
             "statements",
             "products",
             "customers",
@@ -411,3 +412,72 @@ const setOrgAdminFeatures = async (req, res) => {
     }
 };
 exports.setOrgAdminFeatures = setOrgAdminFeatures;
+const listPendingUsers = async (req, res) => {
+    const auth = requireSuperAdmin(req, res);
+    if (!auth.ok)
+        return;
+    try {
+        const users = await prisma_1.default.users.findMany({
+            where: { status: "pending" },
+            orderBy: { userId: "desc" },
+        });
+        res.json({ users });
+    }
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "Failed to list pending users"));
+    }
+};
+exports.listPendingUsers = listPendingUsers;
+const updateUserStatus = async (req, res) => {
+    const auth = requireSuperAdmin(req, res);
+    if (!auth.ok)
+        return;
+    try {
+        const { userId } = req.params;
+        const { status } = req.body;
+        if (!["approved", "declined", "pending"].includes(status)) {
+            res.status(400).json({ message: "Invalid status" });
+            return;
+        }
+        const user = await prisma_1.default.users.update({
+            where: { userId },
+            data: { status },
+        });
+        // If the user is an org admin (linked via email), update the OrgAdmin status too
+        try {
+            const orgAdmin = await prisma_1.default.orgAdmins.findFirst({
+                where: { email: user.email, orgId: user.tenantId || "default" }
+            });
+            if (orgAdmin) {
+                await prisma_1.default.orgAdmins.update({
+                    where: { id: orgAdmin.id },
+                    data: { status }
+                });
+                // Initialize features if approved
+                if (status === "approved") {
+                    const ALL_FEATURES = [
+                        "reports", "storeSales", "inventory", "productTracker", "accounts",
+                        "statements", "products", "customers", "locations", "invoices",
+                        "expenses", "salesAgents", "purchases", "customerGroups", "logistics",
+                        "expenseApproval", "purchasingAdvisor", "expenseAnomalyDetection"
+                    ];
+                    // Filter out AI features by default for new orgs if you want, 
+                    // but usually approval is the time to grant them.
+                    const initialFeatures = ALL_FEATURES.filter(f => f !== "purchasingAdvisor" && f !== "expenseAnomalyDetection");
+                    await (0, featureFlagsService_1.writeFlags)({
+                        [orgAdmin.id]: initialFeatures,
+                        "__allowed__": initialFeatures
+                    }, user.tenantId || "default");
+                }
+            }
+        }
+        catch (e) {
+            console.error("Error updating related org admin status/features:", e);
+        }
+        res.json({ user });
+    }
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "Failed to update user status"));
+    }
+};
+exports.updateUserStatus = updateUserStatus;

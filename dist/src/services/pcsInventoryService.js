@@ -115,6 +115,8 @@ exports.reloadPcsInventory = reloadPcsInventory;
 const adjustPcsQuantity = async ({ name, delta, tenantId = "default" }) => {
     const prev = await prisma_1.default.pcsInventory.findUnique({ where: { tenantId_name: { tenantId, name } } });
     const nextQty = Math.max(0, (prev?.quantity || 0) + delta);
+    if (!prev && nextQty === 0)
+        return;
     await prisma_1.default.pcsInventory.upsert({
         where: { tenantId_name: { tenantId, name } },
         create: { id: cryptoRandom(), tenantId, name, quantity: nextQty },

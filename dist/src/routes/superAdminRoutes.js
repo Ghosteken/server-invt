@@ -16,4 +16,6 @@ router.patch("/orgs/:orgId/admins/:adminId/block", superAdminController_1.blockO
 router.patch("/orgs/:orgId/admins/:adminId/unblock", superAdminController_1.unblockOrgAdmin);
 router.get("/orgs/:orgId/admins/:adminId/features", superAdminController_1.getOrgAdminFeatures);
 router.put("/orgs/:orgId/admins/:adminId/features", superAdminController_1.setOrgAdminFeatures);
+router.get("/users/pending", superAdminController_1.listPendingUsers);
+router.patch("/users/:userId/status", superAdminController_1.updateUserStatus);
 exports.default = router;
