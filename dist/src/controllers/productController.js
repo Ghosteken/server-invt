@@ -249,8 +249,21 @@ const updateProduct = async (req, res) => {
                 if (oldNorm !== newNorm)
                     changed.push(k);
             }
-            if (changed.length)
+            if (changed.length) {
                 (0, productUpdateAuditService_1.recordFieldUpdates)(productId, changed, "api");
+                // Point 3: Track manual edits in product tracker
+                if (changed.includes("stockQuantity") || changed.includes("price")) {
+                    await prisma_1.default.stockResets.create({
+                        data: {
+                            productId,
+                            quantity: updated.stockQuantity,
+                            tenantId,
+                            type: "edit",
+                            timestamp: new Date()
+                        }
+                    });
+                }
+            }
         }
         catch (logErr) {
             console.warn("Failed to log field updates on updateProduct:", logErr);
@@ -397,10 +410,12 @@ const getProductMovements = async (req, res) => {
                 kind: "sale",
                 timestamp: s.timestamp,
                 quantity: Number(s.quantity || 0),
+                unit: s.unit || "ctn", // Default to ctn if not specified
                 unitPrice: Number(s.unitPrice || 0),
                 totalCost: Number(s.totalCost || 0),
                 invoiceId,
                 invoiceNumber,
+                isOverridden: !!s.isOverridden, // Include override status
             };
         });
         const purchaseItems = purchases.map((p) => ({
@@ -443,10 +458,13 @@ const getProductMovements = async (req, res) => {
 exports.getProductMovements = getProductMovements;
 const getPcsProducts = async (req, res) => {
     try {
-        const Query = zod_1.z.object({ search: zod_1.z.string().optional() });
-        const q = Query.safeParse({ search: req.query.search?.toString() });
+        const Query = zod_1.z.object({ search: zod_1.z.string().optional(), includeZero: zod_1.z.string().optional() });
+        const q = Query.safeParse({ search: req.query.search?.toString(), includeZero: req.query.includeZero?.toString() });
         const rawSearch = q.success ? q.data.search ?? "" : "";
         const search = rawSearch.trim().toLowerCase();
+        const includeZero = q.success &&
+            q.data.includeZero != null &&
+            ["1", "true", "yes", "y"].includes(String(q.data.includeZero).trim().toLowerCase());
         const tenantId = req.tenantId || req.user?.tenantId || "default";
         const pcs = await (0, pcsInventoryService_1.readPcsInventory)(tenantId);
         // Load all products to allow robust matching and enrichment
@@ -518,6 +536,9 @@ const getPcsProducts = async (req, res) => {
         let enriched = Array.from(agg.values());
         if (search) {
             enriched = enriched.filter((e) => String(e.name || "").toLowerCase().includes(search));
+        }
+        if (!includeZero) {
+            enriched = enriched.filter((e) => Number(e.pcsQuantity || 0) > 0);
         }
         res.json(enriched);
     }
@@ -1057,8 +1078,15 @@ const importProducts = async (req, res) => {
             if (purchasePriceRaw !== undefined && purchasePriceRaw !== null)
                 present.add("purchaseprice");
             // Support quantity/stock variants
-            const stockRaw = kv["stockquantity"] ?? kv["quantity"] ?? kv["qty"] ?? kv["qty/ctn"] ?? kv["qty ctn"] ?? kv["stock"];
-            if (stockRaw !== undefined && stockRaw !== null)
+            const stockKeys = ["stockquantity", "quantity", "qty", "qty/ctn", "qty ctn", "stock"];
+            let stockRaw = undefined;
+            for (const k of stockKeys) {
+                if (Object.prototype.hasOwnProperty.call(kv, k)) {
+                    stockRaw = kv[k];
+                    break;
+                }
+            }
+            if (stockRaw !== undefined)
                 present.add("stockquantity");
             // Optional expiry date variants
             const expiryRaw = kv["expiry date"] ?? kv["exp date"] ?? kv["expiry"] ?? kv["expity date"] ?? kv["expity"] ?? kv["expirydate"] ?? null;
@@ -2082,7 +2110,7 @@ const processInvoice = async (req, res) => {
             }
             // When unit is PCS, adjust PCS inventory file and do not change carton stockQuantity
             if (item.unit === 'pcs') {
-                (0, pcsInventoryService_1.adjustPcsQuantity)({ name: item.name, delta: -item.quantity });
+                await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: item.name, delta: -item.quantity, tenantId });
                 if (prod) {
                     const unitPrice = Number(item.unitPrice ?? prod.price ?? 0);
                     const totalCost = Number(item.subtotal ?? unitPrice * item.quantity);
@@ -2201,7 +2229,7 @@ const processInvoiceManual = async (req, res) => {
             if (unit === 'pcs') {
                 const nameForPcs = String(it?.name || product?.name || '').trim();
                 if (nameForPcs)
-                    (0, pcsInventoryService_1.adjustPcsQuantity)({ name: nameForPcs, delta: -qty });
+                    await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: nameForPcs, delta: -qty, tenantId });
             }
             else {
                 if (!product)

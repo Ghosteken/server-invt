@@ -45,6 +45,7 @@ const CreateInvoiceBodySchema = zod_1.z.object({
     dueDate: zod_1.z.string().optional(),
     notes: zod_1.z.string().optional(),
     invoiceNumber: zod_1.z.string().optional(),
+    overrideStock: zod_1.z.boolean().optional().default(false),
     items: zod_1.z.array(zod_1.z.object({
         productId: zod_1.z.string().optional(),
         name: zod_1.z.string().min(1),
@@ -66,6 +67,7 @@ const UpdateInvoiceBodySchema = zod_1.z.object({
     dueDate: zod_1.z.string().optional(),
     notes: zod_1.z.string().optional(),
     invoiceNumber: zod_1.z.string().optional(),
+    overrideStock: zod_1.z.boolean().optional().default(false),
     items: zod_1.z
         .array(zod_1.z.object({
         id: zod_1.z.string().optional(),
@@ -269,6 +271,60 @@ const createInvoice = async (req, res) => {
                 finalDate = now;
             }
         }
+        // Check stock availability if not overridden
+        if (!body.overrideStock) {
+            const insufficientItems = [];
+            const tempCtn = new Map();
+            const tempPcs = new Map();
+            // Aggregate requested quantities
+            for (const it of hydrated) {
+                if (it.unit === "pcs") {
+                    const key = String(it.name || "").trim().toLowerCase();
+                    if (key)
+                        tempPcs.set(key, (tempPcs.get(key) || 0) + it.quantity);
+                }
+                else {
+                    // ctn or ctnx units
+                    if (it.productId) {
+                        tempCtn.set(it.productId, (tempCtn.get(it.productId) || 0) + it.quantity);
+                    }
+                }
+            }
+            // Check carton stock
+            if (tempCtn.size > 0) {
+                const ids = Array.from(tempCtn.keys());
+                const prods = await prisma_1.default.products.findMany({ where: { tenantId, productId: { in: ids } } });
+                const prodMap = new Map(prods.map(p => [p.productId, p]));
+                for (const [pid, reqQty] of tempCtn.entries()) {
+                    const p = prodMap.get(pid);
+                    if (!p || (p.stockQuantity < reqQty)) {
+                        insufficientItems.push(`${p?.name || "Unknown Product"} (Requested: ${reqQty}, Available: ${p?.stockQuantity ?? 0})`);
+                    }
+                }
+            }
+            // Check PCS stock
+            if (tempPcs.size > 0) {
+                const names = Array.from(tempPcs.keys());
+                const pcsEntries = await prisma_1.default.pcsInventory.findMany({
+                    where: { tenantId, name: { in: names, mode: "insensitive" } }
+                });
+                const pcsMap = new Map(pcsEntries.map(p => [p.name.toLowerCase(), p]));
+                for (const [name, reqQty] of tempPcs.entries()) {
+                    const p = pcsMap.get(name);
+                    if (!p || (p.quantity < reqQty)) {
+                        insufficientItems.push(`${p?.name || name} (Requested: ${reqQty}, Available: ${p?.quantity ?? 0})`);
+                    }
+                }
+            }
+            if (insufficientItems.length > 0) {
+                res.status(409).json({
+                    message: "Insufficient stock for items",
+                    insufficientItems,
+                    requiresOverride: true
+                });
+                return;
+            }
+        }
         const created = await prisma_1.default.invoices.create({
             data: {
                 invoiceId,
@@ -288,7 +344,17 @@ const createInvoice = async (req, res) => {
                 totalWithVAT: totals.totalWithVAT,
                 notes: notes || null,
                 tenantId,
-                items: { create: hydrated.map((h) => ({ id: (0, crypto_1.randomUUID)(), productId: h.productId || null, name: h.name, unit: h.unit, quantity: h.quantity, unitPrice: h.unitPrice, subtotal: h.subtotal, tenantId })) },
+                items: { create: hydrated.map((h) => ({
+                        id: (0, crypto_1.randomUUID)(),
+                        productId: h.productId || null,
+                        name: h.name,
+                        unit: h.unit,
+                        quantity: h.quantity,
+                        unitPrice: h.unitPrice,
+                        subtotal: h.subtotal,
+                        tenantId,
+                        isOverridden: body.overrideStock
+                    })) },
             },
             include: { items: true, payments: true },
         });
@@ -339,18 +405,55 @@ const createInvoice = async (req, res) => {
             const qty = Math.max(0, Number(h.quantity) || 0);
             const unitPrice = Number(h.unitPrice || 0);
             const totalCost = unitPrice * qty;
+            // Point 1: Sync price back to inventory
+            if (h.unit === "ctn" && h.productId) {
+                // Update product carton price
+                await prisma_1.default.products.update({
+                    where: { productId: h.productId },
+                    data: { price: unitPrice }
+                });
+            }
+            else if (h.unit === "pcs" && h.name) {
+                // Update PCS sales price
+                await prisma_1.default.pcsInventory.updateMany({
+                    where: { tenantId, name: { equals: h.name, mode: "insensitive" } },
+                    data: { salesPrice: unitPrice }
+                });
+            }
             if (h.unit === "pcs") {
                 const key = String(h.name || "").trim().toLowerCase();
                 if (key)
                     pcsTotals.set(key, (pcsTotals.get(key) || 0) + qty);
                 if (h.productId) {
-                    purchaseRows.push({ id: (0, crypto_1.randomUUID)(), customerId: resolvedCustomerId, productId: h.productId, timestamp: created.date, quantity: qty, unitPrice, totalCost, tenantId });
+                    purchaseRows.push({
+                        id: (0, crypto_1.randomUUID)(),
+                        customerId: resolvedCustomerId,
+                        productId: h.productId,
+                        timestamp: created.date,
+                        quantity: qty,
+                        unit: "pcs",
+                        unitPrice,
+                        totalCost,
+                        tenantId,
+                        isOverridden: body.overrideStock
+                    });
                 }
             }
             else {
                 if (h.productId) {
                     ctnTotals.set(h.productId, { qty: (ctnTotals.get(h.productId)?.qty || 0) + qty });
-                    purchaseRows.push({ id: (0, crypto_1.randomUUID)(), customerId: resolvedCustomerId, productId: h.productId, timestamp: created.date, quantity: qty, unitPrice, totalCost, tenantId });
+                    purchaseRows.push({
+                        id: (0, crypto_1.randomUUID)(),
+                        customerId: resolvedCustomerId,
+                        productId: h.productId,
+                        timestamp: created.date,
+                        quantity: qty,
+                        unit: "ctn",
+                        unitPrice,
+                        totalCost,
+                        tenantId,
+                        isOverridden: body.overrideStock
+                    });
                 }
             }
         }
@@ -646,7 +749,16 @@ const updateInvoice = async (req, res) => {
                 totalWithVAT: totals.totalWithVAT,
                 items: body.items ? {
                     deleteMany: { invoiceId: id },
-                    create: updatedItems.map((h) => ({ id: h.id, productId: h.productId || null, name: h.name, unit: h.unit, quantity: h.quantity, unitPrice: h.unitPrice, subtotal: h.subtotal })),
+                    create: updatedItems.map((h) => ({
+                        id: h.id,
+                        productId: h.productId || null,
+                        name: h.name,
+                        unit: h.unit,
+                        quantity: h.quantity,
+                        unitPrice: h.unitPrice,
+                        subtotal: h.subtotal,
+                        isOverridden: body.overrideStock
+                    })),
                 } : undefined,
             },
             include: { items: true, payments: true },
@@ -731,8 +843,11 @@ const updateInvoice = async (req, res) => {
                                 productId,
                                 timestamp: updated.date,
                                 quantity: delta,
+                                unit: "ctn",
                                 unitPrice,
                                 totalCost: unitPrice * delta,
+                                tenantId,
+                                isOverridden: body.overrideStock || false
                             } });
                     }
                 }
@@ -740,6 +855,26 @@ const updateInvoice = async (req, res) => {
             else if (k.startsWith("pcs:")) {
                 const name = k.slice(4);
                 await (0, pcsInventoryService_1.adjustPcsQuantity)({ name, delta: -delta, tenantId });
+                // Also record purchase if quantity increased and we can find a productId
+                if (delta > 0) {
+                    const info = nextMap.get(k);
+                    const pcsRow = await prisma_1.default.pcsInventory.findFirst({ where: { tenantId, name: { equals: name, mode: "insensitive" } } });
+                    if (pcsRow?.productId) {
+                        const unitPrice = Number(info?.unitPrice || pcsRow.salesPrice || 0);
+                        await prisma_1.default.customerPurchases.create({ data: {
+                                id: (0, crypto_1.randomUUID)(),
+                                customerId: updated.customerId,
+                                productId: pcsRow.productId,
+                                timestamp: updated.date,
+                                quantity: delta,
+                                unit: "pcs",
+                                unitPrice,
+                                totalCost: unitPrice * delta,
+                                tenantId,
+                                isOverridden: body.overrideStock || false
+                            } });
+                    }
+                }
             }
         }
         const meta = await (0, invoiceMetaService_1.getInvoiceMeta)(id, req.tenantId || req.user?.tenantId || "default");

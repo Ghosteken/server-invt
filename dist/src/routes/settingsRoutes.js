@@ -12,7 +12,9 @@ const financialLayoutService_1 = require("../services/financialLayoutService");
 const banksService_1 = require("../services/banksService");
 const notificationService_1 = require("../services/notificationService");
 const authMiddleware_1 = require("../middleware/authMiddleware");
+const permissionMiddleware_1 = require("../middleware/permissionMiddleware");
 const productController_1 = require("../controllers/productController");
+const backupController_1 = require("../controllers/backupController");
 const router = (0, express_1.Router)();
 // Use shared Prisma client
 const ALL_FEATURES = [
@@ -33,6 +35,7 @@ const ALL_FEATURES = [
     "logistics",
     "purchasingAdvisor",
     "expenseAnomalyDetection",
+    "accounts",
 ];
 // Set features by email for convenience in admin UI
 router.put("/features/by-email", async (req, res) => {
@@ -229,7 +232,7 @@ router.get("/banks", authMiddleware_1.authenticateToken, async (req, res) => {
         res.status(500).json({ banks: [] });
     }
 });
-router.post("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, async (req, res) => {
+router.post("/banks", authMiddleware_1.authenticateToken, (0, permissionMiddleware_1.requireFeature)("accounts"), async (req, res) => {
     try {
         const Body = zod_1.z.object({ name: zod_1.z.string().min(1), account: zod_1.z.string().min(1), balance: zod_1.z.coerce.number().optional() });
         const { name, account, balance } = Body.parse(req.body || {});
@@ -250,7 +253,7 @@ router.post("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.requi
         res.status(500).json({ message: "Failed to create bank account" });
     }
 });
-router.put("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, async (req, res) => {
+router.put("/banks", authMiddleware_1.authenticateToken, (0, permissionMiddleware_1.requireFeature)("accounts"), async (req, res) => {
     try {
         const Body = zod_1.z.object({
             oldName: zod_1.z.string().min(1),
@@ -277,7 +280,7 @@ router.put("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.requir
         res.status(500).json({ message: "Failed to update bank account" });
     }
 });
-router.delete("/banks", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, async (req, res) => {
+router.delete("/banks", authMiddleware_1.authenticateToken, (0, permissionMiddleware_1.requireFeature)("accounts"), async (req, res) => {
     try {
         const Body = zod_1.z.object({ name: zod_1.z.string().min(1), account: zod_1.z.string().min(1) });
         const { name, account } = Body.parse(req.body || {});
@@ -319,7 +322,7 @@ router.get("/expense-banks", authMiddleware_1.authenticateToken, async (req, res
         res.status(500).json({ expenseBanks: [] });
     }
 });
-router.post("/expense-banks", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, async (req, res) => {
+router.post("/expense-banks", authMiddleware_1.authenticateToken, (0, permissionMiddleware_1.requireFeature)("accounts"), async (req, res) => {
     try {
         const Body = zod_1.z.object({ name: zod_1.z.string().min(1), account: zod_1.z.string().min(1), balance: zod_1.z.coerce.number().optional() });
         const { name, account, balance } = Body.parse(req.body || {});
@@ -347,7 +350,7 @@ router.post("/expense-banks", authMiddleware_1.authenticateToken, authMiddleware
         res.status(500).json({ message: "Failed to create expense bank account" });
     }
 });
-router.put("/expense-banks", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, async (req, res) => {
+router.put("/expense-banks", authMiddleware_1.authenticateToken, (0, permissionMiddleware_1.requireFeature)("accounts"), async (req, res) => {
     try {
         const Body = zod_1.z.object({ id: zod_1.z.string().min(1), name: zod_1.z.string().min(1), account: zod_1.z.string().min(1), balance: zod_1.z.coerce.number() });
         const { id, name, account, balance } = Body.parse(req.body || {});
@@ -375,7 +378,7 @@ router.put("/expense-banks", authMiddleware_1.authenticateToken, authMiddleware_
         res.status(500).json({ message: "Failed to update expense bank account" });
     }
 });
-router.delete("/expense-banks", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, async (req, res) => {
+router.delete("/expense-banks", authMiddleware_1.authenticateToken, (0, permissionMiddleware_1.requireFeature)("accounts"), async (req, res) => {
     try {
         const Body = zod_1.z.object({ id: zod_1.z.string().min(1) });
         const { id } = Body.parse(req.body || {});
@@ -408,4 +411,8 @@ router.post("/reset-opening-stock", authMiddleware_1.authenticateToken, authMidd
 router.post("/reset-all-opening-stock", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, productController_1.resetAllOpeningStock);
 // Generate closing snapshots (month-end)
 router.post("/generate-closing-snapshot", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, productController_1.generateClosingSnapshot);
+// Download full backup
+router.get("/backup", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, backupController_1.downloadBackup);
+// Restore full backup
+router.post("/restore", authMiddleware_1.authenticateToken, authMiddleware_1.requireAdmin, backupController_1.restoreBackup);
 exports.default = router;

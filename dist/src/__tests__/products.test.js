@@ -63,3 +63,41 @@ describe("GET /products search", () => {
         expect(prismaMock.products.findMany).toHaveBeenCalledTimes(1);
     });
 });
+describe("GET /products/pcs", () => {
+    let app;
+    let token;
+    beforeEach(() => {
+        app = (0, app_1.default)();
+        token = generateToken("test-user", "default");
+        jest.clearAllMocks();
+    });
+    it("filters out zero-quantity PCS rows by default", async () => {
+        prismaMock.pcsInventory.findMany.mockResolvedValueOnce([
+            { id: "z1", tenantId: "default", name: "Unrelated Zero", quantity: 0, productId: null, packSize: null, salesPrice: null, purchasePrice: null },
+            { id: "p1", tenantId: "default", name: "Some Item", quantity: 5, productId: null, packSize: null, salesPrice: 100, purchasePrice: null },
+        ]);
+        prismaMock.products.findMany.mockResolvedValueOnce([
+            { productId: "prod-1", tenantId: "default", name: "Some Item", packSize: null, category: null, expiryDate: null, price: 200, purchasePrice: 150 },
+        ]);
+        const res = await (0, supertest_1.default)(app).get("/products/pcs").set("Authorization", `Bearer ${token}`).expect(200);
+        expect(res.body).toHaveLength(1);
+        expect(res.body[0]).toMatchObject({ name: "Some Item", pcsQuantity: 5 });
+    });
+    it("can include zero-quantity rows when includeZero=1 is set", async () => {
+        prismaMock.pcsInventory.findMany.mockResolvedValueOnce([
+            { id: "z1", tenantId: "default", name: "Unrelated Zero", quantity: 0, productId: null, packSize: null, salesPrice: null, purchasePrice: null },
+            { id: "p1", tenantId: "default", name: "Some Item", quantity: 5, productId: null, packSize: null, salesPrice: 100, purchasePrice: null },
+        ]);
+        prismaMock.products.findMany.mockResolvedValueOnce([
+            { productId: "prod-1", tenantId: "default", name: "Some Item", packSize: null, category: null, expiryDate: null, price: 200, purchasePrice: 150 },
+        ]);
+        const res = await (0, supertest_1.default)(app)
+            .get("/products/pcs")
+            .query({ includeZero: "1" })
+            .set("Authorization", `Bearer ${token}`)
+            .expect(200);
+        expect(res.body).toHaveLength(2);
+        const names = res.body.map((r) => r.name).sort();
+        expect(names).toEqual(["Some Item", "Unrelated Zero"]);
+    });
+});
