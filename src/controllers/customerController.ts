@@ -525,8 +525,10 @@ export const exportCustomersExcel = async (req: Request, res: Response): Promise
     const tenantId = req.tenantId || req.user?.tenantId || "default";
     const customers = await prisma.customers.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
     const purchases = await prisma.customerPurchases.findMany({ where: { tenantId }, orderBy: { timestamp: "desc" } });
-    const productIds = Array.from(new Set(purchases.map((p: any) => p.productId)));
-    const products = await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
+    const productIds = Array.from(new Set(purchases.map((p: any) => p.productId).filter((id: string | null | undefined) => !!id)));
+    const products = productIds.length
+      ? await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } })
+      : [];
     const nameById = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
 
     const customersSheetRows = customers.map((c: any) => ({
@@ -538,16 +540,19 @@ export const exportCustomersExcel = async (req: Request, res: Response): Promise
       Country: c.country ?? "",
     }));
 
-    const purchasesSheetRows = purchases.map((p: any) => ({
-      CustomerId: p.customerId,
-      CustomerName: customers.find((c: any) => c.customerId === p.customerId)?.name ?? "",
-      ProductId: p.productId,
-      ProductName: nameById.get(p.productId) ?? "",
-      Quantity: p.quantity,
-      UnitPrice: p.unitPrice,
-      TotalCost: p.totalCost,
-      Timestamp: p.timestamp.toISOString(),
-    }));
+    const purchasesSheetRows = purchases.map((p: any) => {
+      const ts = p.timestamp instanceof Date ? p.timestamp.toISOString() : String(p.timestamp);
+      return {
+        CustomerId: p.customerId,
+        CustomerName: customers.find((c: any) => c.customerId === p.customerId)?.name ?? "",
+        ProductId: p.productId,
+        ProductName: nameById.get(p.productId) ?? "",
+        Quantity: p.quantity,
+        UnitPrice: p.unitPrice,
+        TotalCost: p.totalCost,
+        Timestamp: ts,
+      };
+    });
 
     const wb = XLSX.utils.book_new();
     const wsCustomers = XLSX.utils.json_to_sheet(customersSheetRows, {
