@@ -11,6 +11,15 @@ export const downloadBackup = async (req: Request, res: Response) => {
       return;
     }
 
+    const safeFindMany = async <T>(fn: () => Promise<T[]>, label: string): Promise<T[]> => {
+      try {
+        return await fn();
+      } catch (err) {
+        console.error(`Backup warning: failed to read ${label}:`, err);
+        return [];
+      }
+    };
+
     const [
       users,
       products,
@@ -39,32 +48,32 @@ export const downloadBackup = async (req: Request, res: Response) => {
       supplierPayments,
       suppliers,
     ] = await Promise.all([
-      prisma.users.findMany({ where: { tenantId } }),
-      prisma.products.findMany({ where: { tenantId } }),
-      prisma.sales.findMany({ where: { tenantId } }),
-      prisma.purchases.findMany({ where: { tenantId } }),
-      prisma.expenses.findMany({ where: { tenantId } }),
-      prisma.customers.findMany({ where: { tenantId } }),
-      prisma.customerPurchases.findMany({ where: { tenantId } }),
-      prisma.invoices.findMany({ where: { tenantId } }),
-      prisma.invoiceItems.findMany({ where: { tenantId } }),
-      prisma.payments.findMany({ where: { tenantId } }),
-      prisma.customerGroups.findMany({ where: { tenantId } }),
-      prisma.salesAgents.findMany({ where: { tenantId } }),
-      prisma.locations.findMany({ where: { tenantId } }),
-      prisma.stores.findMany({ where: { tenantId } }),
-      prisma.branches.findMany({ where: { tenantId } }),
-      prisma.featureFlags.findMany({ where: { tenantId } }),
-      prisma.userPermissions.findMany({ where: { tenantId } }),
-      prisma.invoiceMeta.findMany({ where: { tenantId } }),
-      prisma.pcsInventory.findMany({ where: { tenantId } }),
-      prisma.supportMessages.findMany({ where: { tenantId } }),
-      prisma.expenseCategories.findMany({ where: { tenantId } }),
-      prisma.banks.findMany({ where: { tenantId } }),
-      prisma.expenseBanks.findMany({ where: { tenantId } }),
-      prisma.supplierPurchaseMeta.findMany({ where: { tenantId } }),
-      prisma.supplierPayments.findMany({ where: { tenantId } }),
-      prisma.suppliers.findMany({ where: { tenantId } }),
+      safeFindMany(() => prisma.users.findMany({ where: { tenantId } }), "users"),
+      safeFindMany(() => prisma.products.findMany({ where: { tenantId } }), "products"),
+      safeFindMany(() => prisma.sales.findMany({ where: { tenantId } }), "sales"),
+      safeFindMany(() => prisma.purchases.findMany({ where: { tenantId } }), "purchases"),
+      safeFindMany(() => prisma.expenses.findMany({ where: { tenantId } }), "expenses"),
+      safeFindMany(() => prisma.customers.findMany({ where: { tenantId } }), "customers"),
+      safeFindMany(() => prisma.customerPurchases.findMany({ where: { tenantId } }), "customerPurchases"),
+      safeFindMany(() => prisma.invoices.findMany({ where: { tenantId } }), "invoices"),
+      safeFindMany(() => prisma.invoiceItems.findMany({ where: { tenantId } }), "invoiceItems"),
+      safeFindMany(() => prisma.payments.findMany({ where: { tenantId } }), "payments"),
+      safeFindMany(() => prisma.customerGroups.findMany({ where: { tenantId } }), "customerGroups"),
+      safeFindMany(() => prisma.salesAgents.findMany({ where: { tenantId } }), "salesAgents"),
+      safeFindMany(() => prisma.locations.findMany({ where: { tenantId } }), "locations"),
+      safeFindMany(() => prisma.stores.findMany({ where: { tenantId } }), "stores"),
+      safeFindMany(() => prisma.branches.findMany({ where: { tenantId } }), "branches"),
+      safeFindMany(() => prisma.featureFlags.findMany({ where: { tenantId } }), "featureFlags"),
+      safeFindMany(() => prisma.userPermissions.findMany({ where: { tenantId } }), "userPermissions"),
+      safeFindMany(() => prisma.invoiceMeta.findMany({ where: { tenantId } }), "invoiceMeta"),
+      safeFindMany(() => prisma.pcsInventory.findMany({ where: { tenantId } }), "pcsInventory"),
+      safeFindMany(() => prisma.supportMessages.findMany({ where: { tenantId } }), "supportMessages"),
+      safeFindMany(() => prisma.expenseCategories.findMany({ where: { tenantId } }), "expenseCategories"),
+      safeFindMany(() => prisma.banks.findMany({ where: { tenantId } }), "banks"),
+      safeFindMany(() => prisma.expenseBanks.findMany({ where: { tenantId } }), "expenseBanks"),
+      safeFindMany(() => prisma.supplierPurchaseMeta.findMany({ where: { tenantId } }), "supplierPurchaseMeta"),
+      safeFindMany(() => prisma.supplierPayments.findMany({ where: { tenantId } }), "supplierPayments"),
+      safeFindMany(() => prisma.suppliers.findMany({ where: { tenantId } }), "suppliers"),
     ]);
 
     const backupData = {
