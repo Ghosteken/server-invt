@@ -13,6 +13,7 @@ const prismaMock = {
         findFirst: jest.fn(),
         update: jest.fn(),
         delete: jest.fn(),
+        count: jest.fn(),
     },
     expenseBanks: {
         findFirst: jest.fn(),
@@ -48,6 +49,7 @@ jest.mock("../middleware/authMiddleware", () => ({
 // Mock permission middleware
 jest.mock("../middleware/permissionMiddleware", () => ({
     requirePermission: (module, action) => (req, res, next) => next(),
+    requireFeature: (module) => (req, res, next) => next(),
 }));
 const app_1 = __importDefault(require("../app"));
 describe("Expense Status Logic", () => {
@@ -90,6 +92,7 @@ describe("Expense Status Logic", () => {
             { expenseId: "3", category: "C", amount: 300, timestamp: new Date(), tenantId: "default", status: "pending" },
         ];
         prismaMock.expenses.findMany.mockResolvedValueOnce(expenses);
+        prismaMock.expenses.count.mockResolvedValueOnce(expenses.length);
         // Call /expenses/list NOT /expenses
         const res = await (0, supertest_1.default)(app).get("/expenses/list").expect(200);
         expect(res.body.expenses).toHaveLength(3);

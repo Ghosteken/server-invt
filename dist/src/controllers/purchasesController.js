@@ -260,7 +260,7 @@ const deletePurchase = async (req, res) => {
                     await prisma_1.default.products.update({ where: { productId: existing.productId }, data: { stockQuantity: newQty } });
                 }
                 else {
-                    await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: p.name, delta: -qty });
+                    await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: p.name, delta: -qty, tenantId });
                 }
             }
         }
@@ -382,7 +382,7 @@ const createPurchase = async (req, res) => {
             // Adjust stock: purchases add to stock; handle cartons and pcs
             if (unit === "pcs") {
                 // pcs: adjust pcs inventory positively
-                await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: p.name, delta: quantity });
+                await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: p.name, delta: quantity, tenantId });
                 // Optionally update expiryDate on product for reference
                 if (it.expiryDate) {
                     await prisma_1.default.products.update({ where: { productId }, data: { expiryDate: new Date(it.expiryDate) } });
@@ -615,7 +615,7 @@ const updatePurchase = async (req, res) => {
                 await prisma_1.default.products.update({ where: { productId: oldProduct.productId }, data: { stockQuantity: revertQty } });
             }
             else {
-                await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: oldProduct.name, delta: -oldQty });
+                await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: oldProduct.name, delta: -oldQty, tenantId });
             }
         }
         catch (invErr) {
@@ -628,7 +628,7 @@ const updatePurchase = async (req, res) => {
                 await prisma_1.default.products.update({ where: { productId: newProduct.productId }, data: { stockQuantity: applyQty, expiryDate: nextExpiryDate ? new Date(nextExpiryDate) : newProduct.expiryDate } });
             }
             else {
-                await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: newProduct.name, delta: newQty });
+                await (0, pcsInventoryService_1.adjustPcsQuantity)({ name: newProduct.name, delta: newQty, tenantId });
                 if (nextExpiryDate) {
                     await prisma_1.default.products.update({ where: { productId: newProduct.productId }, data: { expiryDate: new Date(nextExpiryDate) } });
                 }

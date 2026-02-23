@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.importExpenseCategories = exports.createExpenseCategory = exports.getExpenseCategories = exports.revokeExpense = exports.rejectExpense = exports.approveExpense = exports.exportExpensesExcel = exports.deleteExpenseController = exports.updateExpenseController = exports.createExpense = exports.listExpenses = exports.getExpensesByCategory = void 0;
+exports.importExpenseCategories = exports.createExpenseCategory = exports.getExpenseCategories = exports.revokeExpense = exports.rejectExpense = exports.approveExpense = exports.importExpenses = exports.exportExpensesExcel = exports.deleteExpenseController = exports.updateExpenseController = exports.createExpense = exports.listExpenses = exports.getExpensesByCategory = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
 const XLSX = __importStar(require("xlsx"));
 const crypto_1 = require("crypto");
@@ -73,12 +73,19 @@ const listExpenses = async (req, res) => {
         const category = String(req.query.category || "").trim();
         const from = req.query.from ? new Date(String(req.query.from)) : undefined;
         const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+        const status = String(req.query.status || "").trim();
+        // Pagination
+        const page = parseInt(String(req.query.page || "1"), 10);
+        const limit = parseInt(String(req.query.limit || "25"), 10);
+        const skip = (page - 1) * limit;
         if (to) {
             to.setHours(23, 59, 59, 999);
         }
         const where = { tenantId };
         if (category)
             where.category = { contains: category, mode: "insensitive" };
+        if (status)
+            where.status = status;
         if (from || to) {
             where.timestamp = {};
             if (from)
@@ -87,7 +94,16 @@ const listExpenses = async (req, res) => {
                 where.timestamp.lte = to;
         }
         const db = prisma_1.default;
-        const rows = await db.expenses.findMany({ where, include: { expenseBank: true }, orderBy: { timestamp: "desc" } });
+        const [rows, total] = await Promise.all([
+            db.expenses.findMany({
+                where,
+                include: { expenseBank: true },
+                orderBy: { timestamp: "desc" },
+                skip,
+                take: limit
+            }),
+            db.expenses.count({ where })
+        ]);
         const expenses = rows.map((r) => ({
             id: r.expenseId,
             category: r.category,
@@ -99,7 +115,7 @@ const listExpenses = async (req, res) => {
             expenseBankName: r.expenseBank?.name ?? undefined,
             expenseBankAccount: r.expenseBank?.account ?? undefined,
         }));
-        res.json({ expenses });
+        res.json({ expenses, total });
     }
     catch (err) {
         res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "expense", "Error retrieving expenses"));
@@ -297,8 +313,25 @@ exports.deleteExpenseController = deleteExpenseController;
 const exportExpensesExcel = async (req, res) => {
     try {
         const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const from = req.query.from ? new Date(String(req.query.from)) : undefined;
+        const to = req.query.to ? new Date(String(req.query.to)) : undefined;
+        const category = String(req.query.category || "").trim();
+        const where = { tenantId };
+        if (category)
+            where.category = category;
+        if (from || to) {
+            where.timestamp = {};
+            if (from)
+                where.timestamp.gte = from;
+            if (to)
+                where.timestamp.lte = to;
+        }
         const db = prisma_1.default;
-        const rows = await db.expenses.findMany({ where: { tenantId }, include: { expenseBank: true }, orderBy: { timestamp: "desc" } });
+        const rows = await db.expenses.findMany({
+            where,
+            include: { expenseBank: true },
+            orderBy: { timestamp: "desc" }
+        });
         const mapped = (rows || []).map((r) => ({
             Date: r.timestamp instanceof Date ? r.timestamp.toISOString().slice(0, 10) : "",
             Category: r.category ?? "",
@@ -321,6 +354,126 @@ const exportExpensesExcel = async (req, res) => {
     }
 };
 exports.exportExpensesExcel = exportExpensesExcel;
+/**
+ * Import expenses from an Excel file.
+ * Required columns: Category, Name, Date
+ * Optional/Fallback: Amount (0), Status (pending)
+ */
+const importExpenses = async (req, res) => {
+    try {
+        const tenantId = req.tenantId || req.user?.tenantId || "default";
+        const file = req.file;
+        if (!file) {
+            res.status(400).json({ message: "No file uploaded. Use field name 'file'." });
+            return;
+        }
+        const workbook = XLSX.read(file.buffer, { type: "buffer" });
+        const firstSheetName = workbook.SheetNames[0];
+        const worksheet = workbook.Sheets[firstSheetName];
+        const rows = XLSX.utils.sheet_to_json(worksheet, { defval: null });
+        const norm = (k) => k.toString().replace(/[\u00A0\s]+/g, " ").trim().toLowerCase();
+        const expensesToCreate = [];
+        let skipped = 0;
+        for (const row of rows) {
+            const kv = {};
+            for (const k of Object.keys(row))
+                kv[norm(k)] = row[k];
+            const category = kv["category"];
+            let name = kv["name"];
+            if (!name || String(name).trim() === "") {
+                name = "unnamed";
+            }
+            let dateValue = kv["date"];
+            const amount = Number(kv["amount"] || 0);
+            const status = kv["status"] || "pending";
+            if (!category || !dateValue) {
+                skipped++;
+                continue;
+            }
+            let timestamp;
+            if (typeof dateValue === "number") {
+                // Excel numeric date
+                timestamp = new Date(Math.round((dateValue - 25569) * 86400 * 1000));
+            }
+            else {
+                const dateStr = String(dateValue).trim();
+                // Try parsing DD/MM/YYYY HH:mm AM/PM or similar
+                const dmyMatch = dateStr.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?:\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*(AM|PM)?)?/i);
+                if (dmyMatch) {
+                    const [_, day, month, year, hoursRaw, minutes, ampm] = dmyMatch;
+                    let hours = parseInt(hoursRaw || "0");
+                    if (ampm) {
+                        if (ampm.toUpperCase() === "PM" && hours < 12)
+                            hours += 12;
+                        if (ampm.toUpperCase() === "AM" && hours === 12)
+                            hours = 0;
+                    }
+                    timestamp = new Date(parseInt(year), parseInt(month) - 1, parseInt(day), hours, parseInt(minutes || "0"));
+                }
+                else {
+                    timestamp = new Date(dateStr);
+                }
+            }
+            if (isNaN(timestamp.getTime())) {
+                skipped++;
+                continue;
+            }
+            expensesToCreate.push({
+                expenseId: (0, crypto_1.randomUUID)(),
+                tenantId,
+                category: String(category).trim(),
+                name: String(name).trim(),
+                amount,
+                timestamp,
+                status: String(status).trim().toLowerCase(),
+            });
+        }
+        if (expensesToCreate.length > 0) {
+            await prisma_1.default.expenses.createMany({
+                data: expensesToCreate,
+            });
+            // Automatically create missing categories
+            const uniqueCategories = Array.from(new Set(expensesToCreate.map(e => e.category.toLowerCase())));
+            const existingCategoriesRaw = await prisma_1.default.expenseByCategory.findMany({
+                where: { tenantId, category: { in: uniqueCategories } },
+                select: { category: true }
+            });
+            const existingCategories = new Set(existingCategoriesRaw.map(r => r.category.toLowerCase()));
+            const missingCategories = uniqueCategories.filter(c => !existingCategories.has(c));
+            for (const cat of missingCategories) {
+                try {
+                    const summaryId = (0, crypto_1.randomUUID)();
+                    const now = new Date();
+                    await prisma_1.default.expenseSummary.create({
+                        data: { expenseSummaryId: summaryId, totalExpenses: 0, date: now, tenantId }
+                    });
+                    await prisma_1.default.expenseByCategory.create({
+                        data: {
+                            expenseByCategoryId: (0, crypto_1.randomUUID)(),
+                            expenseSummaryId: summaryId,
+                            category: cat,
+                            amount: BigInt(0),
+                            date: now,
+                            tenantId,
+                        },
+                    });
+                }
+                catch (e) {
+                    console.error(`Failed to auto-create category ${cat}:`, e);
+                }
+            }
+        }
+        res.json({
+            success: true,
+            importedCount: expensesToCreate.length,
+            skippedCount: skipped,
+        });
+    }
+    catch (err) {
+        res.status(500).json((0, errorHandler_1.createErrorResponse)(err, "expense", "Failed to import expenses"));
+    }
+};
+exports.importExpenses = importExpenses;
 /**
  * Approve an expense (writes to audit logs for traceability).
  */

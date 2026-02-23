@@ -3,8 +3,40 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.requirePermission = void 0;
+exports.requirePermission = exports.requireFeature = void 0;
 const prisma_1 = __importDefault(require("../db/prisma"));
+const requireFeature = (moduleName) => {
+    return async (req, res, next) => {
+        try {
+            if (!req.user) {
+                return res.status(401).json({ message: "Authentication required" });
+            }
+            const { userId, tenantId } = req.user;
+            const tid = tenantId || "default";
+            const flags = await prisma_1.default.featureFlags.findUnique({
+                where: { tenantId_userId: { tenantId: tid, userId } }
+            });
+            let hasFeature = false;
+            const features = flags?.features;
+            if (Array.isArray(features)) {
+                hasFeature = features.includes(moduleName);
+            }
+            else if (typeof features === 'object' && features !== null) {
+                // @ts-ignore
+                hasFeature = !!features[moduleName];
+            }
+            if (!hasFeature) {
+                return res.status(403).json({ message: `Feature '${moduleName}' is not enabled for this user` });
+            }
+            next();
+        }
+        catch (error) {
+            console.error("Feature check error:", error);
+            res.status(500).json({ message: "Internal server error during feature check" });
+        }
+    };
+};
+exports.requireFeature = requireFeature;
 const requirePermission = (moduleName, action) => {
     return async (req, res, next) => {
         try {

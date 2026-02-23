@@ -10,6 +10,7 @@ import { appendNotification } from "../services/notificationService";
 import { authenticateToken, requireAdmin } from "../middleware/authMiddleware";
 import { requirePermission, requireFeature } from "../middleware/permissionMiddleware";
 import { resetOpeningStock, resetAllOpeningStock, generateClosingSnapshot } from "../controllers/productController";
+import { downloadBackup, restoreBackup } from "../controllers/backupController";
 
 const router = Router();
 // Use shared Prisma client
@@ -391,5 +392,11 @@ router.post("/reset-opening-stock", authenticateToken, requireAdmin, resetOpenin
 router.post("/reset-all-opening-stock", authenticateToken, requireAdmin, resetAllOpeningStock);
 // Generate closing snapshots (month-end)
 router.post("/generate-closing-snapshot", authenticateToken, requireAdmin, generateClosingSnapshot);
+
+// Download full backup
+router.get("/backup", authenticateToken, requireAdmin, downloadBackup);
+
+// Restore full backup
+router.post("/restore", authenticateToken, requireAdmin, restoreBackup);
 
 export default router;
