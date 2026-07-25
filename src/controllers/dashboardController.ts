@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../db/prisma";
+import { CI_MODE } from "../utils/caseInsensitiveMode";
 import { readPcsInventory } from "../services/pcsInventoryService";
 import { withCache } from "../services/cache";
 import { createErrorResponse } from "../utils/errorHandler";
@@ -124,7 +125,7 @@ export const getDashboardMetrics = async (
                  OR: [
                    ...(uniqueIds.length ? [{ productId: { in: uniqueIds } }] : []),
                    // Use multiple OR conditions for case-insensitive name matching
-                   ...uniqueNames.map(n => ({ name: { equals: n, mode: 'insensitive' as const } }))
+                   ...uniqueNames.map(n => ({ name: { equals: n, ...CI_MODE } }))
                  ]
                },
                select: { productId: true, name: true, price: true, packSize: true },
@@ -251,7 +252,7 @@ export const getLowStockProducts = async (req: Request, res: Response): Promise<
         where: {
           tenantId,
           stockQuantity: { gt: 0, lte: threshold },
-          ...(search ? { name: { contains: search, mode: 'insensitive' as const } } : {}),
+          ...(search ? { name: { contains: search, ...CI_MODE } } : {}),
         },
         select: { productId: true, name: true, price: true, stockQuantity: true, expiryDate: true, category: true, packSize: true },
         ...(typeof limit === 'number' ? { take: limit } : {}),

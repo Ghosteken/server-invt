@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../db/prisma";
+import { CI_MODE } from "../utils/caseInsensitiveMode";
 import { getInvoiceMeta } from "../services/invoiceMetaService";
 import { createErrorResponse } from "../utils/errorHandler";
 
@@ -64,11 +65,11 @@ export const getProducts = async (
         ...(search
           ? {
               OR: [
-                { name: { contains: search, mode: "insensitive" } },
-                { category: { contains: search, mode: "insensitive" } },
-                { description: { contains: search, mode: "insensitive" } },
-                { barcode: { contains: search, mode: "insensitive" } },
-                { packSize: { contains: search, mode: "insensitive" } },
+                { name: { contains: search, ...CI_MODE } },
+                { category: { contains: search, ...CI_MODE } },
+                { description: { contains: search, ...CI_MODE } },
+                { barcode: { contains: search, ...CI_MODE } },
+                { packSize: { contains: search, ...CI_MODE } },
               ],
             }
           : {}),
@@ -1349,7 +1350,7 @@ export const importProducts = async (
 
     const fuzzyFindExisting = async (item: { name: string; packSize: string | null }) => {
       const toks = tokenize(item.name);
-      const ors = toks.slice(0, 3).map(tok => ({ name: { contains: tok, mode: "insensitive" as const } }));
+      const ors = toks.slice(0, 3).map(tok => ({ name: { contains: tok, ...CI_MODE } }));
       if (!ors.length) return null;
       const candidates = await prisma.products.findMany({ where: { tenantId, OR: ors }, take: 25 });
       let best: any = null;
@@ -2082,11 +2083,11 @@ export const processInvoice = async (req: Request, res: Response): Promise<void>
         candidates = await prisma.products.findMany({
           where: {
             tenantId,
-            OR: keyTokens.map((t) => ({ name: { contains: t, mode: "insensitive" } })),
+            OR: keyTokens.map((t) => ({ name: { contains: t, ...CI_MODE } })),
           },
         });
       } else {
-        candidates = await prisma.products.findMany({ where: { name: { contains: item.name, mode: "insensitive" }, tenantId } });
+        candidates = await prisma.products.findMany({ where: { name: { contains: item.name, ...CI_MODE }, tenantId } });
       }
 
       const subsetMatches = candidates.filter((p) => {
@@ -2245,7 +2246,7 @@ export const processInvoiceManual = async (req: Request, res: Response): Promise
           product = { productId: pExact.productId, name: pExact.name, price: Number(pExact.price), stockQuantity: pExact.stockQuantity };
         }
         if (!product) {
-          const candidates = await prisma.products.findMany({ where: { name: { contains: name, mode: 'insensitive' }, tenantId }, take: 1 });
+          const candidates = await prisma.products.findMany({ where: { name: { contains: name, ...CI_MODE }, tenantId }, take: 1 });
           if (candidates.length) {
             const p = candidates[0];
             product = { productId: p.productId, name: p.name, price: Number(p.price), stockQuantity: p.stockQuantity };

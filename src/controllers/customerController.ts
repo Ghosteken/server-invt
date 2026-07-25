@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../db/prisma";
+import { CI_MODE } from "../utils/caseInsensitiveMode";
 import * as XLSX from "xlsx";
 import { randomUUID } from "crypto";
 import fs from "node:fs";
@@ -17,12 +18,12 @@ export const getCustomers = async (req: Request, res: Response): Promise<void> =
     const where: any = { tenantId };
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { mobile: { contains: search, mode: "insensitive" } },
-        { address: { contains: search, mode: "insensitive" } },
-        { city: { contains: search, mode: "insensitive" } },
-        { state: { contains: search, mode: "insensitive" } },
-        { country: { contains: search, mode: "insensitive" } },
+        { name: { contains: search, ...CI_MODE } },
+        { mobile: { contains: search, ...CI_MODE } },
+        { address: { contains: search, ...CI_MODE } },
+        { city: { contains: search, ...CI_MODE } },
+        { state: { contains: search, ...CI_MODE } },
+        { country: { contains: search, ...CI_MODE } },
       ];
     }
     const customers = await prisma.customers.findMany({
@@ -57,12 +58,12 @@ export const getCustomersPaged = async (req: Request, res: Response): Promise<vo
     const where: any = { tenantId };
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { mobile: { contains: search, mode: "insensitive" } },
-        { address: { contains: search, mode: "insensitive" } },
-        { city: { contains: search, mode: "insensitive" } },
-        { state: { contains: search, mode: "insensitive" } },
-        { country: { contains: search, mode: "insensitive" } },
+        { name: { contains: search, ...CI_MODE } },
+        { mobile: { contains: search, ...CI_MODE } },
+        { address: { contains: search, ...CI_MODE } },
+        { city: { contains: search, ...CI_MODE } },
+        { state: { contains: search, ...CI_MODE } },
+        { country: { contains: search, ...CI_MODE } },
       ];
     }
 
@@ -139,8 +140,8 @@ export const createCustomer = async (req: Request, res: Response): Promise<void>
     // Check duplicates by mobile or case-insensitive name
     const existing = await prisma.customers.findFirst({
       where: normMobile
-        ? { tenantId, OR: [ { mobile: normMobile }, { name: { equals: normName, mode: "insensitive" } } ] }
-        : { tenantId, name: { equals: normName, mode: "insensitive" } },
+        ? { tenantId, OR: [ { mobile: normMobile }, { name: { equals: normName, ...CI_MODE } } ] }
+        : { tenantId, name: { equals: normName, ...CI_MODE } },
     });
 
     if (existing) {
@@ -213,7 +214,7 @@ export const updateCustomer = async (req: Request, res: Response): Promise<void>
       if (!trimmed) { res.status(400).json({ message: "Name cannot be empty" }); return; }
       // prevent duplicate name on another record (case-insensitive)
       const dup = await prisma.customers.findFirst({
-        where: { tenantId, name: { equals: trimmed.toLowerCase(), mode: "insensitive" }, NOT: { customerId: id } },
+        where: { tenantId, name: { equals: trimmed.toLowerCase(), ...CI_MODE }, NOT: { customerId: id } },
       });
       if (dup) { res.status(409).json({ message: "Another customer already uses this name" }); return; }
       updates.name = trimmed;
@@ -308,7 +309,7 @@ export const importCustomers = async (req: Request, res: Response): Promise<void
       : [];
     const existingMobileSet = new Set<string>(existingByMobile.map((e: any) => String(e.mobile)));
 
-    const nameOrClauses = Array.from(namesNoMobileSet.values()).map((n) => ({ name: { equals: n, mode: "insensitive" as const } }));
+    const nameOrClauses = Array.from(namesNoMobileSet.values()).map((n) => ({ name: { equals: n, ...CI_MODE } }));
     const existingByName = nameOrClauses.length
       ? await prisma.customers.findMany({ where: { tenantId, OR: nameOrClauses }, select: { name: true } })
       : [];
@@ -487,8 +488,8 @@ export const importCustomersSample = async (req: Request, res: Response): Promis
 
       const existing = await prisma.customers.findFirst({
         where: normMobile
-          ? { tenantId, OR: [ { mobile: normMobile }, { name: { equals: normName, mode: "insensitive" } } ] }
-          : { tenantId, name: { equals: normName, mode: "insensitive" } },
+          ? { tenantId, OR: [ { mobile: normMobile }, { name: { equals: normName, ...CI_MODE } } ] }
+          : { tenantId, name: { equals: normName, ...CI_MODE } },
       });
 
       if (existing) {
@@ -525,8 +526,10 @@ export const exportCustomersExcel = async (req: Request, res: Response): Promise
     const tenantId = req.tenantId || req.user?.tenantId || "default";
     const customers = await prisma.customers.findMany({ where: { tenantId }, orderBy: { name: "asc" } });
     const purchases = await prisma.customerPurchases.findMany({ where: { tenantId }, orderBy: { timestamp: "desc" } });
-    const productIds = Array.from(new Set(purchases.map((p: any) => p.productId)));
-    const products = await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } });
+    const productIds = Array.from(new Set(purchases.map((p: any) => p.productId).filter((id: string | null | undefined) => !!id)));
+    const products = productIds.length
+      ? await prisma.products.findMany({ where: { tenantId, productId: { in: productIds } }, select: { productId: true, name: true } })
+      : [];
     const nameById = new Map<string, string>(products.map((p: any) => [p.productId, p.name] as const));
 
     const customersSheetRows = customers.map((c: any) => ({
@@ -538,16 +541,19 @@ export const exportCustomersExcel = async (req: Request, res: Response): Promise
       Country: c.country ?? "",
     }));
 
-    const purchasesSheetRows = purchases.map((p: any) => ({
-      CustomerId: p.customerId,
-      CustomerName: customers.find((c: any) => c.customerId === p.customerId)?.name ?? "",
-      ProductId: p.productId,
-      ProductName: nameById.get(p.productId) ?? "",
-      Quantity: p.quantity,
-      UnitPrice: p.unitPrice,
-      TotalCost: p.totalCost,
-      Timestamp: p.timestamp.toISOString(),
-    }));
+    const purchasesSheetRows = purchases.map((p: any) => {
+      const ts = p.timestamp instanceof Date ? p.timestamp.toISOString() : String(p.timestamp);
+      return {
+        CustomerId: p.customerId,
+        CustomerName: customers.find((c: any) => c.customerId === p.customerId)?.name ?? "",
+        ProductId: p.productId,
+        ProductName: nameById.get(p.productId) ?? "",
+        Quantity: p.quantity,
+        UnitPrice: p.unitPrice,
+        TotalCost: p.totalCost,
+        Timestamp: ts,
+      };
+    });
 
     const wb = XLSX.utils.book_new();
     const wsCustomers = XLSX.utils.json_to_sheet(customersSheetRows, {
@@ -574,7 +580,7 @@ export const getCustomerGroups = async (req: Request, res: Response): Promise<vo
     const tenantId = req.tenantId || req.user?.tenantId || "default";
     const search = String(req.query.search || "").trim().toLowerCase();
     const groups = await prisma.customerGroups.findMany({
-      where: { tenantId, ...(search ? { name: { contains: search, mode: "insensitive" } } : {}) },
+      where: { tenantId, ...(search ? { name: { contains: search, ...CI_MODE } } : {}) },
       orderBy: { createdAt: "desc" },
       include: { customers: { select: { customerId: true, name: true } } },
     });
