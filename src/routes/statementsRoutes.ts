@@ -1,5 +1,6 @@
 import { Router } from "express";
 import prisma from "../db/prisma";
+import { CI_MODE } from "../utils/caseInsensitiveMode";
 import { z } from "zod";
 import { getInvoiceMeta } from "../services/invoiceMetaService";
 
@@ -44,7 +45,7 @@ router.get("/customers/search", async (req, res) => {
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
     const where: any = { tenantId };
-    if (q) where.name = { contains: q, mode: "insensitive" };
+    if (q) where.name = { contains: q, ...CI_MODE };
     const rows = await prisma.customers.findMany({ where, orderBy: { name: "asc" }, select: { customerId: true, name: true, mobile: true } });
     res.json({ customers: rows.map((r: any) => ({ customerId: r.customerId, name: r.name, mobile: r.mobile || undefined })) });
   } catch {
@@ -81,8 +82,8 @@ router.get("/customers/:customerId", async (req, res) => {
       where.payments = {
         some: {
           OR: [
-            { bankName: { contains: bankSearch, mode: "insensitive" } },
-            { bankAccount: { contains: bankSearch, mode: "insensitive" } },
+            { bankName: { contains: bankSearch, ...CI_MODE } },
+            { bankAccount: { contains: bankSearch, ...CI_MODE } },
           ],
         },
       };
@@ -170,7 +171,7 @@ router.get("/suppliers/search", async (req, res) => {
     const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
     const tenantId = headerTenant || (req as any).tenantId || req.user?.tenantId || "default";
     const rows = await prisma.suppliers.findMany({
-      where: q ? { tenantId, name: { contains: q, mode: "insensitive" } } : { tenantId },
+      where: q ? { tenantId, name: { contains: q, ...CI_MODE } } : { tenantId },
       orderBy: { name: "asc" },
       select: { id: true, name: true, mobile: true },
     });
