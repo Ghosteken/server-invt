@@ -38,6 +38,23 @@ export const authenticateToken = (
     return res.status(401).json({ message: "No token provided" });
   }
 
+  // Demo-mode short-circuit: trust a fixed sentinel token instead of a real
+  // JWT, so a fully client-side/localStorage login (no server round trip)
+  // can still call authenticated endpoints against the demo deployment.
+  // Only active when DEMO_MODE=true; real JWT verification below is
+  // untouched for every other token.
+  if (process.env.DEMO_MODE === "true" && process.env.DEMO_TOKEN && token === process.env.DEMO_TOKEN) {
+    const headerTenant = String((req.headers["x-tenant-id"] || "")).trim();
+    // Use the app's existing "default" fallback tenant (not a new "demo" one)
+    // so routes that skip authenticateToken and derive tenantId from the
+    // best-effort resolver in index.ts (which can't jwt.decode this
+    // sentinel token) still land on the same tenant as the seeded data.
+    const tenantId = headerTenant || "default";
+    req.user = { userId: "demo-user", email: "demo@stockstudio.app", role: "admin", tenantId };
+    req.tenantId = tenantId;
+    return next();
+  }
+
   try {
     const JWT_SECRET = getJwtSecret();
     const decoded = jwt.verify(token, JWT_SECRET) as {

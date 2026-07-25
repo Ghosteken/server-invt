@@ -1,0 +1,550 @@
+// Demo-mode schema: identical models to schema.prisma, but backed by SQLite
+// instead of Postgres so the demo deployment (Render) needs no external
+// database service. Used only when DEMO_MODE=true.
+//
+// Generate/sync with:
+//   npx prisma generate --schema=prisma/schema.demo.prisma
+//   npx prisma db push --schema=prisma/schema.demo.prisma
+//
+// Keep model shapes in sync with schema.prisma by hand — do not let them drift.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+
+model Users {
+  userId    String  @id
+  name      String
+  email     String  @unique
+  phone     String?
+  password  String
+  role      String  @default("user") // "admin" or "user"
+  isBlocked Boolean @default(false)
+  status    String  @default("pending") // "pending", "approved", "declined"
+  tenantId  String  @default("default")
+}
+
+model Products {
+  productId         String              @id
+  name              String
+  price             Float
+  rating            Float?
+  stockQuantity     Int
+  openingStock      Int                 @default(0)
+  expiryDate        DateTime?
+  // New descriptive fields for richer inventory details
+  category          String?
+  description       String?
+  packSize          String?
+  // Optional product barcode/EAN/UPC
+  barcode           String?
+  // Optional purchase price (cost) from supplier/import sheet
+  purchasePrice     Float?
+  createdAt         DateTime            @default(now())
+  tenantId          String              @default("default")
+  Sales             Sales[]
+  Purchases         Purchases[]
+  CustomerPurchases CustomerPurchases[]
+  InvoiceItems      InvoiceItems[]
+  StockResets       StockResets[]
+
+  @@index([name])
+  @@index([category])
+  @@index([packSize])
+  @@index([barcode])
+  @@index([tenantId])
+}
+
+model Sales {
+  saleId      String   @id
+  productId   String
+  timestamp   DateTime
+  quantity    Int
+  unitPrice   Float
+  totalAmount Float
+  tenantId    String   @default("default")
+  product     Products @relation(fields: [productId], references: [productId])
+
+  @@index([tenantId, timestamp])
+  @@index([productId])
+}
+
+model StockResets {
+  id        String   @id @default(uuid())
+  productId String
+  timestamp DateTime @default(now())
+  quantity  Int      // The stock quantity at the time of reset (new opening stock)
+  tenantId  String   @default("default")
+  type      String   @default("opening")
+  product   Products @relation(fields: [productId], references: [productId])
+
+  @@index([productId])
+  @@index([tenantId])
+}
+
+model Purchases {
+  purchaseId String   @id
+  productId  String
+  timestamp  DateTime
+  quantity   Int
+  unitCost   Float
+  totalCost  Float
+  expiryDate DateTime?
+  tenantId   String   @default("default")
+  product    Products @relation(fields: [productId], references: [productId])
+  supplierMeta SupplierPurchaseMeta? @relation("PurchaseMeta")
+  payments     SupplierPayments[]     @relation("PurchasePayments")
+
+  @@index([tenantId, timestamp])
+  @@index([productId])
+}
+
+model Expenses {
+  expenseId String   @id
+  category  String
+  name      String   @default("")
+  amount    Float
+  timestamp DateTime
+  tenantId  String   @default("default")
+  status    String   @default("pending") // pending, approved, rejected
+
+  expenseBankId String?
+  expenseBank   ExpenseBanks? @relation(fields: [expenseBankId], references: [id])
+
+  @@index([tenantId])
+  @@index([tenantId, expenseBankId])
+}
+
+model SalesSummary {
+  salesSummaryId   String   @id
+  totalValue       Float
+  changePercentage Float?
+  date             DateTime
+  tenantId         String   @default("default")
+}
+
+model PurchaseSummary {
+  purchaseSummaryId String   @id
+  totalPurchased    Float
+  changePercentage  Float?
+  date              DateTime
+  tenantId          String   @default("default")
+}
+
+model ExpenseSummary {
+  expenseSummaryId  String              @id
+  totalExpenses     Float
+  date              DateTime
+  tenantId          String              @default("default")
+  ExpenseByCategory ExpenseByCategory[]
+}
+
+model ExpenseByCategory {
+  expenseByCategoryId String         @id
+  expenseSummaryId    String
+  category            String
+  amount              BigInt
+  date                DateTime
+  tenantId            String         @default("default")
+  expenseSummary      ExpenseSummary @relation(fields: [expenseSummaryId], references: [expenseSummaryId])
+}
+
+// New models to track invoice deductions and customers
+model Customers {
+  customerId String              @id
+  name       String
+  mobile     String?
+  address    String?
+  city       String?
+  state      String?
+  country    String?
+  createdAt  DateTime            @default(now())
+  tenantId   String              @default("default")
+  purchases  CustomerPurchases[]
+  invoices   Invoices[]
+  payments   Payments[]
+  groups     CustomerGroups[]    @relation("CustomerGroupMembership")
+  @@index([tenantId])
+  @@index([tenantId, name])
+  @@index([tenantId, mobile])
+}
+
+model CustomerPurchases {
+  id           String    @id
+  customerId   String
+  productId    String
+  timestamp    DateTime  @default(now())
+  quantity     Int
+  unit         String?   // "ctn" or "pcs"
+  unitPrice    Float
+  totalCost    Float
+  isOverridden Boolean   @default(false)
+  tenantId     String    @default("default")
+  customer     Customers @relation(fields: [customerId], references: [customerId])
+  product      Products  @relation(fields: [productId], references: [productId])
+
+  @@index([tenantId, timestamp])
+  @@index([productId])
+}
+
+// New invoice and payment models
+enum InvoiceStatus {
+  unpaid
+  partial
+  paid
+}
+
+enum PaymentTermType {
+  immediate
+  due_date
+}
+
+model Invoices {
+  invoiceId         String          @id
+  customerId        String
+  date              DateTime        @default(now())
+  location          String // open market, distribution, amagzy global, amagzy global ventures
+  salesAgent        String
+  // Optional references to normalized entities
+  locationId        String?
+  salesAgentId      String?
+  vatPercent        Float           @default(7.5)
+  discountPercent   Float           @default(0)
+  paymentTermType   PaymentTermType @default(immediate)
+  dueDate           DateTime?
+  status            InvoiceStatus   @default(unpaid)
+  totalWithoutVAT   Float           @default(0)
+  vatAmount         Float           @default(0)
+  totalWithVAT      Float           @default(0)
+  notes             String?
+  dueSoonNotifiedAt DateTime?
+  dueDateNotifiedAt DateTime?
+  tenantId          String          @default("default")
+
+  customer Customers      @relation(fields: [customerId], references: [customerId])
+  items    InvoiceItems[]
+  payments Payments[]
+
+  salesAgentRef SalesAgents? @relation(fields: [salesAgentId], references: [id])
+  locationRef   Locations?   @relation(fields: [locationId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([customerId])
+  @@index([date])
+  @@index([status])
+  @@index([salesAgentId])
+  @@index([locationId])
+  @@index([tenantId])
+  @@index([tenantId, date])
+  @@index([tenantId, customerId, date])
+}
+
+model InvoiceItems {
+  id           String  @id
+  invoiceId    String
+  productId    String?
+  name         String
+  unit         String // "ctn" or "pcs"
+  quantity     Int
+  unitPrice    Float
+  subtotal     Float
+  isOverridden Boolean @default(false)
+  tenantId     String  @default("default")
+
+  invoice Invoices  @relation(fields: [invoiceId], references: [invoiceId])
+  product Products? @relation(fields: [productId], references: [productId])
+
+  @@index([productId])
+}
+
+model Payments {
+  id          String   @id
+  invoiceId   String
+  customerId  String
+  date        DateTime @default(now())
+  amount      Float
+  bankName    String
+  bankAccount String
+  tenantId    String   @default("default")
+
+  invoice  Invoices  @relation(fields: [invoiceId], references: [invoiceId])
+  customer Customers @relation(fields: [customerId], references: [customerId])
+
+  @@index([invoiceId])
+  @@index([customerId])
+  @@index([tenantId])
+}
+
+model CustomerGroups {
+  groupId     String     @id
+  name        String
+  description String?
+  tenantId    String     @default("default")
+  createdAt   DateTime   @default(now())
+  customers   Customers[] @relation("CustomerGroupMembership")
+  @@unique([tenantId, name])
+  @@index([tenantId])
+}
+
+// Normalized entities for sales agents and invoice locations
+model SalesAgents {
+  id        String    @id
+  name      String
+  mobile    String?
+  email     String?
+  tenantId  String    @default("default")
+  createdAt DateTime  @default(now())
+  invoices  Invoices[]
+
+  @@index([name])
+  @@index([tenantId])
+}
+
+model Locations {
+  id        String    @id
+  name      String
+  tenantId  String    @default("default")
+  createdAt DateTime  @default(now())
+  invoices  Invoices[]
+
+  @@unique([tenantId, name])
+  @@index([name])
+  @@index([tenantId])
+}
+
+// Store and Branch models for multi-store management
+model Stores {
+  id        String     @id
+  name      String     @unique
+  tenantId  String     @default("default")
+  createdAt DateTime   @default(now())
+  branches  Branches[]
+
+  @@index([tenantId])
+}
+
+model Branches {
+  id        String   @id
+  storeId   String
+  name      String
+  tenantId  String   @default("default")
+  city      String?
+  state     String?
+  address   String?
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  store     Stores   @relation(fields: [storeId], references: [id])
+
+  @@index([storeId])
+  @@index([tenantId])
+  @@unique([storeId, name])
+}
+
+
+// Tenant-aware replacements for JSON/meta stores
+model FeatureFlags {
+  id        String   @id
+  tenantId  String   @default("default")
+  userId    String
+  features  Json
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, userId])
+  @@map("tenant_features")
+}
+
+model UserPermissions {
+  id        String   @id
+  tenantId  String   @default("default")
+  userId    String
+  permissions Json
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, userId])
+  @@map("user_permissions")
+}
+
+model InvoiceMeta {
+  id            String   @id
+  tenantId      String   @default("default")
+  invoiceId     String   @unique
+  invoiceNumber String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  @@map("invoice_meta")
+}
+
+model PcsInventory {
+  id        String   @id
+  tenantId  String   @default("default")
+  name      String
+  quantity  Int      @default(0)
+  openingStock Int      @default(0)
+  productId String?
+  packSize  String?
+  salesPrice Float?
+  purchasePrice Float?
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@map("pcs_inventory")
+}
+
+// Audit logs for compliance and operations
+model AuditLogs {
+  id           String   @id
+  tenantId     String   @default("default")
+  actorUserId  String?
+  action       String
+  resourceType String
+  resourceId   String?
+  payload      Json?
+  timestamp    DateTime @default(now())
+
+  @@index([tenantId, action])
+  @@index([tenantId, resourceType])
+  @@map("audit_logs")
+}
+
+
+
+// Support inbox / in-app feedback
+model SupportMessages {
+  id        String   @id
+  tenantId  String   @default("default")
+  userId    String?
+  subject   String
+  body      String
+  status    String   @default("open")
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, status])
+  @@map("support_messages")
+}
+
+// Super-admin managed organizations (multi-tenant registry)
+model Organizations {
+  id               String   @id
+  name             String   @unique
+  apiBaseUrl       String?
+  adminEmail       String
+  adminPasswordHash String
+  isBlocked        Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  admins           OrgAdmins[]
+
+  @@index([name])
+}
+
+model OrgAdmins {
+  id        String   @id
+  orgId     String
+  name      String
+  email     String
+  passwordHash String
+  isBlocked Boolean  @default(false)
+  status    String   @default("pending") // "pending", "approved", "declined"
+  createdAt DateTime @default(now())
+  org       Organizations @relation(fields: [orgId], references: [id])
+
+  @@index([orgId])
+  @@unique([orgId, email])
+}
+model ExpenseCategories {
+  id        String   @id
+  tenantId  String   @default("default")
+  name      String
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, name])
+  @@map("expense_categories")
+}
+
+// Tenant-scoped bank accounts
+model Banks {
+  id        String   @id
+  tenantId  String   @default("default")
+  name      String
+  account   String
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@unique([tenantId, name, account])
+  @@map("banks")
+}
+
+// Tenant-scoped bank accounts for expenses (separate from invoice banks)
+model ExpenseBanks {
+  id        String   @id
+  tenantId  String   @default("default")
+  name      String
+  account   String
+  balance   Float    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  expenses Expenses[]
+
+  @@index([tenantId])
+  @@unique([tenantId, name, account])
+  @@map("expense_banks")
+}
+
+model SupplierPurchaseMeta {
+  id             String   @id
+  tenantId       String   @default("default")
+  purchaseId     String   @unique
+  supplierName   String?
+  supplierMobile String?
+  invoiceNumber  String?
+  paymentTerm    String?
+  date           DateTime?
+  dueDate        DateTime?
+  unit           String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  purchase       Purchases @relation("PurchaseMeta", fields: [purchaseId], references: [purchaseId])
+
+  @@index([tenantId])
+  @@index([tenantId, supplierName])
+  @@index([tenantId, supplierName, date])
+  @@map("supplier_purchase_meta")
+}
+
+model SupplierPayments {
+  id          String   @id
+  tenantId    String   @default("default")
+  purchaseId  String
+  date        DateTime @default(now())
+  amount      Float
+  bankName    String
+  bankAccount String
+  notes       String?
+  createdAt   DateTime @default(now())
+  purchase    Purchases @relation("PurchasePayments", fields: [purchaseId], references: [purchaseId])
+
+  @@index([tenantId])
+  @@index([purchaseId])
+  @@map("supplier_payments")
+}
+
+model Suppliers {
+  id        String   @id
+  tenantId  String   @default("default")
+  name      String
+  mobile    String?
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("suppliers")
+}

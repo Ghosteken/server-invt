@@ -1,5 +1,6 @@
 import { Request, Response } from "express";
 import prisma from "../db/prisma";
+import { CI_MODE } from "../utils/caseInsensitiveMode";
 import * as XLSX from "xlsx";
 import { randomUUID } from "crypto";
 import { appendNotification } from "../services/notificationService";
@@ -56,7 +57,7 @@ export const listExpenses = async (req: Request, res: Response): Promise<void> =
     }
 
     const where: any = { tenantId };
-    if (category) where.category = { contains: category, mode: "insensitive" };
+    if (category) where.category = { contains: category, ...CI_MODE };
     if (status) where.status = status;
     if (from || to) {
       where.timestamp = {};

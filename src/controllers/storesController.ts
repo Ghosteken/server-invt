@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { randomUUID } from "crypto";
 import prisma from "../db/prisma";
+import { CI_MODE } from "../utils/caseInsensitiveMode";
 import { createErrorResponse } from "../utils/errorHandler";
 
 export const listStores = async (req: Request, res: Response): Promise<void> => {
@@ -13,7 +14,7 @@ export const listStores = async (req: Request, res: Response): Promise<void> => 
     const pageSize = Number.isNaN(pageSizeRaw) || pageSizeRaw < 1 ? 50 : Math.min(pageSizeRaw, 200);
     const where: any = { tenantId };
     if (search) {
-      where.name = { contains: search, mode: "insensitive" };
+      where.name = { contains: search, ...CI_MODE };
     }
     const total = await prisma.stores.count({ where });
     const totalPages = total === 0 ? 1 : Math.ceil(total / pageSize);

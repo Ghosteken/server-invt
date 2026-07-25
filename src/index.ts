@@ -268,6 +268,7 @@ const host = process.env.HOST || "0.0.0.0";
 
 import os from "os";
 import { ensureDefaults } from "./services/bootstrapService";
+import { seedDemoData } from "./db/demoSeed";
 
 try {
   const server = httpServer.listen(port, host, () => {
@@ -286,6 +287,9 @@ try {
     purgeDefaultAdminEmail().catch((err) => console.warn("Bootstrap purgeDefaultAdminEmail failed:", err));
     // Sync org admins to Users so admin appears in tenant-scoped views
     syncOrgAdminsToUsers().catch((err) => console.warn("Bootstrap syncOrgAdminsToUsers failed:", err));
+    if (process.env.DEMO_MODE === "true") {
+      seedDemoData().catch((err) => console.warn("Demo seed failed:", err));
+    }
     startInvoiceReminderJob();
     startClosingStockSnapshotJob();
   });

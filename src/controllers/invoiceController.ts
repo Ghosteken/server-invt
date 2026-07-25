@@ -2,6 +2,7 @@ import { Request, Response } from "express";
 import { z } from "zod";
 import { randomUUID } from "crypto";
 import prisma from "../db/prisma";
+import { CI_MODE } from "../utils/caseInsensitiveMode";
 import { appendNotification } from "../services/notificationService";
 import { getInvoiceMeta, upsertInvoiceMeta, removeInvoiceMeta } from "../services/invoiceMetaService";
 import { adjustPcsQuantity } from "../services/pcsInventoryService";
@@ -325,7 +326,7 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
       if (tempPcs.size > 0) {
         const names = Array.from(tempPcs.keys());
         const pcsEntries = await prisma.pcsInventory.findMany({ 
-          where: { tenantId, name: { in: names, mode: "insensitive" } } 
+          where: { tenantId, name: { in: names, ...CI_MODE } } 
         });
         const pcsMap = new Map(pcsEntries.map(p => [p.name.toLowerCase(), p]));
         for (const [name, reqQty] of tempPcs.entries()) {
@@ -441,7 +442,7 @@ export const createInvoice = async (req: Request, res: Response): Promise<void> 
       } else if (h.unit === "pcs" && h.name) {
         // Update PCS sales price
         await prisma.pcsInventory.updateMany({
-          where: { tenantId, name: { equals: h.name, mode: "insensitive" } },
+          where: { tenantId, name: { equals: h.name, ...CI_MODE } },
           data: { salesPrice: unitPrice }
         });
       }
@@ -558,10 +559,10 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
       where.customerId = customerIdQ;
     }
     if (locationQ) {
-      where.location = { contains: locationQ, mode: "insensitive" };
+      where.location = { contains: locationQ, ...CI_MODE };
     }
     if (customerQ) {
-      where.customer = { name: { contains: customerQ, mode: "insensitive" } };
+      where.customer = { name: { contains: customerQ, ...CI_MODE } };
     }
     if (from || to) {
       where.date = {};
@@ -573,9 +574,9 @@ export const getInvoices = async (req: Request, res: Response): Promise<void> =>
     }
     if (search) {
       const searchOr = [
-        { invoiceId: { contains: search, mode: "insensitive" } },
-        { location: { contains: search, mode: "insensitive" } },
-        { customer: { name: { contains: search, mode: "insensitive" } } },
+        { invoiceId: { contains: search, ...CI_MODE } },
+        { location: { contains: search, ...CI_MODE } },
+        { customer: { name: { contains: search, ...CI_MODE } } },
       ];
       if (where.AND) {
         where.AND.push({ OR: searchOr });
@@ -874,7 +875,7 @@ export const updateInvoice = async (req: Request, res: Response): Promise<void> 
         // Also record purchase if quantity increased and we can find a productId
         if (delta > 0) {
           const info = nextMap.get(k);
-          const pcsRow = await prisma.pcsInventory.findFirst({ where: { tenantId, name: { equals: name, mode: "insensitive" } } });
+          const pcsRow = await prisma.pcsInventory.findFirst({ where: { tenantId, name: { equals: name, ...CI_MODE } } });
           if (pcsRow?.productId) {
             const unitPrice = Number(info?.unitPrice || pcsRow.salesPrice || 0);
             await prisma.customerPurchases.create({ data: {
